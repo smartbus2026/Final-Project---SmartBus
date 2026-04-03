@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import User from "../models/User";
 import bcrypt from "bcryptjs";
-import { generateToken } from "../utils/generateToken";
+import { generateToken } from "../middleware/generateToken";
 
 export const login = async (req: Request, res: Response) => {
   try {
