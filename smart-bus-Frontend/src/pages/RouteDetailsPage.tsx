@@ -1,4 +1,4 @@
-import { ROUTES } from "../data"; // الداتا بتاعتك
+import { ROUTES } from "../data"; 
 // import { Ic } from "../icons";
 
 export default function RouteDetailsPage() {

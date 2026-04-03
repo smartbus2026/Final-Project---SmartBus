@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Theme } from "../types";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import { Outlet } from "react-router-dom";
 
 interface Props {
   theme: Theme;
@@ -9,7 +10,7 @@ interface Props {
   children: React.ReactNode;
 }
 
-export default function AppLayout({ theme, setTheme, children }: Props) {
+export default function AppLayout({ theme, setTheme }: Props) {
   const [sbOpen, setSbOpen] = useState(false);
 
 
@@ -31,7 +32,7 @@ export default function AppLayout({ theme, setTheme, children }: Props) {
           />          
           {/* Main Content Area (PC Container) */}
           <main className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-app-bd scrollbar-track-transparent">
-            {children}
+              <Outlet />
           </main>
         </div>
 

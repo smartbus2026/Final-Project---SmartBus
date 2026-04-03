@@ -1,18 +1,12 @@
-import React, { useState, useEffect } from 'react';
 import { Bus, GraduationCap, ShieldCheck, Moon, Sun, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const WelcomePage: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+interface Props {
+  theme: "dark" | "light";
+  toggleTheme: () => void;
+}
 
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
+const WelcomePage: React.FC<Props> = ({ theme, toggleTheme }) => {
   
 
   return (
@@ -38,10 +32,10 @@ const WelcomePage: React.FC = () => {
         
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => setIsDarkMode(!isDarkMode)}
+             onClick={toggleTheme}
             className="w-10 h-10 rounded-full bg-white/50 dark:bg-[#15181e]/50 backdrop-blur-md border border-gray-200 dark:border-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-600 transition-all shadow-sm"
           >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </div>
       </header>

@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-// ── Types (لو مش عاملة لها ملف منفصل) ──
 interface PasswordForm {
   current: string;
   newPass: string;

@@ -6,18 +6,17 @@
 /** الثيم: داكن أو فاتح */
 export type Theme = "dark" | "light";
 
-/** أسماء كل صفحات التطبيق */
-export type Page =
-  | "dashboard"
-  | "bookTrip"
-  | "myTrips"
-  | "routeDetails"
-  | "trackBus"
-  | "attendance"
-  | "notifications"
-  | "routeChat"
-  | "support"
-  | "settings";
+// export type Page =
+//   | "dashboard"
+//   | "bookTrip"
+//   | "myTrips"
+//   | "routeDetails"
+//   | "trackBus"
+//   | "attendance"
+//   | "notifications"
+//   | "routeChat"
+//   | "support"
+//   | "settings";
 
 /** حالة الرحلة */
 export type TripStatus = "upcoming" | "completed" | "missed";

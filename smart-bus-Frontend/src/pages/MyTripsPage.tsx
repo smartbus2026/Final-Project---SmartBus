@@ -1,12 +1,11 @@
 import { useState } from "react";
 import type { TripStatus } from "../types";
-// import { TRIPS } from "../data"; // الداتا بتاعتك
+// import { TRIPS } from "../data"; 
 import { Ic } from "../icons";
 
 export default function MyTripsPage() {
   const [tab, setTab] = useState<TripStatus>("upcoming");
 
-  // افترضت وجود TRIPS كـ array من الداتا عندك
   const TRIPS: any[] = []; 
 
   const counts = {

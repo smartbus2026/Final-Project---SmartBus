@@ -1,4 +1,4 @@
-import { NOTIFS } from "../data"; // الداتا بتاعتك
+import { NOTIFS } from "../data"; 
 import { Ic } from "../icons";
 
 export default function NotificationsPage() {

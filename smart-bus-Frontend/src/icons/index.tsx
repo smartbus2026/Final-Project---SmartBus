@@ -1,7 +1,6 @@
 // ──────────────────────────────────────────────
 //  icons/index.tsx
-//  كل الـ SVG icons بتاعت التطبيق هنا
-//  استخدمهم كـ components: <Ic.Bus />
+//  ـSVG icons
 // ──────────────────────────────────────────────
 
 const s = (w=18,h=18) => ({ viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:2, width:w, height:h } as const);
