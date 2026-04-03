@@ -3,10 +3,12 @@ import User from "../models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-const generateToken = (id: any) => {
-  return jwt.sign({ id: id.toString() }, process.env.JWT_SECRET || "secret", {
-    expiresIn: "30d",
-  });
+const generateToken = (id: any, role: string) => {
+  return jwt.sign(
+    { id: id.toString(), role: role }, 
+    process.env.JWT_SECRET || "secret", 
+    { expiresIn: "30d" }
+  );
 };
 
 export const register = async (req: Request, res: Response) => {
@@ -35,7 +37,7 @@ export const register = async (req: Request, res: Response) => {
 
     return res.status(201).json({ 
       message: "User registered",
-      token: generateToken(newUser._id) 
+      token: generateToken(newUser._id, newUser.role) 
     });
 
   } catch (err: any) {
@@ -50,7 +52,7 @@ export const login = async (req: Request, res: Response) => {
 
     if (user && (await bcrypt.compare(password, user.password))) {
       return res.json({
-        token: generateToken(user._id),
+        token: generateToken(user._id, user.role),
         user: { id: user._id, name: user.name, role: user.role }
       });
     }

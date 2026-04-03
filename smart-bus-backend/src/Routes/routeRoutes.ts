@@ -1,15 +1,14 @@
 import express from "express";
+import { createRoute, getAllRoutes, updateRoute, deleteRoute } from "../controllers/routeController";
 import { protect } from "../middleware/authMiddleware";
 import { allowRoles } from "../middleware/roleMiddleware";
 
 const router = express.Router();
 
-// public 
-router.get("/", protect);
+router.get("/", protect, getAllRoutes);
 
-// admin only
-router.post("/", protect, allowRoles("admin"));
-router.put("/:id", protect, allowRoles("admin"));
-router.delete("/:id", protect, allowRoles("admin"));
+router.post("/", protect, allowRoles("admin"), createRoute);
+router.put("/:id", protect, allowRoles("admin"), updateRoute);
+router.delete("/:id", protect, allowRoles("admin"), deleteRoute);
 
 export default router;
