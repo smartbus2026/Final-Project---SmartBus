@@ -136,9 +136,9 @@ export default function ProfilePage() {
             onClick={save}
           >
             {saved ? (
-              <><Ic.Check size={16} /> Saved!</>
+              <><Ic.Check  /> Saved!</>
             ) : (
-              <><Ic.Save size={16} /> Save Profile</>
+              <><Ic.Save  /> Save Profile</>
             )}
           </button>
         </div>

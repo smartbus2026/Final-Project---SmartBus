@@ -42,7 +42,7 @@ export default function Sidebar({ open, setOpen }: Props) {
         <div className="flex h-20 items-center px-7">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-app-tx text-app-card">
-              <Ic.Bus size={18} />
+              <Ic.Bus  />
             </div>
             <h1 className="font-syne text-lg font-bold tracking-tight text-app-tx">
               Smart<span className="text-app-am">Bus</span>
@@ -77,17 +77,17 @@ export default function Sidebar({ open, setOpen }: Props) {
 
           <div className="mt-auto space-y-1 border-t border-app-bd/40 pt-6">
             <NavLink to="/support" className={navItemClass} onClick={() => setOpen(false)}>
-              <Ic.Help size={18} className="opacity-50" />
+              <Ic.Help  />
               <span className="text-[13px]">Support</span>
             </NavLink>
             
             <NavLink to="/settings" className={navItemClass} onClick={() => setOpen(false)}>
-              <Ic.Gear size={18} className="opacity-50" />
+              <Ic.Gear  />
               <span className="text-[13px]">Settings</span>
             </NavLink>
             
             <button className="mt-4 flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-app-mu transition-colors hover:text-red-500">
-              <Ic.Logout size={18} />
+              <Ic.Logout  />
               <span className="text-[12px] font-bold uppercase tracking-wider">Sign Out</span>
             </button>
           </div>

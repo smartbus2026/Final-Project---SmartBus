@@ -40,7 +40,7 @@ export default function Topbar({ theme, setTheme, onMenu }: { theme: Theme; setT
           className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-app-bd/50 text-app-mu transition-all hover:bg-app-card2 hover:text-app-tx lg:hidden"
           onClick={(e) => { e.stopPropagation(); onMenu(); }}
         >
-          <Ic.Hamburger size={20} />
+          <Ic.Hamburger  />
         </button>
         <div className="select-none">
           <h2 className="font-syne text-lg font-extrabold tracking-tight text-app-tx md:text-xl">{title}</h2>
@@ -53,7 +53,7 @@ export default function Topbar({ theme, setTheme, onMenu }: { theme: Theme; setT
         
         {/* Modern Minimal Search */}
         <div className="hidden items-center gap-3 rounded-xl border border-app-bd/30 bg-app-card2/40 px-4 py-2.5 transition-all focus-within:border-app-am/40 focus-within:bg-app-card2 lg:flex w-64 group">
-          <Ic.Search size={16} className="text-app-mu group-focus-within:text-app-am transition-colors" />
+          <Ic.Search  />
           <input 
             placeholder="Quick search..." 
             className="bg-transparent text-[13px] font-medium outline-none placeholder:text-app-mu2 text-app-tx w-full"
@@ -65,7 +65,7 @@ export default function Topbar({ theme, setTheme, onMenu }: { theme: Theme; setT
           className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-app-bd/30 bg-app-card2/40 text-app-mu transition-all hover:border-app-am/30 hover:text-app-am"
           onClick={() => setTheme()}
         >
-          {theme === "dark" ? <Ic.Sun size={18} /> : <Ic.Moon size={18} />}
+          {theme === "dark" ? <Ic.Sun  /> : <Ic.Moon  />}
         </button>
 
         {/* Notifications */}
@@ -74,7 +74,7 @@ export default function Topbar({ theme, setTheme, onMenu }: { theme: Theme; setT
             className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-app-bd/30 transition-all hover:bg-app-card2 ${nd ? 'border-app-am/40 text-app-am bg-app-card2' : 'text-app-mu'}`}
             onClick={() => { setNd(!nd); setUd(false); }}
           >
-            <Ic.Bell size={18} />
+            <Ic.Bell  />
             <span className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-app-am shadow-[0_0_8px_var(--am-g)]" />
           </button>
 
@@ -112,7 +112,7 @@ export default function Topbar({ theme, setTheme, onMenu }: { theme: Theme; setT
             <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-app-bd/50 group-hover:border-app-am transition-colors">
               <img src={`https://ui-avatars.com/api/?name=Noha+Khalil&background=f9b233&color=fff&bold=true`} alt="Avatar" className="p-0.5 rounded-full" />
             </div>
-            <Ic.ChevDown size={14} className={`text-app-mu transition-transform duration-300 ${ud ? 'rotate-180 text-app-am' : 'group-hover:text-app-tx'}`} />
+            <Ic.ChevDown  />
           </div>
 
           {ud && (
@@ -123,14 +123,14 @@ export default function Topbar({ theme, setTheme, onMenu }: { theme: Theme; setT
               </div>
               <div className="h-[1px] bg-app-bd/30 mx-2 mb-1" />
               <button className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all">
-                <Ic.User size={16} /> Profile
+                <Ic.User  /> Profile
               </button>
               <button className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all">
-                <Ic.Gear size={16} /> Settings
+                <Ic.Gear  /> Settings
               </button>
               <div className="h-[1px] bg-app-bd/30 mx-2 my-1" />
               <button className="flex w-full items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-app-err hover:bg-app-err/10 transition-all">
-                <Ic.Logout size={16} /> Sign Out
+                <Ic.Logout  /> Sign Out
               </button>
             </div>
           )}
