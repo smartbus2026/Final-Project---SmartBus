@@ -1,13 +1,3 @@
-// ──────────────────────────────────────────────
-//  pages/ProfilePage.tsx  (Settings)
-//
-//  شغله إيه؟
-//  - بطاقة Avatar مع اسم الطالب وحالته
-//  - فورم Personal Info (الاسم، الإيميل، التليفون)
-//  - فورم Route Preferences (الخط، نقطة الركوب)
-//  - فورم Security (تغيير الباسورد)
-//  - زرار Save يحوّل لـ "Saved!" لمدة 2.5 ثانية
-// ──────────────────────────────────────────────
 import { useState } from "react";
 import { Ic } from "../icons";
 
@@ -19,94 +9,137 @@ interface Form {
 
 export default function ProfilePage() {
   const [form, setForm] = useState<Form>({
-    firstName:"Sara", lastName:"Ahmed", email:"sara@uni.edu", phone:"79 123 4567",
-    route:"r1", pickup:"p2", curPass:"", newPass:"", confPass:"",
+    firstName: "Sara", lastName: "Ahmed", email: "sara@uni.edu", phone: "79 123 4567",
+    route: "r1", pickup: "p2", curPass: "", newPass: "", confPass: "",
   });
   const [saved, setSaved] = useState(false);
+
   const s = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 2500); };
+  const save = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
 
-  const FI = ({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) => (
-    <div><label className="fl">{label}</label><input className="fi" {...props} /></div>
+  // Reusable Field Component
+  const Field = ({ label, icon: Icon, children }: { label: string; icon?: any; children: React.ReactNode }) => (
+    <div className="space-y-1.5">
+      <label className="ml-1 block text-[10px] font-bold uppercase tracking-widest text-app-mu2">
+        {label}
+      </label>
+      {children}
+    </div>
   );
 
-  return (
-    <div style={{ padding:24, maxWidth:860, margin:"0 auto" }}>
+  const inputClass = "w-full rounded-xl border border-app-bd bg-app-card2 px-4 py-2.5 text-[13px] text-app-tx outline-none transition-all placeholder:text-app-mu2 focus:border-app-am focus:ring-1 focus:ring-app-am/20";
 
-      {/* ── Avatar card ── */}
-      <div className="card" style={{ padding:"22px 24px",marginBottom:16,display:"flex",alignItems:"center",gap:22 }}>
-        <div style={{ width:76,height:76,borderRadius:"50%",background:"var(--am-d)",color:"var(--am)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,fontWeight:800,fontFamily:"'Syne',sans-serif",border:"3px solid var(--card)",flexShrink:0 }}>S</div>
-        <div>
-          <div style={{ fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:4 }}>Sara Ahmed</div>
-          <div style={{ fontSize:12,color:"var(--mu)",marginBottom:8 }}>STU-001 · Frontend &amp; CrossPlatform</div>
-          <span className="badge badge-g">
-            <span style={{ width:6,height:6,borderRadius:"50%",background:"var(--ok)" }} /> Active Account
-          </span>
+  return (
+    <div className="mx-auto max-w-3xl p-6 pb-20">
+      
+      {/* ── Avatar Header Card ── */}
+      <div className="mb-4 flex items-center gap-6 rounded-2xl border border-app-bd bg-app-card p-6 shadow-sm">
+        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-app-card bg-app-am-d font-syne text-3xl font-black text-app-am shadow-lg">
+          S
+        </div>
+        <div className="min-w-0">
+          <h2 className="truncate font-syne text-2xl font-extrabold text-app-tx tracking-tight">Sara Ahmed</h2>
+          <p className="mb-3 text-[11px] font-medium text-app-mu">STU-001 · Frontend & CrossPlatform</p>
+          <div className="inline-flex items-center gap-2 rounded-lg bg-green-500/10 px-2.5 py-1 text-[10px] font-bold text-app-ok border border-green-500/20 uppercase tracking-wider">
+             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-app-ok" />
+             Active Account
+          </div>
         </div>
       </div>
 
-      {/* ── Form card ── */}
-      <div className="card" style={{ padding:"22px 24px" }}>
-
-        {/* Personal Info */}
-        <div style={{ borderBottom:"1px solid var(--bd)",paddingBottom:20,marginBottom:20 }}>
-          <div style={{ fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginBottom:16,display:"flex",alignItems:"center",gap:8 }}><Ic.User />Personal Information</div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 20px" }}>
-            <FI label="First Name" value={form.firstName} onChange={s("firstName")} />
-            <FI label="Last Name"  value={form.lastName}  onChange={s("lastName")} />
-            <FI label="Email" type="email" value={form.email} onChange={s("email")} />
-            <div>
-              <label className="fl">Phone</label>
-              <div style={{ display:"flex" }}>
-                <div style={{ display:"flex",alignItems:"center",padding:"0 10px",background:"var(--card2)",border:"1px solid var(--bd)",borderRight:"none",borderRadius:"10px 0 0 10px",fontSize:12,color:"var(--mu)",fontWeight:600,flexShrink:0 }}>+962</div>
-                <input className="fi" style={{ borderRadius:"0 10px 10px 0" }} value={form.phone} onChange={s("phone")} />
-              </div>
-            </div>
+      {/* ── Main Settings Form ── */}
+      <div className="rounded-3xl border border-app-bd bg-app-card p-6 shadow-md md:p-8">
+        
+        {/* Section 1: Personal Info */}
+        <section className="mb-10">
+          <div className="mb-6 flex items-center gap-2 font-syne text-[14px] font-bold uppercase tracking-wider text-app-tx">
+            <Ic.User className="text-app-am" size={18} /> Personal Information
           </div>
-        </div>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <Field label="First Name">
+              <input className={inputClass} value={form.firstName} onChange={s("firstName")} />
+            </Field>
+            <Field label="Last Name">
+              <input className={inputClass} value={form.lastName} onChange={s("lastName")} />
+            </Field>
+            <Field label="Email Address">
+              <input className={inputClass} type="email" value={form.email} onChange={s("email")} />
+            </Field>
+            <Field label="Phone Number">
+              <div className="flex">
+                <span className="flex items-center rounded-l-xl border border-r-0 border-app-bd bg-app-card2 px-3 text-[12px] font-bold text-app-mu">
+                  +962
+                </span>
+                <input className={`${inputClass} rounded-l-none`} value={form.phone} onChange={s("phone")} />
+              </div>
+            </Field>
+          </div>
+        </section>
 
-        {/* Route Preferences */}
-        <div style={{ borderBottom:"1px solid var(--bd)",paddingBottom:20,marginBottom:20 }}>
-          <div style={{ fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginBottom:16,display:"flex",alignItems:"center",gap:8 }}><Ic.Map />Route Preferences</div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 20px" }}>
-            <div>
-              <label className="fl">Primary Route</label>
-              <select className="fi" value={form.route} onChange={s("route")}>
+        {/* Section 2: Route Preferences */}
+        <section className="mb-10 border-t border-app-bd pt-10">
+          <div className="mb-6 flex items-center gap-2 font-syne text-[14px] font-bold uppercase tracking-wider text-app-tx">
+            <Ic.Map className="text-app-am" size={18} /> Route Preferences
+          </div>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <Field label="Primary Route">
+              <select className={inputClass} value={form.route} onChange={s("route")}>
                 <option value="r1">Aqaleem → Stadium</option>
                 <option value="r2">Seil → Stadium</option>
                 <option value="r3">City Center → Stadium</option>
               </select>
-            </div>
-            <div>
-              <label className="fl">Default Pickup</label>
-              <select className="fi" value={form.pickup} onChange={s("pickup")}>
+            </Field>
+            <Field label="Default Pickup Point">
+              <select className={inputClass} value={form.pickup} onChange={s("pickup")}>
                 <option value="p1">Aqaleem Gate</option>
                 <option value="p2">Al-Rawda Square</option>
                 <option value="p3">Seil Junction</option>
               </select>
-            </div>
+            </Field>
           </div>
-        </div>
+        </section>
 
-        {/* Security */}
-        <div style={{ marginBottom:20 }}>
-          <div style={{ fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginBottom:16,display:"flex",alignItems:"center",gap:8 }}><Ic.Shield />Security &amp; Password</div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 20px" }}>
-            <div style={{ gridColumn:"1/-1",maxWidth:360 }}>
-              <FI label="Current Password" type="password" placeholder="••••••••" value={form.curPass} onChange={s("curPass")} />
-            </div>
-            <FI label="New Password"     type="password" placeholder="Leave blank to keep" value={form.newPass}  onChange={s("newPass")} />
-            <FI label="Confirm Password" type="password" placeholder="Confirm new password" value={form.confPass} onChange={s("confPass")} />
+        {/* Section 3: Security */}
+        <section className="mb-10 border-t border-app-bd pt-10">
+          <div className="mb-6 flex items-center gap-2 font-syne text-[14px] font-bold uppercase tracking-wider text-app-tx">
+            <Ic.Shield className="text-app-am" size={18} /> Security & Password
           </div>
-        </div>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <div className="md:col-span-2 md:max-w-xs">
+              <Field label="Current Password">
+                <input className={inputClass} type="password" placeholder="••••••••" value={form.curPass} onChange={s("curPass")} />
+              </Field>
+            </div>
+            <Field label="New Password">
+              <input className={inputClass} type="password" placeholder="Leave blank to keep" value={form.newPass} onChange={s("newPass")} />
+            </Field>
+            <Field label="Confirm New Password">
+              <input className={inputClass} type="password" placeholder="Confirm your new password" value={form.confPass} onChange={s("confPass")} />
+            </Field>
+          </div>
+        </section>
 
-        {/* Actions */}
-        <div style={{ borderTop:"1px solid var(--bd)",paddingTop:16,display:"flex",justifyContent:"flex-end",gap:10 }}>
-          <button className="btn btn-ghost">Discard</button>
-          <button className="btn btn-am" onClick={save}>
-            {saved ? <><Ic.Check />Saved!</> : <><Ic.Save />Save Profile</>}
+        {/* Action Buttons */}
+        <div className="flex items-center justify-end gap-4 border-t border-app-bd pt-8">
+          <button className="cursor-pointer text-[13px] font-bold text-app-mu transition-colors hover:text-app-tx">
+            Discard Changes
+          </button>
+          <button 
+            className={`flex min-w-[140px] cursor-pointer items-center justify-center gap-2 rounded-xl py-3 text-[13px] font-bold transition-all
+              ${saved ? "bg-green-500 text-white shadow-lg shadow-green-500/20" : "bg-app-am text-white shadow-lg shadow-app-am/20 hover:scale-[1.02] active:scale-95"}
+            `}
+            onClick={save}
+          >
+            {saved ? (
+              <><Ic.Check size={16} /> Saved!</>
+            ) : (
+              <><Ic.Save size={16} /> Save Profile</>
+            )}
           </button>
         </div>
       </div>

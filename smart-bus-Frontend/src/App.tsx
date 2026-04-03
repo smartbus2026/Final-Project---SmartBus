@@ -1,6 +1,8 @@
+import { useEffect, useState, useCallback } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+// import type { Theme } from "./types";
 
-import { useState, useCallback } from "react";
-import type { Page, Theme } from "./types";
+// Layout & Pages
 import AppLayout from "./components/AppLayout";
 import DashboardPage     from "./pages/DashboardPage";
 import MyTripsPage       from "./pages/MyTripsPage";
@@ -10,34 +12,48 @@ import SupportPage       from "./pages/SupportPage";
 import ProfilePage       from "./pages/ProfilePage";
 import ReportPage        from "./pages/ReportPage";
 import NewNotifPage      from "./pages/NewNotifPage";
-import UsersPage         from "./pages/UsersPage";
+// import UsersPage         from "./pages/UsersPage";
 import PlaceholderPage   from "./pages/PlaceholderPage";
- 
-function PageRouter({ page, go }: { page: Page; go: (p: Page) => void }) {
-  switch (page) {
-    case "dashboard":     return <DashboardPage go={go} />;
-    case "myTrips":       return <MyTripsPage />;
-    case "routeDetails":  return <RouteDetailsPage />;
-    case "notifications": return <NotificationsPage />;
-    case "support":       return <SupportPage />;
-    case "settings":      return <ProfilePage />;
-    case "attendance":    return <ReportPage />;
-    case "routeChat":     return <NewNotifPage />;
-    case "bookTrip":      return <PlaceholderPage label="Book Trip" />;
-    case "trackBus":      return <PlaceholderPage label="Track Bus" />;
-    default:              return <PlaceholderPage label={page} />;
-  }
-}
- 
+
 export default function App() {
-  const [page,  setPage]  = useState<Page>("dashboard");
-  const [theme, setTheme] = useState<Theme>("dark");
-  const go          = useCallback((p: Page) => setPage(p), []);
-  const toggleTheme = useCallback(() => setTheme(t => t === "dark" ? "light" : "dark"), []);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  const toggleTheme = useCallback(() => {
+    setTheme(t => t === "dark" ? "light" : "dark");
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
+
   return (
-    <AppLayout page={page} setPage={go} theme={theme} setTheme={toggleTheme}>
-      <PageRouter page={page} go={go} />
-    </AppLayout>
+    <BrowserRouter>
+      {/* Note: You might need to update AppLayout to use 
+          the `useNavigate` hook instead of passing `setPage` 
+      */}
+      <AppLayout theme={theme} setTheme={toggleTheme}>
+        <Routes>
+          {/* Default Route */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {/* Main Pages */}
+          <Route path="/dashboard"     element={<DashboardPage />} />
+          <Route path="/my-trips"      element={<MyTripsPage />} />
+          <Route path="/route-details" element={<RouteDetailsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/support"       element={<SupportPage />} />
+          <Route path="/settings"      element={<ProfilePage />} />
+          <Route path="/attendance"    element={<ReportPage />} />
+          <Route path="/route-chat"    element={<NewNotifPage />} />
+          
+          {/* Placeholders */}
+          <Route path="/book-trip"     element={<PlaceholderPage label="Book Trip" />} />
+          <Route path="/track-bus"     element={<PlaceholderPage label="Track Bus" />} />
+          
+          {/* 404 Fallback */}
+          <Route path="*"              element={<PlaceholderPage label="Page Not Found" />} />
+        </Routes>
+      </AppLayout>
+    </BrowserRouter>
   );
 }
- 

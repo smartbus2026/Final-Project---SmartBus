@@ -1,50 +1,74 @@
-// ──────────────────────────────────────────────
-//  pages/RouteDetailsPage.tsx
-//
-//  شغله إيه؟
-//  - يعرض كل الخطوط المتاحة
-//  - كل خط: اسمه + المحطات كـ timeline مرئي
-//  - تفاصيل السائق + وقت الانطلاق
-// ──────────────────────────────────────────────
-import { ROUTES } from "../data";
-import { Ic } from "../icons";
+import { ROUTES } from "../data"; // الداتا بتاعتك
+// import { Ic } from "../icons";
 
 export default function RouteDetailsPage() {
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))", gap:14 }}>
-        {ROUTES.map(r => (
-          <div key={r.name} className="card" style={{ padding: 20 }}>
-            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
-              <div style={{ fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14 }}>{r.name}</div>
-              <span className="badge badge-a">{r.bus}</span>
+    <div className="p-6">
+      {/* Grid container with auto-fill for responsiveness */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(290px,1fr))] gap-4">
+        {ROUTES.map((r) => (
+          <div 
+            key={r.name} 
+            className="group flex flex-col rounded-2xl border border-app-bd bg-app-card p-5 transition-all hover:border-app-am-g hover:shadow-xl hover:shadow-app-am-d/10"
+          >
+            {/* Header: Route Name & Bus ID */}
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className="font-syne text-[14px] font-extrabold text-app-tx group-hover:text-app-am transition-colors">
+                {r.name}
+              </h3>
+              <span className="rounded-md bg-app-am-d px-2 py-0.5 text-[9px] font-bold text-app-am uppercase tracking-wider border border-app-am-g">
+                {r.bus}
+              </span>
             </div>
-            {/* Timeline */}
-            {r.stops.map((stop, i) => {
-              const isLast = i === r.stops.length - 1;
-              const isEnd  = i === 0 || isLast;
-              return (
-                <div key={stop} style={{ display:"flex",alignItems:"flex-start",gap:10 }}>
-                  <div style={{ display:"flex",flexDirection:"column",alignItems:"center" }}>
-                    <div style={{ width:8,height:8,borderRadius:"50%",flexShrink:0,
-                      background:isEnd?"var(--am)":"var(--mu)",
-                      border:isEnd?"none":"2px solid var(--mu)" }} />
-                    {!isLast && <div style={{ width:1,height:22,background:"var(--bd)" }} />}
+
+            {/* Route Timeline */}
+            <div className="flex-1 space-y-0">
+              {r.stops.map((stop, i) => {
+                const isFirst = i === 0;
+                const isLast = i === r.stops.length - 1;
+                const isEnd = isFirst || isLast;
+
+                return (
+                  <div key={stop} className="flex gap-3.5">
+                    {/* Visual Line & Dot */}
+                    <div className="flex flex-col items-center">
+                      <div className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full transition-all
+                        ${isEnd 
+                          ? "bg-app-am scale-110 shadow-[0_0_8px_var(--am-g)]" 
+                          : "border-2 border-app-mu bg-app-card2"}`} 
+                      />
+                      {!isLast && (
+                        <div className="h-6 w-[1.5px] bg-linear-to-b from-app-bd to-transparent" />
+                      )}
+                    </div>
+
+                    {/* Stop Name */}
+                    <div className={`text-[12px] transition-colors leading-tight
+                      ${isEnd ? "font-bold text-app-tx" : "font-medium text-app-mu"}
+                      ${!isLast ? "pb-5" : "pb-1"}`}
+                    >
+                      {stop}
+                    </div>
                   </div>
-                  <div style={{ fontSize:12,color:isEnd?"var(--tx)":"var(--mu)",fontWeight:isEnd?600:400,paddingBottom:isLast?0:22 }}>
-                    {stop}
-                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer: Driver & Time Info */}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-app-bd2 bg-app-card2 px-3 py-2.5 transition-colors group-hover:bg-app-bg">
+                <div className="mb-1 text-[8px] font-bold uppercase tracking-widest text-app-mu">Driver</div>
+                <div className="flex items-center gap-1.5 font-dm text-[11px] font-bold text-app-tx">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  {r.driver}
                 </div>
-              );
-            })}
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14 }}>
-              <div className="ci" style={{ padding:"9px 11px" }}>
-                <div style={{ fontSize:9,color:"var(--mu)",fontWeight:700,textTransform:"uppercase",marginBottom:4 }}>Driver</div>
-                <div style={{ fontSize:11,fontWeight:600,color:"var(--tx)" }}>{r.driver}</div>
               </div>
-              <div className="ci" style={{ padding:"9px 11px" }}>
-                <div style={{ fontSize:9,color:"var(--mu)",fontWeight:700,textTransform:"uppercase",marginBottom:4 }}>Departure</div>
-                <div style={{ fontSize:12,fontWeight:600,color:"var(--am)" }}>{r.time}</div>
+
+              <div className="rounded-xl border border-app-bd2 bg-app-card2 px-3 py-2.5 transition-colors group-hover:bg-app-bg">
+                <div className="mb-1 text-[8px] font-bold uppercase tracking-widest text-app-mu text-right">Departure</div>
+                <div className="text-right font-dm text-[12px] font-extrabold text-app-am tracking-tight">
+                  {r.time}
+                </div>
               </div>
             </div>
           </div>
