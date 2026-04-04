@@ -17,7 +17,8 @@ import PlaceholderPage   from "./pages/PlaceholderPage";
 import WelcomePage from "./pages/WelcomePage";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
-
+import TrackBusPage from "./pages/TrackBusPage";
+import BookTripPage from "./pages/BookTripPage";
 export default function App() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
@@ -51,8 +52,8 @@ export default function App() {
           <Route path="/attendance" element={<ReportPage />} />
           <Route path="/route-chat" element={<NewNotifPage />} />
 
-          <Route path="/book-trip" element={<PlaceholderPage label="Book Trip" />} />
-          <Route path="/track-bus" element={<PlaceholderPage label="Track Bus" />} />
+          <Route path="/book-trip" element={<BookTripPage />} />
+          <Route path="/track-bus" element={<TrackBusPage />} />
 
         </Route>
 

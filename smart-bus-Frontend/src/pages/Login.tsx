@@ -19,7 +19,7 @@ const Login: React.FC = () => {
 
   const onSubmit = (data: LoginSchemaType) => {
     console.log('Logging in with:', data);
-    navigate('/user-dashboard');
+    navigate('/dashboard');
   };
 
   return (

@@ -1,12 +1,36 @@
 import { useState } from "react";
 import type { TripStatus } from "../types";
-// import { TRIPS } from "../data"; 
 import { Ic } from "../icons";
+
+
+const MOCK_DATA = [
+  { 
+    id: 1, 
+    status: "upcoming", 
+    date: "Oct 24, 2026", 
+    from: "Main Gate", 
+    to: "Faculty of Eng.", 
+    pickup: "07:30 AM", 
+    bus: "B-12", 
+    returnTime: "04:00 PM" 
+  },
+  { 
+    id: 2, 
+    status: "completed", 
+    date: "Oct 22, 2026", 
+    from: "City Center", 
+    to: "Main Campus", 
+    pickup: "08:15 AM", 
+    bus: "B-05", 
+    returnTime: "03:30 PM" 
+  }
+];
 
 export default function MyTripsPage() {
   const [tab, setTab] = useState<TripStatus>("upcoming");
 
-  const TRIPS: any[] = []; 
+ 
+  const TRIPS = MOCK_DATA; 
 
   const counts = {
     upcoming: TRIPS.filter(t => t.status === "upcoming").length,
@@ -24,55 +48,57 @@ export default function MyTripsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 animate-in fade-in duration-500">
       {/* Tabs System */}
-      <div className="flex w-fit gap-0.5 rounded-xl border border-app-bd bg-app-card2 p-0.5 mb-5">
+      <div className="flex w-fit gap-0.5 rounded-xl border border-app-bd bg-app-card2 p-0.5 mb-8 shadow-inner">
         {(["upcoming", "completed", "missed"] as TripStatus[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`cursor-pointer rounded-lg px-4 py-1.5 text-xs font-semibold transition-all
+            className={`cursor-pointer rounded-lg px-5 py-2 text-xs font-bold transition-all
               ${tab === t 
-                ? "bg-app-card text-app-tx border border-app-bd shadow-sm" 
+                ? "bg-app-card text-app-am border border-app-bd shadow-sm" 
                 : "text-app-mu hover:text-app-tx"}`}
           >
             {t.charAt(0).toUpperCase() + t.slice(1)} 
-            <span className="ml-1.5 opacity-60 text-[10px]">({counts[t]})</span>
+            <span className="ml-1.5 opacity-40 text-[10px]">({counts[t]})</span>
           </button>
         ))}
       </div>
 
       {/* Trips Grid */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-3.5">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5">
         {list.map((t) => (
-          <div key={t.id} className="group rounded-2xl border border-app-bd bg-app-card p-5 transition-all hover:border-app-am-g">
+          <div key={t.id} className="group rounded-2xl border border-app-bd bg-app-card p-6 transition-all hover:border-app-am/30 hover:shadow-xl hover:shadow-app-am/5">
             
             {/* Card Header */}
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs text-app-mu">{t.date}</span>
-              {renderBadge(t.status)}
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-[11px] font-bold text-app-mu2 flex items-center gap-1.5 uppercase tracking-tighter">
+                <Ic.Calendar size={12} /> {t.date}
+              </span>
+              {renderBadge(t.status as TripStatus)}
             </div>
 
             {/* Route Info */}
-            <div className="mb-4 flex items-center gap-1.5 font-syne text-[14px] font-bold text-app-tx">
-              <Ic.Pin  />
-              <span className="text-app-am">{t.from}</span>
-              <span className="font-normal text-app-mu mx-1">→</span>
-              <span>{t.to}</span>
+            <div className="mb-5 flex items-center gap-2 font-syne text-[15px] font-black text-app-tx">
+              <span className="text-app-am"><Ic.Pin size={16}/></span>
+              <span className="truncate">{t.from}</span>
+              <span className="font-normal text-app-mu mx-1 opacity-30">→</span>
+              <span className="truncate">{t.to}</span>
             </div>
 
             {/* Details Grid */}
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-3 gap-2">
               {[
-                { label: "Pickup", value: t.pickup, highlight: false },
-                { label: "Bus", value: t.bus, highlight: false },
+                { label: "Pickup", value: t.pickup, icon: <Ic.Clock size={10}/> },
+                { label: "Bus", value: t.bus, icon: <Ic.Bus size={10}/> },
                 { label: "Return", value: t.returnTime, highlight: true },
-              ].map((item) => (
-                <div key={item.label} className="rounded-[10px] border border-app-bd2 bg-app-card2 px-3 py-2.5">
-                  <div className="mb-1 text-[9px] font-bold uppercase tracking-wider text-app-mu">
+              ].map((item, i) => (
+                <div key={i} className="rounded-xl border border-app-bd bg-app-card2/50 px-3 py-3 shadow-inner">
+                  <div className="mb-1 text-[8px] font-black uppercase tracking-widest text-app-mu">
                     {item.label}
                   </div>
-                  <div className={`text-[12px] font-semibold ${item.highlight ? "text-app-am" : "text-app-tx"}`}>
+                  <div className={`text-[11px] font-bold ${item.highlight ? "text-app-am" : "text-app-tx"}`}>
                     {item.value}
                   </div>
                 </div>
@@ -81,28 +107,22 @@ export default function MyTripsPage() {
 
             {/* Action Buttons */}
             {t.status === "upcoming" && (
-              <button className="mt-3.5 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-red-500/15 bg-red-500/5 py-2.5 text-[11px] font-bold text-app-err transition-all hover:bg-app-err hover:text-white">
-                <Ic.X  /> Cancel Booking
-              </button>
-            )}
-            
-            {t.status === "completed" && (
-              <button className="mt-3.5 w-full cursor-pointer rounded-xl border border-app-bd bg-transparent py-2.5 text-[11px] font-bold text-app-mu transition-all hover:bg-app-card2 hover:text-app-tx">
-                View Details
+              <button className="mt-5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 py-3 text-[11px] font-black text-app-err transition-all hover:bg-red-500 hover:text-white uppercase tracking-widest">
+                <Ic.X size={14} /> Cancel Booking
               </button>
             )}
           </div>
         ))}
       </div>
 
-      {/* Empty State (Optional) */}
+      {/* Empty State */}
       {list.length === 0 && (
-        <div className="mt-20 flex flex-col items-center justify-center text-center">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-app-card2 text-app-mu2">
-            <Ic.Route  />
+        <div className="mt-24 flex flex-col items-center justify-center text-center opacity-40">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-app-card2 text-app-mu shadow-inner">
+            <Ic.Route size={32} />
           </div>
-          <h3 className="text-sm font-bold text-app-tx">No trips found</h3>
-          <p className="text-xs text-app-mu mt-1">There are no {tab} trips at the moment.</p>
+          <h3 className="font-syne text-lg font-bold text-app-tx uppercase tracking-tight">No {tab} trips</h3>
+          <p className="text-xs text-app-mu mt-1">You don't have any bookings in this category.</p>
         </div>
       )}
     </div>
