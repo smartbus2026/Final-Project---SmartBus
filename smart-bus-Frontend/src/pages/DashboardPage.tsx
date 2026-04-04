@@ -1,91 +1,135 @@
-// ──────────────────────────────────────────────
-//  pages/DashboardPage.tsx
-//
-//  شغله إيه؟
-//  - 4 stat cards (إجمالي، مكتمل، قادم، فايت)
-//  - بطاقة الرحلة القادمة مع Track button
-//  - 4 quick action cards
-//  - آخر رحلتين قادمتين
-// ──────────────────────────────────────────────
 import type { Page } from "../types";
-import { TRIPS } from "../data";
+// import { TRIPS } from "../data";
 import { Ic } from "../icons";
 
 export default function DashboardPage({ go }: { go: (p: Page) => void }) {
-  const next = TRIPS[0];
+  // افترضت وجود TRIPS في الداتا عندك
+  const TRIPS: any[] = []; 
+  const next = TRIPS[0] || { from: "Home", to: "University", date: "Oct 24", pickup: "07:30 AM", bus: "B-12", departure: "07:45 AM" };
+
   const stats = [
-    { l:"Total Trips", v:"24", c:"var(--am)",   bg:"var(--am-d)"           },
-    { l:"Completed",   v:"19", c:"var(--ok)",   bg:"rgba(16,185,129,.1)"   },
-    { l:"Upcoming",    v:"3",  c:"var(--info)",  bg:"rgba(59,130,246,.1)"  },
-    { l:"Missed",      v:"2",  c:"var(--err)",   bg:"rgba(239,68,68,.1)"   },
+    { l: "Total Trips", v: "24", c: "text-app-am", bg: "bg-app-am-d", icon: <Ic.Bus /> },
+    { l: "Completed", v: "19", c: "text-app-ok", bg: "bg-green-500/10", icon: <Ic.Bus /> },
+    { l: "Upcoming", v: "3", c: "text-app-info", bg: "bg-blue-500/10", icon: <Ic.Bus /> },
+    { l: "Missed", v: "2", c: "text-app-err", bg: "bg-red-500/10", icon: <Ic.Bus /> },
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="p-6 space-y-6">
+      
       {/* ── Stat cards ── */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
-        {stats.map(s => (
-          <div key={s.l} className="card" style={{ padding:"14px 16px" }}>
-            <div style={{ width:30,height:30,borderRadius:8,background:s.bg,color:s.c,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10 }}><Ic.Bus /></div>
-            <div style={{ fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,lineHeight:1,marginBottom:3 }}>{s.v}</div>
-            <div style={{ fontSize:11,color:"var(--mu)" }}>{s.l}</div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {stats.map((s) => (
+          <div key={s.l} className="group rounded-2xl border border-app-bd bg-app-card p-4 transition-all hover:border-app-am-g">
+            <div className={`mb-2.5 flex h-8 w-8 items-center justify-center rounded-lg ${s.bg} ${s.c}`}>
+              {s.icon}
+            </div>
+            <div className="font-syne text-2xl font-extrabold leading-none text-app-tx group-hover:text-app-am transition-colors">
+              {s.v}
+            </div>
+            <div className="mt-1 text-[11px] font-medium text-app-mu">{s.l}</div>
           </div>
         ))}
       </div>
 
-      {/* ── Hero: next trip ── */}
-      <div className="card" style={{ padding:"20px 22px",marginBottom:20,position:"relative",overflow:"hidden" }}>
-        <div style={{ position:"absolute",top:-40,right:-30,width:160,height:160,background:"radial-gradient(circle,var(--am-g),transparent 70%)",borderRadius:"50%",pointerEvents:"none" }} />
-        <div style={{ fontSize:10,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:"var(--mu)",marginBottom:14 }}>Next Trip</div>
-        <div style={{ fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,display:"flex",alignItems:"center",gap:8,marginBottom:16 }}>
-          <Ic.Pin /><span style={{ color:"var(--am)" }}>{next.from}</span>
-          <span style={{ color:"var(--mu)",fontWeight:400,fontSize:14 }}>→</span>{next.to}
-          <span className="badge badge-g" style={{ marginLeft:"auto" }}>Confirmed</span>
+      {/* ── Hero: Next Trip ── */}
+      <div className="relative overflow-hidden rounded-2xl border border-app-bd bg-app-card p-5 lg:p-6">
+        {/* Ambient Glow Effect */}
+        <div className="pointer-events-none absolute -top-10 -right-8 h-40 w-40 rounded-full bg-[radial-gradient(circle,var(--am-g),transparent_70%)]" />
+        
+        <div className="mb-4 text-[10px] font-bold uppercase tracking-wider text-app-mu">Next Trip</div>
+        
+        <div className="mb-5 flex flex-wrap items-center gap-2 font-syne text-lg font-extrabold text-app-tx">
+          <Ic.Pin  />
+          <span className="text-app-am">{next.from}</span>
+          <span className="font-normal text-app-mu mx-1">→</span>
+          <span>{next.to}</span>
+          <span className="ml-auto inline-flex items-center gap-1 rounded-md border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-app-ok uppercase tracking-wider">
+            Confirmed
+          </span>
         </div>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16 }}>
-          {[["Date",next.date,false],["Pickup",next.pickup,false],["Bus",next.bus,false],["Dep.",next.departure,true]].map(([l,v,a]) => (
-            <div key={String(l)} className="ci" style={{ padding:"10px 12px" }}>
-              <div style={{ fontSize:9,color:"var(--mu)",fontWeight:700,letterSpacing:".07em",textTransform:"uppercase",marginBottom:4 }}>{String(l)}</div>
-              <div style={{ fontSize:12,fontWeight:600,color:a?"var(--am)":"var(--tx)" }}>{String(v)}</div>
+
+        {/* Trip Details Info */}
+        <div className="mb-5 grid grid-cols-2 md:grid-cols-4 gap-2">
+          {[
+            { l: "Date", v: next.date, a: false },
+            { l: "Pickup", v: next.pickup, a: false },
+            { l: "Bus", v: next.bus, a: false },
+            { l: "Dep.", v: next.departure, a: true },
+          ].map((item) => (
+            <div key={item.l} className="rounded-xl border border-app-bd2 bg-app-card2 px-3 py-2.5">
+              <div className="mb-1 text-[9px] font-bold uppercase tracking-wider text-app-mu">{item.l}</div>
+              <div className={`text-xs font-semibold ${item.a ? "text-app-am" : "text-app-tx"}`}>{item.v}</div>
             </div>
           ))}
         </div>
-        <button className="btn btn-am" style={{ width:"100%" }} onClick={() => go("trackBus")}><Ic.Target /> Track My Bus</button>
+
+        <button 
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-app-am py-3 text-[13px] font-bold text-white shadow-[0_4px_14px_var(--am-g)] transition-all hover:brightness-110 active:scale-[0.98]"
+          onClick={() => go("trackBus")}
+        >
+          <Ic.Target /> Track My Bus
+        </button>
       </div>
 
-      {/* ── Quick actions ── */}
-      <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20 }}>
+      {/* ── Quick Actions ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         {[
-          ["Book Trip",      "Register now", "var(--am)",  "var(--am-d)",          "bookTrip"     ],
-          ["My Trips",       "View all",     "var(--info)","rgba(59,130,246,.1)",  "myTrips"      ],
-          ["Notifications",  "2 new",        "var(--err)", "rgba(239,68,68,.1)",   "notifications"],
-          ["Route Map",      "Live view",    "var(--ok)",  "rgba(16,185,129,.1)",  "routeDetails" ],
-        ].map(([l,s,c,bg,p]) => (
-          <div key={String(l)} className="card" style={{ padding:16,cursor:"pointer" }} onClick={() => go(String(p) as Page)}>
-            <div style={{ width:32,height:32,borderRadius:8,background:String(bg),color:String(c),display:"flex",alignItems:"center",justifyContent:"center",marginBottom:8 }}><Ic.Bus /></div>
-            <div style={{ fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:12 }}>{String(l)}</div>
-            <div style={{ fontSize:10,color:"var(--mu)",marginTop:2 }}>{String(s)}</div>
+          { l: "Book Trip", s: "Register now", c: "text-app-am", bg: "bg-app-am-d", p: "bookTrip" },
+          { l: "My Trips", s: "View all", c: "text-app-info", bg: "bg-blue-500/10", p: "myTrips" },
+          { l: "Notifications", s: "2 new", c: "text-app-err", bg: "bg-red-500/10", p: "notifications" },
+          { l: "Route Map", s: "Live view", c: "text-app-ok", bg: "bg-green-500/10", p: "routeDetails" },
+        ].map((act) => (
+          <div 
+            key={act.l} 
+            className="group cursor-pointer rounded-2xl border border-app-bd bg-app-card p-4 transition-all hover:border-app-am-g"
+            onClick={() => go(act.p as Page)}
+          >
+            <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${act.bg} ${act.c}`}>
+              <Ic.Bus  />
+            </div>
+            <div className="font-syne text-xs font-bold text-app-tx group-hover:text-app-am transition-colors">{act.l}</div>
+            <div className="mt-0.5 text-[10px] text-app-mu">{act.s}</div>
           </div>
         ))}
       </div>
 
-      {/* ── Upcoming list ── */}
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14 }}>
-        <div style={{ fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13 }}>Upcoming Trips</div>
-        <span style={{ fontSize:11,color:"var(--am)",fontWeight:600,cursor:"pointer" }} onClick={() => go("myTrips")}>View All →</span>
-      </div>
-      {TRIPS.filter(t => t.status === "upcoming").slice(0, 2).map(t => (
-        <div key={t.id} className="card" style={{ padding:"13px 18px",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-          <div style={{ display:"flex",alignItems:"center",gap:12 }}>
-            <div style={{ width:36,height:36,borderRadius:9,background:"var(--am-d)",color:"var(--am)",display:"flex",alignItems:"center",justifyContent:"center" }}><Ic.Bus /></div>
-            <div>
-              <div style={{ fontWeight:700,fontSize:13,fontFamily:"'Syne',sans-serif" }}>{t.from} → {t.to}</div>
-              <div style={{ fontSize:11,color:"var(--mu)",marginTop:2 }}>{t.date} · {t.departure}</div>
-            </div>
-          </div>
-          <span className="badge badge-g">Confirmed</span>
+      {/* ── Upcoming List ── */}
+      <div className="space-y-3.5">
+        <div className="flex items-center justify-between">
+          <h3 className="font-syne text-[13px] font-bold text-app-tx uppercase tracking-wider">Upcoming Trips</h3>
+          <button 
+            className="cursor-pointer text-[11px] font-bold text-app-am transition-opacity hover:opacity-80"
+            onClick={() => go("myTrips")}
+          >
+            View All →
+          </button>
         </div>
-      ))}
+
+        <div className="space-y-2.5">
+          {TRIPS.filter(t => t.status === "upcoming").slice(0, 2).map(t => (
+            <div key={t.id} className="flex items-center justify-between rounded-2xl border border-app-bd bg-app-card p-3.5 transition-all hover:border-app-am-g">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-app-am-d text-app-am">
+                  <Ic.Bus  />
+                </div>
+                <div>
+                  <div className="font-syne text-[13px] font-bold text-app-tx">
+                    {t.from} <span className="mx-1 text-app-mu font-normal">→</span> {t.to}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-app-mu font-medium">
+                    {t.date} · {t.departure}
+                  </div>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-md border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[9px] font-bold text-app-ok uppercase tracking-wider">
+                Confirmed
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }

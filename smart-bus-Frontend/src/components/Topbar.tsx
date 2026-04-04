@@ -1,44 +1,139 @@
-// components/Topbar.tsx — الـ header العلوي مع search + theme + bell + user
 import { useState } from "react";
-import type { Page, Theme } from "../types";
+import { useLocation } from "react-router-dom";
+import type { Theme } from "../types";
 import { Ic } from "../icons";
 import { NOTIFS } from "../data";
 
-const META: Record<Page,{title:string;sub:string}> = {
-  dashboard:{title:"Dashboard",sub:"Welcome back, Sara"},
-  bookTrip:{title:"Book Trip",sub:"Reserve your seat for tomorrow"},
-  myTrips:{title:"My Trips",sub:"Manage your weekly transportation"},
-  routeDetails:{title:"Route Details",sub:"View routes and schedules"},
-  trackBus:{title:"Track Bus",sub:"Live bus location and ETA"},
-  attendance:{title:"Attendance",sub:"Your trip history and stats"},
-  notifications:{title:"Notifications",sub:"Alerts and updates"},
-  routeChat:{title:"Route Chat",sub:"Chat with your route group"},
-  support:{title:"Support",sub:"Help center & tickets"},
-  settings:{title:"My Profile",sub:"Manage your personal information"},
+const META: Record<string, { title: string; sub: string }> = {
+  "/dashboard":      { title: "Dashboard",      sub: "Welcome back, Noha" },
+  "/book-trip":      { title: "Book Trip",      sub: "Reserve your seat for tomorrow" },
+  "/my-trips":       { title: "My Trips",       sub: "Manage your weekly transportation" },
+  "/route-details":  { title: "Route Details",  sub: "View routes and schedules" },
+  "/track-bus":      { title: "Track Bus",      sub: "Live bus location and ETA" },
+  "/attendance":     { title: "Attendance",     sub: "Your trip history and stats" },
+  "/notifications":  { title: "Notifications",  sub: "Alerts and updates" },
+  "/route-chat":     { title: "Route Chat",     sub: "Chat with your route group" },
+  "/support":        { title: "Support",        sub: "Help center & tickets" },
+  "/settings":       { title: "My Profile",     sub: "Manage your personal information" },
 };
 
-export default function Topbar({page,theme,setTheme,onMenu}:{page:Page;theme:Theme;setTheme:(t:Theme)=>void;onMenu:()=>void}){
-  const [nd,setNd]=useState(false);
-  const [ud,setUd]=useState(false);
-  const {title,sub}=META[page];
-  return(
-    <header className="tb" onClick={()=>{setNd(false);setUd(false);}}>
-      <div className="tb-l">
-        <button className="hb" onClick={e=>{e.stopPropagation();onMenu();}}><Ic.Hamburger/></button>
-        <div><div className="tb-title">{title}</div><div className="tb-sub">{sub}</div></div>
-      </div>
-      <div className="tb-r" onClick={e=>e.stopPropagation()}>
-        <div className="srch"><Ic.Search/><input placeholder="Search..."/></div>
-        <button className="ib" onClick={()=>setTheme(theme==="dark"?"light":"dark")}>{theme==="dark"?<Ic.Sun/>:<Ic.Moon/>}</button>
-        <div style={{position:"relative"}}>
-          <button className="ib nb" onClick={()=>{setNd(v=>!v);setUd(false);}}><Ic.Bell/></button>
-          {nd&&<div className="drop ndrop"><div className="drop-h"><span className="drop-ht">Notifications</span><span className="n-ct">2 NEW</span></div>{NOTIFS.slice(0,2).map(n=><div key={n.id} className="n-row"><span className="n-dot"/><div><div className="n-t">{n.title}</div><div className="n-m">{n.message}</div><div className="n-tm">{n.time}</div></div></div>)}<div className="drop-f">View all →</div></div>}
+export default function Topbar({ theme, setTheme, onMenu }: { theme: Theme; setTheme: (t: Theme) => void; onMenu: () => void }) {
+  const [nd, setNd] = useState(false); 
+  const [ud, setUd] = useState(false); 
+  const location = useLocation();
+
+  const { title, sub } = META[location.pathname] || { title: "SmartBus", sub: "Student Portal" };
+
+  const closeDrops = () => { setNd(false); setUd(false); };
+
+  // Shared classes for dropdowns
+  const dropClass = "absolute right-0 mt-3 overflow-hidden rounded-2xl border border-app-bd/50 bg-app-card shadow-2xl animate-in fade-in zoom-in duration-200";
+
+  return (
+    <header 
+      className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-app-bd/40 bg-app-bg/80 px-6 backdrop-blur-xl md:px-10"
+      onClick={closeDrops}
+    >
+      {/* ── Left: Page Info ── */}
+      <div className="flex items-center gap-5">
+        <button 
+          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-app-bd/50 text-app-mu transition-all hover:bg-app-card2 hover:text-app-tx lg:hidden"
+          onClick={(e) => { e.stopPropagation(); onMenu(); }}
+        >
+          <Ic.Hamburger  />
+        </button>
+        <div className="select-none">
+          <h2 className="font-syne text-lg font-extrabold tracking-tight text-app-tx md:text-xl">{title}</h2>
+          <p className="hidden text-[11px] font-medium text-app-mu md:block">{sub}</p>
         </div>
-        <div style={{position:"relative"}}>
-          <div className="uc" onClick={()=>{setUd(v=>!v);setNd(false);}}>
-            <div className="ua">S</div><div className="uc-text"><div className="un">Sara Ahmed</div><div className="uid2">STU-001</div></div><Ic.ChevDown/>
+      </div>
+
+      {/* ── Right: Actions ── */}
+      <div className="flex items-center gap-4 md:gap-6" onClick={(e) => e.stopPropagation()}>
+        
+        {/* Modern Minimal Search */}
+        <div className="hidden items-center gap-3 rounded-xl border border-app-bd/30 bg-app-card2/40 px-4 py-2.5 transition-all focus-within:border-app-am/40 focus-within:bg-app-card2 lg:flex w-64 group">
+          <Ic.Search  />
+          <input 
+            placeholder="Quick search..." 
+            className="bg-transparent text-[13px] font-medium outline-none placeholder:text-app-mu2 text-app-tx w-full"
+          />
+        </div>
+
+        {/* Theme Toggle */}
+        <button 
+          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-app-bd/30 bg-app-card2/40 text-app-mu transition-all hover:border-app-am/30 hover:text-app-am"
+          onClick={() => setTheme()}
+        >
+          {theme === "dark" ? <Ic.Sun  /> : <Ic.Moon  />}
+        </button>
+
+        {/* Notifications */}
+        <div className="relative">
+          <button 
+            className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-app-bd/30 transition-all hover:bg-app-card2 ${nd ? 'border-app-am/40 text-app-am bg-app-card2' : 'text-app-mu'}`}
+            onClick={() => { setNd(!nd); setUd(false); }}
+          >
+            <Ic.Bell  />
+            <span className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-app-am shadow-[0_0_8px_var(--am-g)]" />
+          </button>
+
+          {nd && (
+            <div className={`${dropClass} w-85`}>
+              <div className="flex items-center justify-between border-b border-app-bd/40 p-4 bg-app-card2/30">
+                <span className="font-syne text-[13px] font-bold text-app-tx uppercase tracking-wider">Alerts</span>
+                <span className="rounded-lg bg-app-am/10 px-2 py-0.5 text-[9px] font-black text-app-am border border-app-am/20">2 NEW</span>
+              </div>
+              <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                {NOTIFS.slice(0, 3).map((n) => (
+                  <div key={n.id} className="group flex gap-3 border-b border-app-bd/20 p-4 last:border-0 hover:bg-app-card2/50 cursor-pointer transition-colors">
+                    <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-app-am opacity-40 group-hover:opacity-100 transition-opacity" />
+                    <div className="space-y-1">
+                      <div className="text-[12px] font-bold text-app-tx">{n.title}</div>
+                      <div className="text-[10px] leading-relaxed text-app-mu line-clamp-2">{n.message}</div>
+                      <div className="text-[9px] font-bold text-app-mu2 uppercase">{n.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="w-full border-t border-app-bd/30 py-3 text-center text-[11px] font-black uppercase tracking-widest text-app-am hover:bg-app-am hover:text-white transition-all">
+                See All Notifications
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* User Profile */}
+        <div className="relative">
+          <div 
+            className="group flex items-center gap-3 cursor-pointer rounded-xl p-1 transition-all"
+            onClick={() => { setUd(!ud); setNd(false); }}
+          >
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-app-bd/50 group-hover:border-app-am transition-colors">
+              <img src={`https://ui-avatars.com/api/?name=Noha+Khalil&background=f9b233&color=fff&bold=true`} alt="Avatar" className="p-0.5 rounded-full" />
+            </div>
+            <Ic.ChevDown  />
           </div>
-          {ud&&<div className="drop udrop"><div className="u-hd"><div className="u-av">S</div><div><div className="u-n">Sara Ahmed</div><div className="u-id">STU-001</div></div></div><div className="u-items"><button className="u-item"><Ic.User/> My Profile</button><hr className="divider"/><button className="u-item red"><Ic.Logout/> Logout</button></div></div>}
+
+          {ud && (
+            <div className={`${dropClass} w-52 py-2`}>
+              <div className="px-4 py-2 mb-1">
+                <p className="text-[13px] font-bold text-app-tx">Noha Khalil</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-app-mu2">STU-7241</p>
+              </div>
+              <div className="h-[1px] bg-app-bd/30 mx-2 mb-1" />
+              <button className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all">
+                <Ic.User  /> Profile
+              </button>
+              <button className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all">
+                <Ic.Gear  /> Settings
+              </button>
+              <div className="h-[1px] bg-app-bd/30 mx-2 my-1" />
+              <button className="flex w-full items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-app-err hover:bg-app-err/10 transition-all">
+                <Ic.Logout  /> Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

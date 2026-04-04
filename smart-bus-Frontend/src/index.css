@@ -1,1 +1,78 @@
 @import "tailwindcss";
+
+@theme {
+  /* Fonts */
+  --font-syne: "Syne", sans-serif;
+  --font-dm: "DM Sans", sans-serif;
+
+  /* Colors System */
+  --color-app-bg: var(--bg);
+  --color-app-bg2: var(--bg2);
+  --color-app-card: var(--card);
+  --color-app-card2: var(--card2);
+  --color-app-tx: var(--tx);
+  --color-app-mu: var(--mu);
+  --color-app-mu2: var(--mu2);
+  --color-app-am: var(--am);
+  --color-app-am-d: var(--am-d);
+  --color-app-am-g: var(--am-g);
+  --color-app-bd: var(--bd);
+  --color-app-bd2: var(--bd2);
+  --color-app-ok: var(--ok);
+  --color-app-err: var(--err);
+  --color-app-info: var(--info);
+  
+  /* Shadows & Radius (Optional Customization) */
+  --radius-xl: 16px;
+  --radius-lg: 12px;
+}
+
+/* ═══════════════════════════════════════════
+   VARIABLES (Light/Dark Logic)
+   ═══════════════════════════════════════════ */
+:root {
+  --bg: #F5F0E8;
+  --bg2: #FFFDF7;
+  --card: #FFFDF7;
+  --card2: #EDE8DC;
+  --bd: rgba(44, 31, 14, 0.09);
+  --bd2: rgba(44, 31, 14, 0.05);
+  --tx: #2C1F0E;
+  --mu: #7A6A55;
+  --mu2: #B5A48F;
+  --am: #B45309;
+  --am-d: rgba(180, 83, 9, 0.09);
+  --am-g: rgba(180, 83, 9, 0.2);
+  --ok: #059669;
+  --err: #dc2626;
+  --info: #2563eb;
+}
+
+.dark {
+  --bg: #0d0f11;
+  --bg2: #0e1114;
+  --card: #15181e;
+  --card2: #1f232b;
+  --bd: rgba(255, 255, 255, 0.055);
+  --bd2: rgba(255, 255, 255, 0.03);
+  --tx: #f0ede8;
+  --mu: #8a8680;
+  --mu2: #3f3c38;
+  --am: #f9b233;
+  --am-d: rgba(249, 178, 51, 0.10);
+  --am-g: rgba(249, 178, 51, 0.22);
+  --ok: #10b981;
+  --err: #ef4444;
+  --info: #3b82f6;
+}
+
+/* Global Base Style */
+@layer base {
+  body {
+    background-color: var(--bg);
+    color: var(--tx);
+    font-family: var(--font-dm);
+    transition: background-color 0.3s, color 0.3s;
+    -webkit-font-smoothing: antialiased;
+  }
+}

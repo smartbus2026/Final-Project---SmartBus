@@ -1,38 +1,68 @@
-// ──────────────────────────────────────────────
-//  pages/NotificationsPage.tsx
-//
-//  شغله إيه؟
-//  - يعرض قائمة الإشعارات المُرسَلة للطالب
-//  - كل إشعار: أيقونة جرس + العنوان + الوقت
-//    + الرسالة + عدد مَن قرأه
-// ──────────────────────────────────────────────
-import { NOTIFS } from "../data";
+import { NOTIFS } from "../data"; 
 import { Ic } from "../icons";
 
 export default function NotificationsPage() {
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display:"flex",flexDirection:"column",gap:11 }}>
-        {NOTIFS.map(n => (
-          <div key={n.id} className="card" style={{ padding:"16px 18px",display:"flex",alignItems:"flex-start",gap:12 }}>
-            <div style={{ width:36,height:36,borderRadius:9,background:"var(--am-d)",color:"var(--am)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-              <Ic.Bell />
+    <div className="p-6">
+      {/* Container for vertical list */}
+      <div className="mx-auto max-w-[800px] space-y-3">
+        
+        {NOTIFS.map((n) => (
+          <div 
+            key={n.id} 
+            className="group flex items-start gap-4 rounded-2xl border border-app-bd bg-app-card p-4 transition-all hover:border-app-am-g hover:bg-app-card2/50"
+          >
+            {/* Notification Icon Wrapper */}
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-app-am-d text-app-am shadow-sm transition-transform group-hover:scale-105">
+              <Ic.Bell  />
             </div>
-            <div style={{ flex:1 }}>
-              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:10 }}>
-                <div>
-                  <div style={{ fontWeight:700,fontSize:13,marginBottom:2 }}>{n.title}</div>
-                  <div style={{ fontSize:10,color:"var(--mu)" }}>{n.time}</div>
+
+            {/* Content Area */}
+            <div className="flex-1 min-w-0">
+              {/* Header Row: Title + Target Badge */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className="truncate font-syne text-[13.5px] font-bold text-app-tx leading-tight">
+                    {n.title}
+                  </h3>
+                  <div className="mt-0.5 text-[10px] font-medium text-app-mu2">
+                    {n.time}
+                  </div>
                 </div>
-                <span className="badge badge-mu">{n.target}</span>
+                
+                <span className="shrink-0 rounded-md bg-app-bd2 px-2 py-0.5 text-[9px] font-bold text-app-mu uppercase tracking-wider">
+                  {n.target}
+                </span>
               </div>
-              <div style={{ fontSize:12,color:"var(--mu)",marginTop:6,lineHeight:1.5 }}>{n.message}</div>
-              <div style={{ fontSize:11,color:"var(--ok)",display:"flex",alignItems:"center",gap:4,marginTop:8,fontWeight:600 }}>
-                <Ic.Check /> Read by {n.readCount} users
+
+              {/* Message Body */}
+              <p className="mt-2 text-[12.5px] leading-relaxed text-app-mu">
+                {n.message}
+              </p>
+
+              {/* Footer Row: Read Count / Status */}
+              <div className="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-app-ok">
+                <div className="flex h-4 w-4 items-center justify-center rounded-full bg-green-500/10">
+                  <Ic.Check  />
+                </div>
+                <span>Read by {n.readCount} users</span>
               </div>
+            </div>
+
+            {/* Optional: Hover Action Indicator */}
+            <div className="hidden self-center text-app-bd group-hover:block transition-all">
+               <Ic.ChevDown  />
             </div>
           </div>
         ))}
+
+        {/* Empty State Handler */}
+        {NOTIFS.length === 0 && (
+          <div className="flex flex-col items-center py-20 opacity-30 text-center">
+            <Ic.Bell />
+            <p className="font-syne font-bold">No notifications yet</p>
+          </div>
+        )}
       </div>
     </div>
   );
