@@ -23,7 +23,7 @@ export default function ProfilePage() {
   };
 
   // Reusable Field Component
-  const Field = ({ label, icon: Icon, children }: { label: string; icon?: any; children: React.ReactNode }) => (
+  const Field = ({ label,  children }: { label: string; icon?: any; children: React.ReactNode }) => (
     <div className="space-y-1.5">
       <label className="ml-1 block text-[10px] font-bold uppercase tracking-widest text-app-mu2">
         {label}

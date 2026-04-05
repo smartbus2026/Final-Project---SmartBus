@@ -47,7 +47,7 @@ export default function BookTripPage() {
             </div>
           </div>
 
-          {/* Seat Availability Card - تم استبدال Ic.Users بـ Ic.User */}
+        
           <div className="bg-app-card rounded-[24px] p-6 border border-app-bd shadow-xl group">
             <div className="flex justify-between items-center mb-5">
               <div className="flex items-center gap-2 text-app-mu text-[11px] font-black uppercase tracking-widest">
@@ -110,7 +110,7 @@ export default function BookTripPage() {
         </div>
       </div>
 
-      {/* Confirm Button - تم استبدال Ic.CheckCircle بـ Ic.Bus */}
+      
       <button 
         disabled={!selectedPickup || !selectedReturn}
         className={`w-full py-5 rounded-[24px] font-syne font-black text-sm uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all duration-500

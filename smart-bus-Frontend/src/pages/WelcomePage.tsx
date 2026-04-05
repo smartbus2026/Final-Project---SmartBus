@@ -77,7 +77,7 @@ const WelcomePage: React.FC<Props> = ({ theme, toggleTheme }) => {
             description="Manage users, monitor live bus routes, track occupancy rates, and handle support tickets efficiently."
             icon={<ShieldCheck size={32} />}
             buttonText="Enter as Admin"
-            link="/signinAdmin"
+            link="/admin/login"
             type="admin"
           />
 

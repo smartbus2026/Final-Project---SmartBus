@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { Ic } from "../icons";
-// import type { Stop } from "../types"; // تأكد من تعريف الـ Type في ملف الأنواع
 
 const stops = [
   { id: 1, name: "Aqaleem Gate", time: "Passed 7:30 AM", done: true, active: false },
@@ -55,7 +54,7 @@ function StopItem({ stop }: { stop: any }) {
   );
 }
 
-export default function TrackBusPage({ theme }: { theme: "dark" | "light" }) {
+export default function TrackBusPage({ theme = "dark" }: { theme?: "dark" | "light" }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
@@ -125,7 +124,6 @@ export default function TrackBusPage({ theme }: { theme: "dark" | "light" }) {
           </div>
         </div>
 
-        {/* ── تفاصيل الرحلة والتقدم ── */}
         <div className="col-span-1 lg:col-span-5 space-y-4 flex flex-col h-full min-h-0">
           
           <div className="bg-app-card rounded-2xl p-5 flex justify-between items-center border border-app-bd shadow-lg">

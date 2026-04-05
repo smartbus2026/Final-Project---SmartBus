@@ -1,9 +1,7 @@
 import type { Page } from "../types";
-// import { TRIPS } from "../data";
 import { Ic } from "../icons";
 
-export default function DashboardPage({ go }: { go: (p: Page) => void }) {
-  // افترضت وجود TRIPS في الداتا عندك
+export default function DashboardPage({ go }: { go?: (p: Page) => void }) {  
   const TRIPS: any[] = []; 
   const next = TRIPS[0] || { from: "Home", to: "University", date: "Oct 24", pickup: "07:30 AM", bus: "B-12", departure: "07:45 AM" };
 
@@ -34,13 +32,12 @@ export default function DashboardPage({ go }: { go: (p: Page) => void }) {
 
       {/* ── Hero: Next Trip ── */}
       <div className="relative overflow-hidden rounded-2xl border border-app-bd bg-app-card p-5 lg:p-6">
-        {/* Ambient Glow Effect */}
         <div className="pointer-events-none absolute -top-10 -right-8 h-40 w-40 rounded-full bg-[radial-gradient(circle,var(--am-g),transparent_70%)]" />
         
         <div className="mb-4 text-[10px] font-bold uppercase tracking-wider text-app-mu">Next Trip</div>
         
         <div className="mb-5 flex flex-wrap items-center gap-2 font-syne text-lg font-extrabold text-app-tx">
-          <Ic.Pin  />
+          <Ic.Pin />
           <span className="text-app-am">{next.from}</span>
           <span className="font-normal text-app-mu mx-1">→</span>
           <span>{next.to}</span>
@@ -49,7 +46,6 @@ export default function DashboardPage({ go }: { go: (p: Page) => void }) {
           </span>
         </div>
 
-        {/* Trip Details Info */}
         <div className="mb-5 grid grid-cols-2 md:grid-cols-4 gap-2">
           {[
             { l: "Date", v: next.date, a: false },
@@ -66,7 +62,7 @@ export default function DashboardPage({ go }: { go: (p: Page) => void }) {
 
         <button 
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-app-am py-3 text-[13px] font-bold text-white shadow-[0_4px_14px_var(--am-g)] transition-all hover:brightness-110 active:scale-[0.98]"
-          onClick={() => go("trackBus")}
+          onClick={() => go?.("trackBus")}
         >
           <Ic.Target /> Track My Bus
         </button>
@@ -83,10 +79,10 @@ export default function DashboardPage({ go }: { go: (p: Page) => void }) {
           <div 
             key={act.l} 
             className="group cursor-pointer rounded-2xl border border-app-bd bg-app-card p-4 transition-all hover:border-app-am-g"
-            onClick={() => go(act.p as Page)}
+            onClick={() => go?.(act.p as Page)}
           >
             <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${act.bg} ${act.c}`}>
-              <Ic.Bus  />
+              <Ic.Bus />
             </div>
             <div className="font-syne text-xs font-bold text-app-tx group-hover:text-app-am transition-colors">{act.l}</div>
             <div className="mt-0.5 text-[10px] text-app-mu">{act.s}</div>
@@ -100,7 +96,7 @@ export default function DashboardPage({ go }: { go: (p: Page) => void }) {
           <h3 className="font-syne text-[13px] font-bold text-app-tx uppercase tracking-wider">Upcoming Trips</h3>
           <button 
             className="cursor-pointer text-[11px] font-bold text-app-am transition-opacity hover:opacity-80"
-            onClick={() => go("myTrips")}
+            onClick={() => go?.("myTrips")}
           >
             View All →
           </button>
@@ -111,7 +107,7 @@ export default function DashboardPage({ go }: { go: (p: Page) => void }) {
             <div key={t.id} className="flex items-center justify-between rounded-2xl border border-app-bd bg-app-card p-3.5 transition-all hover:border-app-am-g">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-app-am-d text-app-am">
-                  <Ic.Bus  />
+                  <Ic.Bus />
                 </div>
                 <div>
                   <div className="font-syne text-[13px] font-bold text-app-tx">

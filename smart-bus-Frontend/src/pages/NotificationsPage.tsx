@@ -4,7 +4,7 @@ import { Ic } from "../icons";
 export default function NotificationsPage() {
   return (
     <div className="p-6">
-      {/* Container for vertical list */}
+      
       <div className="mx-auto max-w-[800px] space-y-3">
         
         {NOTIFS.map((n) => (

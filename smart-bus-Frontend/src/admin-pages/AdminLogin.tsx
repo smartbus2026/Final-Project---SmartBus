@@ -5,12 +5,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginSchemaType } from '../schemas/authSchema';
 
-interface LoginProps {
+interface AdminLoginProps {
   onSuccess: () => void;
 }
 
-interface LoginProps { onSuccess: () => void; }
-const Login: React.FC<LoginProps> = ({ onSuccess }) => {
+const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess }) => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -24,8 +23,8 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
 
   const onSubmit = (data: LoginSchemaType) => {
     console.log('Logging in with:', data);
-    onSuccess();
-    navigate('/dashboard');
+    onSuccess?.();
+    navigate('/admin/dashboard');
   };
 
   return (
@@ -39,14 +38,14 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
             <Bus size={32} fill="currentColor" />
           </Link>
           <h1 className="text-2xl font-bold tracking-tight">SmartBus</h1>
-          <p className="text-[#8a8d91] text-sm uppercase tracking-widest mt-1">Student Portal</p>
+          <p className="text-[#8a8d91] text-sm uppercase tracking-widest mt-1">Admin Portal</p>
         </div>
 
         {/* Card */}
         <div className="w-full bg-[#1c1e26] border border-[#2d3036] p-10 rounded-[24px] shadow-2xl animate-in fade-in zoom-in-95 duration-500">
           <div className="mb-8">
             <h2 className="text-xl font-bold mb-1 text-white">Welcome back</h2>
-            <p className="text-[#8a8d91] text-sm">Sign in with your institutional account</p>
+            <p className="text-[#8a8d91] text-sm">Sign in with your admin account</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -60,7 +59,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
                 <Mail className="absolute left-4 text-[#8a8d91]" size={18} />
                 <input 
                   type="email"
-                  placeholder="retaj@university.edu"
+                  placeholder="admin@university.edu"
                   {...register("email")}
                   className="w-full bg-[#262a33] border border-[#2d3036] py-3.5 pl-12 pr-4 rounded-xl text-white outline-none focus:border-[#f7a01b] focus:bg-[#f7a01b]/[0.02] transition-all text-sm placeholder:text-gray-600"
                 />
@@ -134,4 +133,4 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
   );
 };
 
-export default Login;
+export default AdminLogin;

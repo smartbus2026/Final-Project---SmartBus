@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { Bus, Eye, EyeOff, Lock } from 'lucide-react';import { useForm } from 'react-hook-form';
+import { Bus, Eye, EyeOff, Lock } from 'lucide-react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema, type SignupSchemaType } from '../schemas/authSchema';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-const SignUp: React.FC = () => {
+interface SignUpProps { onSuccess: () => void; }
+
+const SignUp: React.FC<SignUpProps> = ({ onSuccess }) => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -17,6 +21,8 @@ const SignUp: React.FC = () => {
 
   const onSubmit = (data: SignupSchemaType) => {
     console.log('Form Submitted:', data);
+    onSuccess();
+    navigate('/dashboard');
   };
 
   return (
@@ -55,34 +61,32 @@ const SignUp: React.FC = () => {
               inputProps={register("email")}
               placeholder="name@university.edu"
             />
-<div className="space-y-1.5">
-  <label className="text-[#8a8d91] text-xs font-semibold uppercase tracking-wider ml-1">
-    Password
-  </label>
 
-  <div className="relative flex items-center">
-    <Lock className="absolute left-4 text-[#8a8d91]" size={18} />
+            <div className="space-y-1.5">
+              <label className="text-[#8a8d91] text-xs font-semibold uppercase tracking-wider ml-1">
+                Password
+              </label>
+              <div className="relative flex items-center">
+                <Lock className="absolute left-4 text-[#8a8d91]" size={18} />
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Create a password"
+                  {...register("password")}
+                  className="w-full bg-[#262a33] border border-[#2d3036] py-3 pl-12 pr-12 rounded-xl text-white outline-none focus:border-[#f7a01b] focus:bg-[#f7a01b]/[0.02] transition-all text-sm placeholder:text-gray-600"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 text-[#8a8d91] hover:text-white transition-colors"
+                >
+                  {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="text-red-400 text-xs ml-1">{errors.password.message}</p>
+              )}
+            </div>
 
-    <input 
-      type={showPassword ? "text" : "password"}
-      placeholder="Create a password"
-      {...register("password")}
-      className="w-full bg-[#262a33] border border-[#2d3036] py-3 pl-12 pr-12 rounded-xl text-white outline-none focus:border-[#f7a01b] focus:bg-[#f7a01b]/[0.02] transition-all text-sm placeholder:text-gray-600"
-    />
-
-    <button 
-      type="button"
-      onClick={() => setShowPassword(!showPassword)}
-      className="absolute right-4 text-[#8a8d91] hover:text-white transition-colors"
-    >
-      {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
-    </button>
-  </div>
-
-  {errors.password && (
-    <p className="text-red-400 text-xs ml-1">{errors.password.message}</p>
-  )}
-</div>
             <InputGroup 
               label="Confirm Password"
               type="password"
@@ -150,14 +154,12 @@ const InputGroup: React.FC<InputProps> = ({ label, placeholder, type = "text", i
     <label className="text-[#8a8d91] text-xs font-semibold uppercase tracking-wider ml-1">
       {label}
     </label>
-
     <input 
       type={type}
       placeholder={placeholder}
       {...inputProps}
       className="w-full bg-[#262a33] border border-[#2d3036] py-3 px-4 rounded-xl text-white outline-none focus:border-[#f7a01b] focus:bg-[#f7a01b]/[0.02] transition-all text-sm placeholder:text-gray-600" 
     />
-
     {error && (
       <p className="text-red-400 text-xs mt-1 ml-1">{error}</p>
     )}

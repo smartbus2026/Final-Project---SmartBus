@@ -1,13 +1,4 @@
-// ──────────────────────────────────────────────
-//  pages/UsersPage.tsx  (Admin Users)
-//
-//  شغله إيه؟
-//  - تابز: All / Students / Drivers مع عداد
-//  - Search bar بيفلتر بالاسم أو الإيميل
-//  - جدول فيه: الاسم، الإيميل+تليفون، الدور، الحالة، تاريخ الانضمام
-//  - كل صف فيه dropdown بـ 3 أكشنز (View / Edit / Activate-Deactivate)
-//  - Pagination بسيطة في الأسفل
-// ──────────────────────────────────────────────
+
 import { useState } from "react";
 import { USERS } from "../data";
 import { Ic } from "../icons";
@@ -44,7 +35,7 @@ export default function UsersPage() {
   return (
     <div style={{ padding: 24 }}>
 
-      {/* ── Top row: tabs + actions ── */}
+   
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:10 }}>
         <div className="tabs" style={{ margin:0 }}>
           {(["all","students","drivers"] as Tab[]).map(t => (
@@ -59,7 +50,7 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* ── Search + Filter ── */}
+      
       <div style={{ display:"flex",gap:8,marginBottom:14 }}>
         <div style={{ flex:1,position:"relative" }}>
           <span style={{ position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",color:"var(--mu)",pointerEvents:"none" }}>
@@ -74,7 +65,7 @@ export default function UsersPage() {
         <button className="btn btn-ghost" style={{ fontSize:12 }}><Ic.Filter /> Filters</button>
       </div>
 
-      {/* ── Table ── */}
+      
       <div className="card" style={{ overflow:"hidden" }}>
         <div style={{ overflowX:"auto" }}>
           <table style={{ width:"100%",minWidth:720,borderCollapse:"collapse",fontSize:13,textAlign:"left" }}>
