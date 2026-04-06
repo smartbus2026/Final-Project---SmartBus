@@ -92,7 +92,7 @@ export default function App() {
           element={
             role === "admin"   ? <Navigate to="/admin/dashboard" replace /> :
             role === "student" ? <Navigate to="/dashboard"       replace /> :
-                                 <Navigate to="/welcome"           replace />
+                                 <Navigate to="/signup"           replace />
           }
         />
 
