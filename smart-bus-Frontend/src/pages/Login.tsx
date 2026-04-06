@@ -4,17 +4,18 @@ import { Bus, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginSchemaType } from '../schemas/authSchema';
-import Api from '../services/Api';
-import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 
-interface LoginProps { onSuccess: () => void; }
+// تأكدنا إن الـ Props بتستقبل الـ role اللي جاي من الباكيند
+interface LoginProps { 
+  onSuccess: (role: "student" | "admin") => void; 
+}
 
 const Login: React.FC<LoginProps> = ({ onSuccess }) => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const { login } = useAuth();
 
   const {
     register,
@@ -28,28 +29,27 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
     setLoading(true);
     setServerError(null);
     try {
-      const response = await Api.post('/auth/login', data);
+      const response = await axios.post('http://localhost:5000/api/auth/login', data);
       
-      const { token, user } = response.data; 
-      login(token, user.role);
+      // بنجيب التوكن واليوزر من الرد بتاع السيرفر
+      const { token, user } = response.data;
 
       if (token) {
         localStorage.setItem('token', token);
-        localStorage.setItem('userRole', user.role); 
+        
+        // بننادي الـ onSuccess اللي في App.tsx وبنبعتلها الـ role
+        // ده هيخلي الـ handleSetRole في App.tsx تشتغل وتسيف الـ role
+        onSuccess(user.role); 
+
+        // التوجيه بناءً على الـ Role
+        if (user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
       }
-
-      console.log('Login Success:', user);
-      onSuccess();
-
-      if (user.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/dashboard');
-      }
-
     } catch (error: any) {
-      const msg = error.response?.data?.message || 'Invalid email or password';
-      setServerError(msg);
+      setServerError(error.response?.data?.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
         
         {/* Logo Section */}
         <div className="flex flex-col items-center text-center mb-8 animate-in">
-          <Link to="/" className="w-16 h-16 bg-[#f7a01b] text-black rounded-[20px] flex items-center justify-center shadow-xl shadow-orange-500/10 transition-transform hover:scale-105 active:scale-95">
+          <Link to="/welcome" className="w-16 h-16 bg-[#f7a01b] text-black rounded-[20px] flex items-center justify-center shadow-xl shadow-orange-500/10 transition-transform hover:scale-105 active:scale-95">
             <Bus size={32} fill="currentColor" />
           </Link>
           <h1 className="text-3xl font-extrabold tracking-tight mt-4">SmartBus</h1>
@@ -76,7 +76,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
             <p className="text-[#8a8d91] text-sm font-medium">Access your institutional portal</p>
           </div>
 
-          {/* Server Error Message */}
+          {/* Error Message */}
           {serverError && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl text-center font-medium animate-shake">
               {serverError}
@@ -132,7 +132,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
               )}
             </div>
 
-            {/* Sign In Button */}
+            {/* Button */}
             <button 
               type="submit"
               disabled={loading}
@@ -142,7 +142,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
             </button>
           </form>
 
-          {/* Footer Link */}
+          {/* Link to Signup */}
           <div className="mt-8 text-center text-sm border-t border-[#2d3036] pt-6">
             <p className="text-[#8a8d91]">
               New to SmartBus? 
