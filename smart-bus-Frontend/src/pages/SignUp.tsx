@@ -27,27 +27,43 @@ const SignUp: React.FC<SignUpProps> = ({ onSuccess }) => {
   const selectedRole = watch("role");
 
   const onSubmit = async (data: SignupSchemaType) => {
-    setLoading(true);
-    setServerError(null);
-    try {
-      const payload = {
-        name: data.fullName,
-        email: data.email,
-        password: data.password,
-        role: data.role,
-        phone_number: data.phone_number,
-        student_id: data.role === 'student' ? data.student_id : undefined,
-      };
+  setLoading(true);
+  setServerError(null);
+  try {
+    const payload: any = {
+      name: data.fullName,
+      email: data.email,
+      password: data.password,
+      role: data.role,
+      phone_number: data.phone_number,
+    };
 
-      await Api.post('/auth/register', payload);
-      onSuccess();
-      navigate('/dashboard');
-    } catch (error: any) {
-      setServerError(error.response?.data?.message || 'Registration failed. Please try again.');
-    } finally {
-      setLoading(false);
+    
+    if (data.role === 'student') {
+      payload.student_id = data.student_id;
     }
-  };
+
+    const response = await Api.post('/auth/register', payload);
+    
+    const { token, user } = response.data;
+
+    if (token && user) {
+      localStorage.setItem('token', token);
+      
+      onSuccess(user.role); 
+
+      if (user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    }
+  } catch (error: any) {
+    setServerError(error.response?.data?.message || error.response?.data?.error || 'Registration failed.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="bg-[#0f1115] text-white min-h-screen flex items-center justify-center p-6 font-sans selection:bg-[#f7a01b] selection:text-black">

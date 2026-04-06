@@ -78,13 +78,14 @@ export default function App() {
       <Routes>
 
         {/* --- Public Pages --- */}
-        <Route path="/welcome"     element={<WelcomePage theme={theme} toggleTheme={toggleTheme} />} />
-        
-        <Route path="/signup"      element={<SignUp  onSuccess={() => handleSetRole("student")} />} />
-        
-        <Route path="/login"       element={<Login   onSuccess={(detectedRole: Role) => handleSetRole(detectedRole || "student")} />} />
-        
-        <Route path="/admin/login" element={<AdminLogin onSuccess={() => handleSetRole("admin")} />} />
+        {/* --- Public Pages --- */}
+<Route path="/welcome"     element={<WelcomePage theme={theme} toggleTheme={toggleTheme} />} />
+
+<Route path="/signup"      element={<SignUp  onSuccess={(detectedRole: Role) => handleSetRole(detectedRole)} />} />
+
+<Route path="/login"       element={<Login   onSuccess={(detectedRole: Role) => handleSetRole(detectedRole)} />} />
+
+<Route path="/admin/login" element={<AdminLogin onSuccess={(detectedRole: Role) => handleSetRole(detectedRole || "admin")} />} /> 
 
         {/* Root redirect based on role */}
         <Route
@@ -112,12 +113,12 @@ export default function App() {
           <Route path="/track-bus"      element={<Guard role={role} allowed={["student"]} redirectTo="/login"><TrackBusPage /></Guard>} />
 
           {/* Admin Routes */}
-          <Route path="/admin/dashboard"     element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><AdminDashboard /></Guard>} />
-          <Route path="/admin/notifications" element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><AdminNotifications /></Guard>} />
-          <Route path="/admin/routes"        element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><ManageRoutes /></Guard>} />
-          <Route path="/admin/users"         element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><UsersPage /></Guard>} />
-          <Route path="/admin/trips"         element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><TripsPage /></Guard>} />
-          <Route path="/admin/reports"       element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><AdminReports /></Guard>} />
+          <Route path="/admin/dashboard"     element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminDashboard /></Guard>} />
+          <Route path="/admin/notifications" element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminNotifications /></Guard>} />
+          <Route path="/admin/routes"        element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><ManageRoutes /></Guard>} />
+          <Route path="/admin/users"         element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><UsersPage /></Guard>} />
+          <Route path="/admin/trips"         element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><TripsPage /></Guard>} />
+          <Route path="/admin/reports"       element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminReports /></Guard>} />
 
         </Route>
 
