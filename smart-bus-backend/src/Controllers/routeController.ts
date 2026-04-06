@@ -1,9 +1,19 @@
 import { Request, Response } from "express";
 import Route from "../models/Route";
-import Stop from "../models/Stop";
+import Stop from "../models/stop";
 
 export const createRoute = async (req: Request, res: Response) => {
   try {
+    const { name } = req.body;
+
+    const existingRoute = await Route.findOne({ name });
+    if (existingRoute) {
+      return res.status(400).json({ 
+        message: "Route with this name already exists!", 
+        route: existingRoute 
+      });
+    }
+
     const newRoute = await Route.create(req.body);
     res.status(201).json(newRoute);
   } catch (err: any) {
@@ -11,14 +21,13 @@ export const createRoute = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getAllRoutes = async (req: Request, res: Response) => {
   try {
     const { search } = req.query;
     let query = {};
 
     if (search) {
-      query = { route_name: { $regex: search, $options: "i" } };
+      query = { name: { $regex: search, $options: "i" } };
     }
 
     const routes = await Route.find(query).populate("stops");
@@ -30,7 +39,6 @@ export const getAllRoutes = async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const updateRoute = async (req: Request, res: Response) => {
   try {
@@ -44,7 +52,6 @@ export const updateRoute = async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const deleteRoute = async (req: Request, res: Response) => {
   try {
@@ -65,38 +72,47 @@ export const addStopToRoute = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Route not found!" });
     }
 
-    const newStop = await Stop.create({
-      name: stop_name,
-      location: { lat, lng },
-    });
+    let stop = await Stop.findOne({ name: stop_name });
 
-    route.stops = [...route.stops, newStop._id];
+    if (!stop) {
+      stop = await Stop.create({
+        name: stop_name,
+        location: { lat, lng },
+      });
+    }
+
+    if (route.stops.includes(stop._id as any)) {
+      return res.status(400).json({ message: "Stop already exists in this route" });
+    }
+
+    route.stops.push(stop._id as any);
     await route.save();
 
     const updatedRoute = await Route.findById(id).populate("stops");
 
-    res.status(201).json({ route: updatedRoute, newStop });
+    res.status(201).json({ 
+      message: "Stop added to route successfully",
+      route: updatedRoute, 
+      stop 
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 };
 
-
 export const removeStopFromRoute = async (req: Request, res: Response) => {
   try {
     const { routeId, stopId } = req.params;
-
     const route = await Route.findById(routeId);
+    
     if (!route) {
-      return res.status(404).json({ message: "Route not found!" });
+      return res.status(404).json({ message: "Route not found" });
     }
 
-    route.stops = route.stops.filter(id => id.toString() !== stopId);
+    route.stops = route.stops.filter((id) => id.toString() !== stopId);
     await route.save();
 
-    const updatedRoute = await Route.findById(routeId).populate("stops");
-
-    res.status(200).json(updatedRoute);
+    res.status(200).json({ message: "Stop removed from route", route });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

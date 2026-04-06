@@ -6,7 +6,8 @@ export interface IRoute extends Document {
 }
 
 const routeSchema = new Schema<IRoute>({
-  name: { type: String, required: true },
+
+name: { type: String, required: true, unique: true },
   stops: [{ type: Schema.Types.ObjectId, ref: "Stop" }]
 });
 
