@@ -8,10 +8,12 @@ import tripRoutes from "./Routes/tripRoutes";
 import bookingRoutes from "./Routes/bookingRoutes";
 import notificationRoutes from "./Routes/notificationsRoutes";
 import chatRoutes from "./Routes/chatRoutes";
+import connectDB from "./config/db";
 
 import authRoutes from "./Routes/authRoutes";
 
 dotenv.config();
+connectDB();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -28,19 +30,11 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", chatRoutes);
 
 
-
-mongoose
-  .connect(process.env.MONGO_URI || "")
-  .then(() => {
-    console.log(" Connected to MongoDB Atlas successfully");
-    
-    app.listen(PORT, () => {
-      console.log(`Server is running on http://localhost:${PORT}`);
-      app.get("/", (req, res) => {
-  res.send("API is running ");
+app.get("/", (req, res) => {
+  res.send("API is running");
 });
-    });
-  })
-  .catch((err) => {
-    console.error(" MongoDB Connection Error:", err.message);
-  });
+
+app.listen(PORT, () => {
+  console.log(`Server running`);
+});
+   

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
-/**
- * Function to connect the application to MongoDB Atlas
+/*
+  Function to connect the application to MongoDB Atlas
  */
 const connectDB = async () => {
   try {

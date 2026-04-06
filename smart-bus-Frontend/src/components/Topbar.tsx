@@ -24,6 +24,7 @@ const META: Record<string, { title: string; sub: string }> = {
   "/admin/live-tracking": { title: "Live Tracking",   sub: "Real-time bus locations" },
   "/admin/notifications": { title: "Notifications",   sub: "Send system alerts" },
   "/admin/reports":     { title: "System Reports",    sub: "Analytics and statistics" },
+  "/admin/settings": { title: "Settings", sub: "Global system configuration" },
 };
 
 

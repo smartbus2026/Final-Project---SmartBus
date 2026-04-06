@@ -44,12 +44,12 @@ const Guard = ({ role, allowed, redirectTo, children }: GuardProps) =>
 
 // --- App ---
 export default function App() {
-  const [theme, setTheme] = useState<Theme>(() =>
+    const [theme, setTheme] = useState<Theme>(() =>
     (localStorage.getItem("theme") as Theme) ?? "dark"
   );
 
   const [role, setRole] = useState<Role>(() =>
-    (localStorage.getItem("role") as Role) ?? null
+    (localStorage.getItem("userRole") as Role) ?? null
   );
 
   const toggleTheme = useCallback(() => {
@@ -62,8 +62,8 @@ export default function App() {
 
   const handleSetRole = useCallback((r: Role) => {
     setRole(r);
-    if (r) localStorage.setItem("role", r);
-    else    localStorage.removeItem("role");
+    if (r) localStorage.setItem("userRole", r);
+    else    localStorage.removeItem("userRole");
   }, []);
 
   useEffect(() => {
@@ -76,23 +76,23 @@ export default function App() {
 
         {/* --- Public Pages --- */}
         <Route path="/welcome"     element={<WelcomePage theme={theme} toggleTheme={toggleTheme} />} />
-        <Route path="/signup"      element={<SignUp  onSuccess={() => handleSetRole("student")} />} />
-        <Route path="/login"       element={<Login   onSuccess={() => handleSetRole("student")} />} />
-        <Route path="/admin/login" element={<AdminLogin onSuccess={() => handleSetRole("admin")} />} />
+<Route path="/signup"      element={<SignUp     onSuccess={(role) => handleSetRole(role as Role)} />} />
+<Route path="/login"       element={<Login      onSuccess={(role) => handleSetRole(role as Role)} />} />
+<Route path="/admin/login" element={<AdminLogin />} />
 
         {/* Root redirect based on role */}
         <Route
           path="/"
           element={
             role === "admin"   ? <Navigate to="/admin/dashboard" replace /> :
-            role === "student" ? <Navigate to="/dashboard"       replace /> :
+role === "student" ? <Navigate to="/dashboard"       replace /> :
                                  <Navigate to="/welcome"          replace />
           }
         />
 
         {/* --- Shared Layout --- */}
         <Route element={<AppLayout theme={theme} setTheme={toggleTheme} role={role}  onLogout={() => handleSetRole(null)} />
-      
+          
       }>
 
           {/* Student Routes */}
@@ -117,7 +117,7 @@ export default function App() {
           <Route path="/admin/settings" element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><AdminSettings /></Guard>} />
         </Route>
 
-        
+
         <Route path="*" element={<PlaceholderPage label="Page Not Found" />} />
 
       </Routes>

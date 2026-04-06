@@ -1,24 +1,25 @@
 import React from 'react';
-import { Ic } from '../icons';
 
 const AdminSettings: React.FC = () => {
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
+    <div className="p-8 space-y-8">
       <div>
         <h3 className="font-bold text-app-tx uppercase tracking-widest text-xs mb-1">System Settings</h3>
         <p className="text-[11px] text-app-mu font-medium">Configure global parameters and preferences</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        {/* Registration Window Control */}
+
+        {/* Registration Window */}
         <div className="bg-app-card border border-app-bd rounded-2xl p-6 space-y-6">
-          <div className="flex items-center gap-3 text-app-am">
-            <Ic.Calendar />
+          <div className="flex items-center gap-3">
+            {/* ✅ SVG بدل Ic.Calendar */}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-app-am">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
             <h4 className="text-sm font-black text-app-tx uppercase tracking-tight">Registration Window</h4>
           </div>
-          
           <div className="space-y-4">
             <div>
               <label className="block text-[10px] font-bold uppercase text-app-mu mb-2">Daily Closing Time</label>
@@ -33,10 +34,14 @@ const AdminSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* System Notifications */}
+        {/* Global Alerts */}
         <div className="bg-app-card border border-app-bd rounded-2xl p-6 space-y-6">
-          <div className="flex items-center gap-3 text-app-am">
-            <Ic.Bell />
+          <div className="flex items-center gap-3">
+            {/* ✅ SVG بدل Ic.Bell */}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-app-am">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
             <h4 className="text-sm font-black text-app-tx uppercase tracking-tight">Global Alerts</h4>
           </div>
           <div className="space-y-3">
@@ -48,12 +53,10 @@ const AdminSettings: React.FC = () => {
             ))}
           </div>
         </div>
-
       </div>
 
-      {/* Save Button */}
       <div className="flex justify-end pt-4">
-        <button className="bg-app-am text-black px-8 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-app-am/20">
+        <button className="bg-app-am text-black px-8 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all">
           Save Changes
         </button>
       </div>
