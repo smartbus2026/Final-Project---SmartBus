@@ -25,6 +25,7 @@ import ManageRoutes       from "./admin-pages/ManageRoutes";
 import UsersPage          from "./admin-pages/Users";
 import TripsPage          from "./admin-pages/Trips";
 import AdminReports       from "./admin-pages/AReports";
+import AdminSettings from "./admin-pages/AdminSettings";
 
 // --- Types ---
 type Role  = "student" | "admin" | null;
@@ -113,7 +114,7 @@ export default function App() {
           <Route path="/admin/users"         element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><UsersPage /></Guard>} />
           <Route path="/admin/trips"         element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><TripsPage /></Guard>} />
           <Route path="/admin/reports"       element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><AdminReports /></Guard>} />
-
+          <Route path="/admin/settings" element={<Guard role={role} allowed={["admin"]} redirectTo="/admin/login"><AdminSettings /></Guard>} />
         </Route>
 
         

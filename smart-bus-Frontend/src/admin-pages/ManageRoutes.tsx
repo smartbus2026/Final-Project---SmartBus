@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Ic } from '../icons';
 
 interface BusRoute {
@@ -25,11 +25,31 @@ const INITIAL_FORM: NewRouteForm = {
   stops: [''],
 };
 
+/* ── stagger hook ── */
+function useStaggeredIn(deps: unknown[]) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    setVisible(false);
+    const id = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return visible;
+}
+
+/* ── mock progress per route ── */
+const mockProgress = (id: string) => {
+  const map: Record<string, number> = { '1': 72, '2': 45 };
+  return map[id] ?? Math.floor(30 + (parseInt(id, 10) % 5) * 12);
+};
+
 const ManageRoutesPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen]         = useState(false);
   const [searchQuery, setSearchQuery]         = useState('');
   const [selectedRouteId, setSelectedRouteId] = useState('1');
   const [form, setForm]                       = useState<NewRouteForm>(INITIAL_FORM);
+  const [deletingId, setDeletingId]           = useState<string | null>(null);
+  const firstInputRef                         = useRef<HTMLInputElement>(null);
 
   const [routes, setRoutes] = useState<BusRoute[]>([
     {
@@ -53,12 +73,14 @@ const ManageRoutesPage: React.FC = () => {
   ]);
 
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeModal();
-    };
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeModal(); };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, []);
+
+  useEffect(() => {
+    if (isModalOpen) setTimeout(() => firstInputRef.current?.focus(), 80);
+  }, [isModalOpen]);
 
   const openModal  = () => { setForm(INITIAL_FORM); setIsModalOpen(true); };
   const closeModal = () => setIsModalOpen(false);
@@ -82,7 +104,6 @@ const ManageRoutesPage: React.FC = () => {
   const deployRoute = () => {
     const filledStops = form.stops.filter((s) => s.trim() !== '');
     if (!form.name.trim() || filledStops.length === 0) return;
-
     const newRoute: BusRoute = {
       id: String(Date.now()),
       code: `R-${String(routes.length + 1).padStart(3, '0')}`,
@@ -92,7 +113,6 @@ const ManageRoutesPage: React.FC = () => {
       activeBuses: 0,
       stops: filledStops,
     };
-
     setRoutes((prev) => [...prev, newRoute]);
     setSelectedRouteId(newRoute.id);
     closeModal();
@@ -100,8 +120,14 @@ const ManageRoutesPage: React.FC = () => {
 
   const deleteRoute = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setRoutes((prev) => prev.filter((r) => r.id !== id));
-    if (selectedRouteId === id) setSelectedRouteId(routes[0]?.id ?? '');
+    setDeletingId(id);
+    setTimeout(() => {
+      setRoutes((prev) => prev.filter((r) => r.id !== id));
+      if (selectedRouteId === id) {
+        setSelectedRouteId(routes.find((r) => r.id !== id)?.id ?? '');
+      }
+      setDeletingId(null);
+    }, 280);
   };
 
   const filteredRoutes = routes.filter((r) =>
@@ -110,16 +136,31 @@ const ManageRoutesPage: React.FC = () => {
   );
 
   const selectedRoute = routes.find((r) => r.id === selectedRouteId);
+  const listVisible   = useStaggeredIn([filteredRoutes.length]);
 
   return (
     <div className="flex-1 flex flex-col bg-app-bg text-app-tx min-h-screen">
 
-      {/* ── Add Route Modal ── */}
+      {/* ════════ keyframes (injected once) ════════ */}
+      <style>{`
+        @keyframes modalIn  { from{opacity:0;transform:translateY(20px) scale(.97)} to{opacity:1;transform:none} }
+        @keyframes slideDown{ from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+        @keyframes cardIn   { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+        @keyframes fadeScale{ from{opacity:0;transform:scale(.94)} to{opacity:1;transform:scale(1)} }
+      `}</style>
+
+      {/* ════════════════════════════════════════
+          MODAL
+      ════════════════════════════════════════ */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={closeModal} />
-          <div className="bg-app-card border border-app-bd w-full max-w-lg rounded-[2.5rem] relative z-10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
 
+          <div
+            className="bg-app-card border border-app-bd w-full max-w-lg rounded-[2.5rem] relative z-10 shadow-2xl overflow-hidden"
+            style={{ animation: 'modalIn .25s cubic-bezier(.22,1,.36,1) both' }}
+          >
+            {/* header */}
             <div className="p-8 border-b border-app-bd flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <div className="bg-app-am/20 p-3 rounded-2xl text-app-am">
@@ -132,16 +173,18 @@ const ManageRoutesPage: React.FC = () => {
               </div>
               <button
                 onClick={closeModal}
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-app-card2 border border-app-bd text-app-mu hover:text-app-tx transition-all"
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-app-card2 border border-app-bd text-app-mu hover:text-app-tx hover:border-app-am/40 transition-all"
               >
                 <Ic.Close />
               </button>
             </div>
 
+            {/* body */}
             <div className="p-8 space-y-6">
               <div className="space-y-2">
                 <label className="text-app-mu text-[10px] uppercase font-black tracking-[0.2em] ml-1">Route Descriptor</label>
                 <input
+                  ref={firstInputRef}
                   type="text"
                   placeholder="E.G. NORTH SECTOR → CAMPUS"
                   value={form.name}
@@ -173,44 +216,55 @@ const ManageRoutesPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex justify-between items-center mb-1">
+              {/* stops — connected rail */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
                   <label className="text-app-mu text-[10px] uppercase font-black tracking-[0.2em] ml-1">Checkpoint Chain</label>
                   <button
                     onClick={addStop}
-                    className="text-app-am text-[9px] font-black hover:brightness-125 transition-all uppercase tracking-widest border border-app-am/30 px-3 py-1 rounded-full"
+                    className="text-app-am text-[9px] font-black hover:brightness-125 hover:bg-app-am/10 transition-all uppercase tracking-widest border border-app-am/30 px-3 py-1 rounded-full"
                   >
                     + ADD STOP
                   </button>
                 </div>
-                <div className="space-y-3 max-h-44 overflow-y-auto pr-1">
+
+                <div className="max-h-52 overflow-y-auto pr-1 custom-scrollbar space-y-0">
                   {form.stops.map((stop, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-4 bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 group focus-within:border-app-am transition-all"
-                    >
-                      <div className="w-2 h-2 rounded-full border-2 border-app-am shrink-0" />
-                      <input
-                        type="text"
-                        placeholder={`STOP ${index + 1}`}
-                        value={stop}
-                        onChange={(e) => updateStop(index, e.target.value)}
-                        className="bg-transparent border-none outline-none text-[11px] font-bold w-full text-app-tx uppercase tracking-widest"
-                      />
-                      {form.stops.length > 1 && (
-                        <button
-                          onClick={() => removeStop(index)}
-                          className="text-app-mu hover:text-red-400 transition-colors text-xs shrink-0"
-                        >
-                          <Ic.Close />
-                        </button>
-                      )}
+                    <div key={index} className="flex gap-3" style={{ animation: 'slideDown .2s ease both' }}>
+                      {/* rail */}
+                      <div className="flex flex-col items-center pt-[18px] w-5 shrink-0">
+                        <div className="w-2.5 h-2.5 rounded-full border-2 border-app-am bg-app-bg shrink-0 z-10" />
+                        {index < form.stops.length - 1 && (
+                          <div className="w-[2px] flex-1 bg-app-am/20 mt-1 min-h-[10px]" />
+                        )}
+                      </div>
+                      {/* input */}
+                      <div className="flex-1 pb-2">
+                        <div className="flex items-center gap-3 bg-app-card2 border border-app-bd rounded-2xl px-4 py-3.5 group focus-within:border-app-am transition-all">
+                          <input
+                            type="text"
+                            placeholder={`STOP ${index + 1}`}
+                            value={stop}
+                            onChange={(e) => updateStop(index, e.target.value)}
+                            className="bg-transparent border-none outline-none text-[11px] font-bold w-full text-app-tx uppercase tracking-widest"
+                          />
+                          {form.stops.length > 1 && (
+                            <button
+                              onClick={() => removeStop(index)}
+                              className="text-app-mu hover:text-red-400 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                            >
+                              <Ic.Close />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
+            {/* footer */}
             <div className="p-8 bg-app-card2 border-t border-app-bd flex justify-end gap-4">
               <button
                 onClick={closeModal}
@@ -221,7 +275,7 @@ const ManageRoutesPage: React.FC = () => {
               <button
                 onClick={deployRoute}
                 disabled={!form.name.trim()}
-                className="bg-app-am text-black px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:brightness-110 transition-all shadow-lg shadow-app-am/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="bg-app-am text-black px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-app-am/20 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Deploy Route
               </button>
@@ -230,9 +284,11 @@ const ManageRoutesPage: React.FC = () => {
         </div>
       )}
 
-    
-      <div className="px-10 pt-8 pb-4 flex items-center justify-between shrink-0">
-        <div className="bg-app-card border border-app-bd px-5 py-3.5 rounded-2xl flex items-center gap-4 w-[350px] shadow-sm focus-within:border-app-am/50 transition-all">
+      {/* ════════════════════════════════════════
+          TOPBAR
+      ════════════════════════════════════════ */}
+      <div className="px-4 sm:px-10 pt-8 pb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shrink-0">
+        <div className="bg-app-card border border-app-bd px-5 py-3.5 rounded-2xl flex items-center gap-4 w-full sm:w-[350px] shadow-sm focus-within:border-app-am/50 transition-all">
           <span className="text-app-mu"><Ic.Search /></span>
           <input
             type="text"
@@ -249,14 +305,16 @@ const ManageRoutesPage: React.FC = () => {
         </div>
         <button
           onClick={openModal}
-          className="bg-app-am text-black font-black px-8 py-4 rounded-2xl hover:brightness-110 transition-all text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-app-am/10"
+          className="bg-app-am text-black font-black px-8 py-4 rounded-2xl hover:brightness-110 active:scale-95 transition-all text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-app-am/10 whitespace-nowrap"
         >
           + New Route
         </button>
       </div>
 
-      {/* ── Main Content ── */}
-      <section className="flex-1 overflow-hidden px-10 pb-10">
+      {/* ════════════════════════════════════════
+          MAIN CONTENT
+      ════════════════════════════════════════ */}
+      <section className="flex-1 overflow-hidden px-4 sm:px-10 pb-10">
         <div className="flex items-center gap-4 mb-6">
           <span className="text-app-mu text-[10px] font-black uppercase tracking-[0.2em]">
             {filteredRoutes.length} Registered Sector{filteredRoutes.length !== 1 ? 's' : ''}
@@ -264,42 +322,68 @@ const ManageRoutesPage: React.FC = () => {
           <div className="h-[1px] flex-1 bg-app-bd opacity-30" />
         </div>
 
-        {filteredRoutes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-4 opacity-30">
-            <Ic.Route />
-            <p className="text-[10px] font-black uppercase tracking-widest text-app-mu">No routes match your search</p>
+        {/* ── Empty state ── */}
+        {filteredRoutes.length === 0 && (
+          <div
+            className="flex flex-col items-center justify-center h-64 gap-6"
+            style={{ animation: 'fadeScale .35s ease both' }}
+          >
+            <div className="relative">
+              <div className="w-20 h-20 rounded-[2rem] bg-app-card border border-app-bd flex items-center justify-center text-app-mu opacity-40">
+                <Ic.Route />
+              </div>
+              <div className="absolute inset-0 rounded-[2rem] border border-app-am/10 scale-110" />
+              <div className="absolute inset-0 rounded-[2rem] border border-app-am/5  scale-125" />
+            </div>
+            <div className="text-center space-y-2 opacity-40">
+              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-app-tx">No routes found</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-app-mu">
+                {searchQuery ? 'Try a different search term' : 'Deploy your first route above'}
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-[450px_1fr] gap-10 h-full pb-10">
+        )}
 
-            {/* Routes List */}
-            <div className="overflow-y-auto pr-4 space-y-5 custom-scrollbar">
-              {filteredRoutes.map((route) => (
+        {filteredRoutes.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-[450px_1fr] gap-6 lg:gap-10 h-full pb-10">
+
+            {/* ── Routes list ── */}
+            <div className="overflow-y-auto pr-1 lg:pr-4 space-y-4 custom-scrollbar">
+              {filteredRoutes.map((route, idx) => (
                 <div
                   key={route.id}
                   onClick={() => setSelectedRouteId(route.id)}
-                  className={`group relative bg-app-card border rounded-[2rem] p-8 cursor-pointer transition-all duration-300 ${
+                  className={`group relative bg-app-card border rounded-[2rem] p-6 lg:p-8 cursor-pointer transition-all duration-300 ${
+                    deletingId === route.id ? 'opacity-0 scale-95 pointer-events-none' : ''
+                  } ${
                     selectedRouteId === route.id
                       ? 'border-app-am shadow-2xl shadow-app-am/5 scale-[1.02]'
-                      : 'border-app-bd hover:border-app-am/30'
+                      : 'border-app-bd hover:border-app-am/30 hover:shadow-lg hover:shadow-app-am/5'
                   }`}
+                  style={listVisible ? { animation: `cardIn .3s ease ${idx * 60}ms both` } : { opacity: 0 }}
                 >
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-tighter text-app-tx mb-1 flex items-center gap-3">
+                  {/* selected left strip */}
+                  {selectedRouteId === route.id && (
+                    <div className="absolute left-0 top-6 bottom-6 w-[3px] bg-app-am rounded-r-full" />
+                  )}
+
+                  {/* header */}
+                  <div className="flex justify-between items-start mb-5">
+                    <div className="min-w-0 flex-1 pr-3">
+                      <h3 className="text-sm font-black uppercase tracking-tighter text-app-tx mb-1.5 flex items-center gap-3">
                         <div className={`w-2 h-2 rounded-full shrink-0 ${route.activeBuses > 0 ? 'bg-app-ok animate-pulse' : 'bg-app-mu'}`} />
-                        {route.name}
+                        <span className="truncate">{route.name}</span>
                       </h3>
-                      <div className="text-app-mu text-[9px] font-black uppercase tracking-[0.15em]">
-                        ID: {route.code}
-                        <span className="mx-2 text-app-bd">|</span>
-                        {route.distance}
-                        <span className="mx-2 text-app-bd">|</span>
-                        {route.duration}
+                      <div className="text-app-mu text-[9px] font-black uppercase tracking-[0.15em] flex items-center gap-1 flex-wrap">
+                        <span>{route.code}</span>
+                        <span className="text-app-bd">·</span>
+                        <span>{route.distance}</span>
+                        <span className="text-app-bd">·</span>
+                        <span>{route.duration}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="bg-app-card2 p-2 rounded-xl border border-app-bd group-hover:border-app-am/30 transition-all">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="bg-app-card2 p-2 rounded-xl border border-app-bd group-hover:border-app-am/30 transition-all text-app-mu">
                         <Ic.Route />
                       </div>
                       <button
@@ -311,30 +395,51 @@ const ManageRoutesPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 mb-8 h-8 overflow-hidden">
+                  {/* stops chips */}
+                  <div className="flex flex-wrap items-center gap-1.5 mb-5 min-h-[26px] overflow-hidden max-h-[26px]">
                     {route.stops.map((stop, index) => (
                       <React.Fragment key={index}>
-                        <span className="bg-app-card2 border border-app-bd px-3 py-1.5 rounded-lg text-[9px] font-black text-app-tx uppercase tracking-tighter">
+                        <span className="bg-app-card2 border border-app-bd px-2.5 py-1.5 rounded-lg text-[8px] font-black text-app-tx uppercase tracking-tighter whitespace-nowrap">
                           {stop}
                         </span>
                         {index < route.stops.length - 1 && (
-                          <div className="w-1 h-1 rounded-full bg-app-mu opacity-40 mx-1" />
+                          <svg width="8" height="8" viewBox="0 0 8 8" className="text-app-mu opacity-30 shrink-0">
+                            <path d="M1 4h6M5 2l2 2-2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                          </svg>
                         )}
                       </React.Fragment>
                     ))}
                   </div>
 
-                  <div className="flex justify-between items-center pt-6 border-t border-app-bd/50">
+                  {/* progress bar */}
+                  <div className="mb-5">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[8px] font-black text-app-mu uppercase tracking-widest">Route Coverage</span>
+                      <span className="text-[8px] font-black text-app-am">{mockProgress(route.id)}%</span>
+                    </div>
+                    <div className="h-[3px] w-full bg-app-card2 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-app-am rounded-full transition-all duration-700"
+                        style={{ width: `${mockProgress(route.id)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* footer */}
+                  <div className="flex justify-between items-center pt-5 border-t border-app-bd/50">
                     <div className="flex items-center gap-3">
                       <div className="flex -space-x-2">
-                        {[...Array(Math.min(route.activeBuses, 5))].map((_, i) => (
-                          <div key={i} className="w-6 h-6 rounded-full border-2 border-app-card bg-app-am flex items-center justify-center">
-                            <div className="w-2 h-2 bg-black rounded-full" />
-                          </div>
-                        ))}
+                        {route.activeBuses > 0
+                          ? [...Array(Math.min(route.activeBuses, 5))].map((_, i) => (
+                              <div key={i} className="w-6 h-6 rounded-full border-2 border-app-card bg-app-am flex items-center justify-center">
+                                <div className="w-2 h-2 bg-black rounded-full" />
+                              </div>
+                            ))
+                          : <div className="w-6 h-6 rounded-full border-2 border-dashed border-app-bd bg-app-card2" />
+                        }
                       </div>
-                      <span className="text-app-am text-[9px] font-black uppercase tracking-widest">
-                        {route.activeBuses} Active Fleet
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${route.activeBuses > 0 ? 'text-app-am' : 'text-app-mu'}`}>
+                        {route.activeBuses > 0 ? `${route.activeBuses} Active Fleet` : 'No buses assigned'}
                       </span>
                     </div>
                     <Ic.Dots className="text-app-mu group-hover:text-app-am transition-colors" />
@@ -343,8 +448,8 @@ const ManageRoutesPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Detail Panel */}
-            <div className="bg-app-card border border-app-bd rounded-[3rem] relative overflow-hidden flex flex-col shadow-inner">
+            {/* ── Detail panel (desktop) ── */}
+            <div className="hidden lg:flex bg-app-card border border-app-bd rounded-[3rem] relative overflow-hidden flex-col shadow-inner">
               <div
                 className="absolute inset-0 opacity-[0.03] pointer-events-none"
                 style={{
@@ -352,35 +457,56 @@ const ManageRoutesPage: React.FC = () => {
                   backgroundSize: '50px 50px',
                 }}
               />
-              <div className="absolute top-8 left-8 z-10 flex items-center gap-4">
+
+              {/* live badge */}
+              <div className="absolute top-8 left-8 z-10">
                 <span className="bg-black/40 backdrop-blur-xl text-app-ok px-5 py-2.5 rounded-2xl text-[10px] font-black border border-app-ok/20 flex items-center gap-3 tracking-[0.2em] uppercase shadow-2xl">
                   <span className="w-2.5 h-2.5 bg-app-ok rounded-full animate-ping" />
                   Spatial Visualization
                 </span>
               </div>
 
+              {/* selected route card */}
               {selectedRoute && (
-                <div className="absolute top-8 right-8 z-10 bg-app-card2/80 backdrop-blur-md border border-app-bd rounded-2xl p-5 min-w-[200px]">
+                <div
+                  key={selectedRoute.id}
+                  className="absolute top-8 right-8 z-10 bg-app-card2/80 backdrop-blur-md border border-app-bd rounded-2xl p-5 min-w-[200px]"
+                  style={{ animation: 'fadeScale .25s ease both' }}
+                >
                   <p className="text-[9px] font-black text-app-mu uppercase tracking-widest mb-3">Selected Route</p>
                   <p className="text-xs font-black text-app-tx uppercase tracking-tight mb-1">{selectedRoute.name}</p>
-                  <p className="text-[9px] text-app-am font-bold">{selectedRoute.code}</p>
-                  <div className="mt-4 space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-[9px] text-app-mu uppercase tracking-widest">Distance</span>
-                      <span className="text-[9px] font-black text-app-tx">{selectedRoute.distance}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[9px] text-app-mu uppercase tracking-widest">Duration</span>
-                      <span className="text-[9px] font-black text-app-tx">{selectedRoute.duration}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[9px] text-app-mu uppercase tracking-widest">Stops</span>
-                      <span className="text-[9px] font-black text-app-tx">{selectedRoute.stops.length}</span>
-                    </div>
+                  <p className="text-[9px] text-app-am font-bold mb-4">{selectedRoute.code}</p>
+
+                  {/* mini stop chain */}
+                  <div className="space-y-1.5 mb-4">
+                    {selectedRoute.stops.map((stop, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          i === 0 || i === selectedRoute.stops.length - 1
+                            ? 'bg-app-am'
+                            : 'border border-app-am'
+                        }`} />
+                        <span className="text-[8px] font-black text-app-tx uppercase tracking-wider truncate">{stop}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-1.5 border-t border-app-bd/50 pt-3">
+                    {[
+                      { label: 'Distance', val: selectedRoute.distance },
+                      { label: 'Duration', val: selectedRoute.duration },
+                      { label: 'Stops',    val: String(selectedRoute.stops.length) },
+                    ].map(({ label, val }) => (
+                      <div key={label} className="flex justify-between">
+                        <span className="text-[9px] text-app-mu uppercase tracking-widest">{label}</span>
+                        <span className="text-[9px] font-black text-app-tx">{val}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
+              {/* map placeholder */}
               <div className="flex-1 flex flex-col items-center justify-center relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-app-am/5 via-transparent to-transparent opacity-50" />
                 <div className="relative text-app-mu opacity-10">
@@ -391,6 +517,7 @@ const ManageRoutesPage: React.FC = () => {
                 </p>
               </div>
 
+              {/* panel footer */}
               <div className="h-24 bg-app-card2/50 backdrop-blur-md border-t border-app-bd px-10 flex items-center justify-between">
                 <div className="flex gap-10">
                   <div className="flex flex-col">
@@ -410,11 +537,32 @@ const ManageRoutesPage: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <button className="bg-app-card border border-app-bd px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-app-tx hover:border-app-am transition-all">
+                <button className="bg-app-card border border-app-bd px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-app-tx hover:border-app-am active:scale-95 transition-all">
                   Toggle Telemetry
                 </button>
               </div>
             </div>
+
+            {/* ── Detail panel (mobile) ── */}
+            {selectedRoute && (
+              <div className="lg:hidden bg-app-card border border-app-bd rounded-[2rem] p-6">
+                <p className="text-[9px] font-black text-app-mu uppercase tracking-widest mb-3">Selected Route</p>
+                <p className="text-sm font-black text-app-tx uppercase tracking-tight mb-1">{selectedRoute.name}</p>
+                <p className="text-[9px] text-app-am font-bold mb-4">{selectedRoute.code}</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Distance', val: selectedRoute.distance },
+                    { label: 'Duration', val: selectedRoute.duration },
+                    { label: 'Stops',    val: String(selectedRoute.stops.length) },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="bg-app-card2 border border-app-bd rounded-xl p-3 text-center">
+                      <p className="text-[8px] text-app-mu uppercase tracking-widest mb-1">{label}</p>
+                      <p className="text-xs font-black text-app-tx">{val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
           </div>
         )}
