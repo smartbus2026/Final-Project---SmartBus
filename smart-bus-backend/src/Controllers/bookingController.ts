@@ -3,13 +3,11 @@ import Booking from "../models/Booking";
 import Trip from "../models/Trip";
 import Notification from "../models/notification";
 
-//  Create Booking
 export const createBooking = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const { trip_id, pickup_point, seat_number } = req.body;
 
-    //  check if trip exists + populate route + stops
     const trip: any = await Trip.findById(trip_id).populate({
       path: "route",
       populate: { path: "stops" }
@@ -19,59 +17,52 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    //  validate route + stops
     if (!trip.route || !trip.route.stops) {
       return res.status(400).json({ message: "Route has no stops" });
     }
 
     const validStop = trip.route.stops.find(
-      (s: any) =>
-        s.name.toLowerCase() === pickup_point.toLowerCase()
+      (s: any) => s.name.toLowerCase() === pickup_point.toLowerCase()
     );
 
     if (!validStop) {
       return res.status(400).json({ message: "Invalid pickup point" });
     }
 
-    //  prevent duplicate booking
-   const existingBooking = await Booking.findOne({
-  user: user.id,
-  trip: trip_id,
-});
+    const existingBooking = await Booking.findOne({
+      user: user.id,
+      trip: trip_id,
+      status: { $ne: "cancelled" }
+    });
 
     if (existingBooking) {
-      return res.status(400).json({ message: "You already booked this trip" });
+      return res.status(400).json({ message: "You already have an active booking for this trip" });
     }
 
-    //  check seat range
     if (seat_number > trip.total_seats || seat_number < 1) {
       return res.status(400).json({ message: "Invalid seat number" });
     }
 
-    //  check seat availability
-const seatTaken = await Booking.findOne({
-  trip: trip_id,
-  seat_number,
-  status: { $ne: "cancelled" },
-});
+    const seatTaken = await Booking.findOne({
+      trip: trip_id,
+      seat_number,
+      status: { $ne: "cancelled" },
+    });
 
     if (seatTaken) {
       return res.status(400).json({ message: "Seat already taken" });
     }
 
-    //  create booking
-  const booking = await Booking.create({
-  user: user.id,
-  trip: trip_id,
-  pickup_point,
-  seat_number,
-});
+    const booking = await Booking.create({
+      user: user.id,
+      trip: trip_id,
+      pickup_point,
+      seat_number,
+    });
 
-    //  update booked seats
     trip.booked_seats += 1;
     await trip.save();
 
-    //  send notification AFTER success
     await Notification.create({
       user: user.id,
       title: "Booking Confirmed",
@@ -80,47 +71,58 @@ const seatTaken = await Booking.findOne({
     });
 
     res.status(201).json({
+      status: "success",
       message: "Booking created successfully",
-      booking,
+      data: { booking },
     });
 
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ status: "error", error: err.message });
   }
 };
 
-
-//    Get My Bookings
 export const getMyBookings = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
 
-  const bookings = await Booking.find({ user: user.id }).populate("trip");
+    const bookings = await Booking.find({ user: user.id })
+      .populate({
+        path: "trip",
+        populate: { path: "route", select: "name" }
+      })
+      .sort("-createdAt");
 
-    res.json(bookings);
+    res.status(200).json({
+      status: "success",
+      results: bookings.length,
+      data: { bookings }
+    });
 
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ status: "error", error: err.message });
   }
 };
 
-
-//    Get All Bookings
 export const getAllBookings = async (req: Request, res: Response) => {
   try {
     const bookings = await Booking.find()
       .populate("user", "name email")
-      .populate("trip_id");
+      .populate({
+        path: "trip",
+        populate: { path: "route", select: "name" }
+      });
 
-    res.json(bookings);
+    res.status(200).json({
+      status: "success",
+      results: bookings.length,
+      data: { bookings }
+    });
 
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ status: "error", error: err.message });
   }
 };
 
-
-//  Cancel Booking
 export const cancelBooking = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -132,17 +134,34 @@ export const cancelBooking = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    // only owner can cancel
-    if (booking.user.toString() !== user.id) {
-      return res.status(403).json({ message: "Not allowed" });
+    if (booking.user.toString() !== user.id && user.role !== "admin") {
+      return res.status(403).json({ message: "Not authorized to cancel this booking" });
+    }
+
+    if (booking.status === "cancelled") {
+      return res.status(400).json({ message: "Booking is already cancelled" });
     }
 
     booking.status = "cancelled";
     await booking.save();
 
-    res.json({ message: "Booking cancelled successfully" });
+    await Trip.findByIdAndUpdate(booking.trip, {
+      $inc: { booked_seats: -1 }
+    });
+
+    await Notification.create({
+      user: user.id,
+      title: "Booking Cancelled",
+      message: "Your booking has been cancelled successfully",
+      type: "booking",
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Booking cancelled successfully and seat released"
+    });
 
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ status: "error", error: err.message });
   }
 };
