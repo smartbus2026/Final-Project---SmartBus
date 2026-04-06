@@ -1,27 +1,37 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface ITrip extends Document {
-  route_id: mongoose.Types.ObjectId;
-  bus_number: string;
-  departure_time: Date;
-  status: "not_started" | "active" | "completed";
-  active_tracker_id?: mongoose.Types.ObjectId; 
-   total_seats: number;
-  current_location?: { lat: Number; lng: Number; last_updated: Date };
+  route: mongoose.Types.ObjectId;
+  date: Date;
+  total_seats: number;
+  booked_seats: number;
+  status: "scheduled" | "active" | "completed";
+  current_location: {
+    lat: number;
+    lng: number;
+    last_updated: Date;
+  };
 }
 
 const tripSchema = new Schema<ITrip>({
-  route_id: { type: Schema.Types.ObjectId, ref: "Route", required: true },
-  bus_number: { type: String, required: true },
-  departure_time: { type: Date, required: true },
-  status: { type: String, enum: ["not_started", "active", "completed"], default: "not_started" },
-  active_tracker_id: { type: Schema.Types.ObjectId, ref: "User" },
+  route: { type: Schema.Types.ObjectId, ref: "Route", required: true },
+  date: { type: Date },
   total_seats: { type: Number, required: true },
-  current_location: {
-    lat: Number,
-    lng: Number,
-    last_updated: { type: Date, default: Date.now }
+  booked_seats: { type: Number, default: 0 },
+  status: {
+  type: String,
+  enum: ["scheduled", "active", "completed"],
+  default: "scheduled"
+},
+current_location: {
+  lat: Number,
+  lng: Number,
+  last_updated: Date
+}
+    
+
   }
-});
+);
+
 
 export default mongoose.model<ITrip>("Trip", tripSchema);
