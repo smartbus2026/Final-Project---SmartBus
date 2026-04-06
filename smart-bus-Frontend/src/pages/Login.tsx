@@ -4,7 +4,7 @@ import { Bus, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginSchemaType } from '../schemas/authSchema';
-import axios from 'axios';
+import Api from '../services/Api';
 
 // تأكدنا إن الـ Props بتستقبل الـ role اللي جاي من الباكيند
 interface LoginProps { 
@@ -26,34 +26,31 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
   });
 
   const onSubmit = async (data: LoginSchemaType) => {
-    setLoading(true);
-    setServerError(null);
-    try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', data);
-      
-      // بنجيب التوكن واليوزر من الرد بتاع السيرفر
-      const { token, user } = response.data;
+  setLoading(true);
+  setServerError(null);
+  
+  console.log("Data being sent to backend:", data); 
 
-      if (token) {
-        localStorage.setItem('token', token);
-        
-        // بننادي الـ onSuccess اللي في App.tsx وبنبعتلها الـ role
-        // ده هيخلي الـ handleSetRole في App.tsx تشتغل وتسيف الـ role
-        onSuccess(user.role); 
+  try {
+    const response = await Api.post('/auth/login', data);
+    
+    console.log("Success Response:", response.data); 
 
-        // التوجيه بناءً على الـ Role
-        if (user.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/dashboard');
-        }
-      }
-    } catch (error: any) {
-      setServerError(error.response?.data?.message || 'Invalid email or password');
-    } finally {
-      setLoading(false);
+    const { token, user } = response.data;
+    if (token) {
+      localStorage.setItem('token', token);
+      onSuccess(user.role); 
+      navigate(user.role === 'admin' ? '/admin/dashboard' : '/dashboard');
     }
-  };
+  } catch (error: any) {
+    console.log("Full Error Object:", error);
+    console.log("Backend Error Message:", error.response?.data); 
+
+    setServerError(error.response?.data?.message || 'Invalid email or password');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="bg-[#0f1115] text-white min-h-screen flex items-center justify-center p-6 font-sans selection:bg-[#f7a01b] selection:text-black">
