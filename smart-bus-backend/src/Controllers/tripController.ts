@@ -7,21 +7,18 @@ import Route from "../models/Route";
 
 export const createTrip = async (req: Request, res: Response) => {
   try {
-    const { route_id, bus_number, departure_time, total_seats } = req.body;
+    const { route_id, time_slot, departure_time, total_seats } = req.body;
 
-    // check route exists
     const route = await Route.findById(route_id);
-    if (!route) {
-      return res.status(404).json({ message: "Route not found" });
-    }
+    if (!route) return res.status(404).json({ message: "Route not found" });
 
-   const trip = await Trip.create({
-  route: route_id,
-  date: departure_time,
-  total_seats
-});
+    const trip = await Trip.create({
+      route: route_id,
+      date: departure_time,
+      time_slot, 
+      total_seats
+    });
     res.status(201).json(trip);
-
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

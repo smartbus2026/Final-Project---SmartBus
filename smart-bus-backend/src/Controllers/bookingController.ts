@@ -4,6 +4,10 @@ import Trip from "../models/Trip";
 import Notification from "../models/notification";
 
 export const createBooking = async (req: Request, res: Response) => {
+    const currentHour = new Date().getHours();
+    if (currentHour >= 14) { // 14 means 2:00 PM
+      return res.status(400).json({ message: "Registration is closed. It opens daily from 12:00 AM to 2:00 PM." });
+    }
   try {
     const user = (req as any).user;
     const { trip_id, pickup_point, seat_number } = req.body;
@@ -17,18 +21,25 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
+    const currentTime = new Date();
+    const tripDate = new Date(trip.date);
+    if (tripDate < currentTime) {
+      return res.status(400).json({ message: "This trip has already departed" });
+    }
+
     if (!trip.route || !trip.route.stops) {
       return res.status(400).json({ message: "Route has no stops" });
     }
 
+    //  Validation: Verify pickup point exists in route stops
     const validStop = trip.route.stops.find(
-      (s: any) => s.name.toLowerCase() === pickup_point.toLowerCase()
+      (s: any) => s._id.toString() === pickup_point.toString()
     );
 
     if (!validStop) {
       return res.status(400).json({ message: "Invalid pickup point" });
     }
-
+    // 4. Validation: Check for duplicate active booking for this specific trip [Day 13]
     const existingBooking = await Booking.findOne({
       user: user.id,
       trip: trip_id,
@@ -39,6 +50,7 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "You already have an active booking for this trip" });
     }
 
+    // 5. Validation: Ensure seat number is valid and available
     if (seat_number > trip.total_seats || seat_number < 1) {
       return res.status(400).json({ message: "Invalid seat number" });
     }
@@ -53,6 +65,7 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Seat already taken" });
     }
 
+    // 6. Create booking and increment booked seats in Trip model
     const booking = await Booking.create({
       user: user.id,
       trip: trip_id,
@@ -63,6 +76,7 @@ export const createBooking = async (req: Request, res: Response) => {
     trip.booked_seats += 1;
     await trip.save();
 
+    // 7. Generate success notification
     await Notification.create({
       user: user.id,
       title: "Booking Confirmed",
@@ -85,6 +99,7 @@ export const getMyBookings = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
 
+    // Fetch user bookings with nested population for UI display
     const bookings = await Booking.find({ user: user.id })
       .populate({
         path: "trip",
@@ -134,6 +149,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
+    // Authorization: Only owner or admin can cancel
     if (booking.user.toString() !== user.id && user.role !== "admin") {
       return res.status(403).json({ message: "Not authorized to cancel this booking" });
     }
@@ -142,6 +158,13 @@ export const cancelBooking = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Booking is already cancelled" });
     }
 
+    // Validation: Prevent cancellation if the trip has already departed
+    const trip: any = await Trip.findById(booking.trip);
+    if (trip && new Date(trip.date) < new Date()) {
+        return res.status(400).json({ message: "Cannot cancel a booking for a trip that has already departed" });
+    }
+
+    // Update status and release seat
     booking.status = "cancelled";
     await booking.save();
 
@@ -149,6 +172,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
       $inc: { booked_seats: -1 }
     });
 
+    // Generate cancellation notification
     await Notification.create({
       user: user.id,
       title: "Booking Cancelled",

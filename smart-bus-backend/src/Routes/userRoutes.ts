@@ -1,7 +1,7 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware";
 import { allowRoles } from "../middleware/roleMiddleware";
-import { getAllUsers,getProfile } from "../Controllers/userController";
+import { getAllUsers,getProfile } from "../controllers/userController";
 
 
 const router = express.Router();

@@ -1,5 +1,5 @@
 import express from "express";
-import { createRoute, getAllRoutes, updateRoute, deleteRoute, addStopToRoute, removeStopFromRoute} from "../Controllers/routeController";
+import { createRoute, getAllRoutes, updateRoute, deleteRoute, addStopToRoute, removeStopFromRoute} from "../controllers/routeController";
 import { protect } from "../middleware/authMiddleware";
 import { allowRoles } from "../middleware/roleMiddleware";
     
@@ -15,7 +15,5 @@ router.post("/:id/stops", protect, allowRoles("admin"), addStopToRoute);
 router.put("/:id", protect, allowRoles("admin"), updateRoute);
 router.delete("/:id", protect, allowRoles("admin"), deleteRoute);
 
-router.delete("/:id/remove-stop/:stopName", protect, allowRoles("admin"), removeStopFromRoute);
-
-
+router.delete("/:id/remove-stop/:stopId", protect, allowRoles("admin"), removeStopFromRoute);
 export default router;
