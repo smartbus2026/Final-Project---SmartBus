@@ -20,12 +20,13 @@ const STUDENT_NAV = [
 ];
 
 const ADMIN_NAV = [
-  { id: "dashboard",      path: "/admin/dashboard",      label: "Dashboard",        icon: <Ic.Grid /> },
-  { id: "users",          path: "/admin/users",          label: "Users Management", icon: <Ic.Users /> },
-  { id: "routes",         path: "/admin/routes",         label: "Manage Routes",    icon: <Ic.Route /> },
-  { id: "liveTracking",   path: "/admin/trips",  label: "Live Tracking",    icon: <Ic.Target /> },
-  { id: "notifications",  path: "/admin/notifications",  label: "Notifications",    icon: <Ic.Bell /> },
-  { id: "reports",        path: "/admin/reports",        label: "System Reports",   icon: <Ic.Chart /> },
+  { id: "dashboard",      path: "/admin/dashboard",     label: "Dashboard",        icon: <Ic.Grid /> },
+  { id: "users",          path: "/admin/users",         label: "Users Management", icon: <Ic.Users /> },
+  { id: "routes",         path: "/admin/routes",        label: "Manage Routes",    icon: <Ic.Route /> },
+  { id: "liveTracking",   path: "/admin/trips",         label: "Live Tracking",    icon: <Ic.Target /> },
+  { id: "notifications",  path: "/admin/notifications", label: "Notifications",    icon: <Ic.Bell /> },
+  { id: "reports",        path: "/admin/reports",       label: "System Reports",   icon: <Ic.Chart /> },
+  { id: "settings",       path: "/admin/settings",      label: "Settings",         icon: <Ic.Gear /> },
 ];
 
 export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
@@ -34,6 +35,7 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
 
   return (
     <>
+      {/* Backdrop */}
       <div 
         className={`fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px] transition-all duration-500 lg:hidden 
         ${open ? "opacity-100" : "pointer-events-none opacity-0"}`} 
@@ -64,6 +66,7 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
 
         <div className="flex h-[calc(100%-5rem)] flex-col justify-between px-4 pb-8">
           
+          {/* Main Nav */}
           <div className="mt-6">
             <p className="mb-4 px-4 text-[9px] font-bold uppercase tracking-[0.3em] text-app-mu2">
               {role === "admin" ? "Admin Panel" : "Menu"}
@@ -89,30 +92,33 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
             </nav>
           </div>
 
-          {/* Bottom Actions */}
+          {/* Bottom Actions — student only extras */}
           <div className="mt-auto space-y-1 border-t border-app-bd/40 pt-6">
+            
             {role !== "admin" && (
-              <NavLink 
-                to="/support" 
-                className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200
-                  ${isActive ? "bg-app-card2 text-app-am font-bold" : "text-app-mu hover:text-app-tx hover:bg-app-card2/50"}`}
-                onClick={() => setOpen(false)}
-              >
-                <Ic.Help />
-                <span className="text-[13px]">Support</span>
-              </NavLink>
+              <>
+                <NavLink 
+                  to="/support" 
+                  className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200
+                    ${isActive ? "bg-app-card2 text-app-am font-bold" : "text-app-mu hover:text-app-tx hover:bg-app-card2/50"}`}
+                  onClick={() => setOpen(false)}
+                >
+                  <Ic.Help />
+                  <span className="text-[13px]">Support</span>
+                </NavLink>
+
+                <NavLink 
+                  to="/settings"
+                  className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200
+                    ${isActive ? "bg-app-card2 text-app-am font-bold" : "text-app-mu hover:text-app-tx hover:bg-app-card2/50"}`}
+                  onClick={() => setOpen(false)}
+                >
+                  <Ic.Gear />
+                  <span className="text-[13px]">Settings</span>
+                </NavLink>
+              </>
             )}
-            
-            <NavLink 
-              to="/settings" 
-              className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200
-                ${isActive ? "bg-app-card2 text-app-am font-bold" : "text-app-mu hover:text-app-tx hover:bg-app-card2/50"}`}
-              onClick={() => setOpen(false)}
-            >
-              <Ic.Gear />
-              <span className="text-[13px]">Settings</span>
-            </NavLink>
-            
+
             <button 
               onClick={onLogout}
               className="mt-4 flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-app-mu transition-colors hover:text-red-500"
@@ -120,6 +126,7 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
               <Ic.Logout />
               <span className="text-[12px] font-bold uppercase tracking-wider">Sign Out</span>
             </button>
+
           </div>
         </div>
       </aside>

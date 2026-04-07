@@ -6,7 +6,7 @@ import { signupSchema, type SignupSchemaType } from '../schemas/authSchema';
 import { Link, useNavigate } from 'react-router-dom';
 import Api from '../services/Api';
 
-interface SignUpProps { onSuccess: () => void; }
+interface SignUpProps { onSuccess: (role: "student" | "admin") => void; }
 
 const SignUp: React.FC<SignUpProps> = ({ onSuccess }) => {
   const navigate = useNavigate();

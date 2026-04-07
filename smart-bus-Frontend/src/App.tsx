@@ -18,7 +18,7 @@ import TrackBusPage        from "./pages/TrackBusPage";
 import BookTripPage        from "./pages/BookTripPage";
 
 // --- Admin Pages ---
-import AdminLogin         from "./admin-pages/AdminLogin";
+//import AdminLogin         from "./admin-pages/AdminLogin";
 import AdminDashboard     from "./admin-pages/ADashboard";
 import AdminNotifications from "./admin-pages/ANotifications";
 import ManageRoutes       from "./admin-pages/ManageRoutes";
@@ -85,7 +85,7 @@ export default function App() {
 
 <Route path="/login"       element={<Login   onSuccess={(detectedRole: Role) => handleSetRole(detectedRole)} />} />
 
-<Route path="/admin/login" element={<AdminLogin onSuccess={(detectedRole: Role) => handleSetRole(detectedRole || "admin")} />} /> 
+{/* <Route path="/admin/login" element={<AdminLogin onSuccess={(detectedRole: Role) => handleSetRole(detectedRole || "admin")} />} />  */}
 
         {/* Root redirect based on role */}
         <Route

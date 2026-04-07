@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginSchemaType } from '../schemas/authSchema';
 import Api from '../services/Api';
 
-// تأكدنا إن الـ Props بتستقبل الـ role اللي جاي من الباكيند
 interface LoginProps { 
   onSuccess: (role: "student" | "admin") => void; 
 }
