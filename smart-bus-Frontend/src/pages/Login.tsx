@@ -8,7 +8,6 @@ import Api from '../services/Api';
 
 interface LoginProps { 
   onSuccess: (role: "student" | "admin") => void; 
-  
 }
 
 const Login: React.FC<LoginProps> = ({ onSuccess }) => {
