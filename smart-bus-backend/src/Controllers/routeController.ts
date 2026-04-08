@@ -2,19 +2,29 @@ import { Request, Response } from "express";
 import Route from "../models/Route";
 import Stop from "../models/stop";
 
+
 export const createRoute = async (req: Request, res: Response) => {
   try {
-    const { name } = req.body;
+    const { name, distance, duration, stops } = req.body; 
 
-    const existingRoute = await Route.findOne({ name });
-    if (existingRoute) {
-      return res.status(400).json({ 
-        message: "Route with this name already exists!", 
-        route: existingRoute 
-      });
+    const stopIds = [];
+    if (stops && Array.isArray(stops)) {
+      for (const stopName of stops) {
+        let stop = await Stop.findOne({ name: stopName });
+        if (!stop) {
+          stop = await Stop.create({ name: stopName, location: { lat: 0, lng: 0 } });
+        }
+        stopIds.push(stop._id);
+      }
     }
 
-    const newRoute = await Route.create(req.body);
+    const newRoute = await Route.create({
+      name,
+      distance,
+      duration,
+      stops: stopIds
+    });
+
     res.status(201).json(newRoute);
   } catch (err: any) {
     res.status(500).json({ error: err.message });

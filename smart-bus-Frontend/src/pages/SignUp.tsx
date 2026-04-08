@@ -5,11 +5,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema, type SignupSchemaType } from '../schemas/authSchema';
 import { Link, useNavigate } from 'react-router-dom';
 import Api from '../services/Api';
+import { useAuth } from '../context/AuthContext';
 
-interface SignUpProps { onSuccess: (role: "student" | "admin") => void; }
+interface SignUpProps { onSuccess?: (role: "student" | "admin") => void; }
 
 const SignUp: React.FC<SignUpProps> = ({ onSuccess }) => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -27,43 +29,42 @@ const SignUp: React.FC<SignUpProps> = ({ onSuccess }) => {
   const selectedRole = watch("role");
 
   const onSubmit = async (data: SignupSchemaType) => {
-  setLoading(true);
-  setServerError(null);
-  try {
-    const payload: any = {
-      name: data.fullName,
-      email: data.email,
-      password: data.password,
-      role: data.role,
-      phone_number: data.phone_number,
-    };
+    setLoading(true);
+    setServerError(null);
+    try {
+      const payload: any = {
+        name: data.fullName,
+        email: data.email,
+        password: data.password,
+        role: data.role,
+        phone_number: data.phone_number,
+      };
 
-    
-    if (data.role === 'student') {
-      payload.student_id = data.student_id;
-    }
-
-    const response = await Api.post('/auth/register', payload);
-    
-    const { token, user } = response.data;
-
-    if (token && user) {
-      localStorage.setItem('token', token);
-      
-      onSuccess(user.role); 
-
-      if (user.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/dashboard');
+      if (data.role === 'student') {
+        payload.student_id = data.student_id;
       }
+
+      const response = await Api.post('/auth/register', payload);
+      
+      const { token, user } = response.data;
+
+      if (token && user) {
+        login(token, user.role);
+        
+        if (onSuccess) onSuccess(user.role); 
+
+        if (user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
+      }
+    } catch (error: any) {
+      setServerError(error.response?.data?.message || error.response?.data?.error || 'Registration failed.');
+    } finally {
+      setLoading(false);
     }
-  } catch (error: any) {
-    setServerError(error.response?.data?.message || error.response?.data?.error || 'Registration failed.');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="bg-[#0f1115] text-white min-h-screen flex items-center justify-center p-6 font-sans selection:bg-[#f7a01b] selection:text-black">

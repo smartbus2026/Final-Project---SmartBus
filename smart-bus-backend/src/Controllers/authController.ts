@@ -36,8 +36,13 @@ export const register = async (req: Request, res: Response) => {
     });
 
     return res.status(201).json({ 
-      message: "User registered",
-      token: generateToken(newUser._id, newUser.role) 
+      message: "User registered successfully",
+      token: generateToken(newUser._id, newUser.role),
+      user: { 
+        id: newUser._id, 
+        name: newUser.name, 
+        role: newUser.role 
+      }
     });
 
   } catch (err: any) {
