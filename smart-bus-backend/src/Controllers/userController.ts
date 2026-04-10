@@ -23,3 +23,23 @@ export const getProfile = async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+
+export const deleteUser = async (req: Request, res: Response) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: "User deleted successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const updateUser = async (req: Request, res: Response) => {
+  try {
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updatedUser);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
