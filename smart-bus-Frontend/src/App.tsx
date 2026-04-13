@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import "./App.css";
 
 import AppLayout          from "./components/AppLayout";
 import DashboardPage       from "./pages/DashboardPage";
