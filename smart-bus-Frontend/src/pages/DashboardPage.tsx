@@ -1,5 +1,6 @@
 import type { Page } from "../types";
 import { Ic } from "../icons";
+import { useNavigate } from "react-router-dom";
 
 export default function DashboardPage({ go }: { go?: (p: Page) => void }) {  
   const TRIPS: any[] = []; 
@@ -11,6 +12,8 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
     { l: "Upcoming", v: "3", c: "text-app-info", bg: "bg-blue-500/10", icon: <Ic.Bus /> },
     { l: "Missed", v: "2", c: "text-app-err", bg: "bg-red-500/10", icon: <Ic.Bus /> },
   ];
+
+  const navigate = useNavigate();
 
   return (
     <div className="p-6 space-y-6">
@@ -62,7 +65,7 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
 
         <button 
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-app-am py-3 text-[13px] font-bold text-white shadow-[0_4px_14px_var(--am-g)] transition-all hover:brightness-110 active:scale-[0.98]"
-          onClick={() => go?.("trackBus")}
+          onClick={() => navigate('/track-bus')}
         >
           <Ic.Target /> Track My Bus
         </button>
