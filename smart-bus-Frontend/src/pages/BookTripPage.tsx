@@ -25,6 +25,14 @@ export default function BookTripPage() {
   const [selectedPickupId, setSelectedPickupId] = useState(""); 
   const [selectedReturn, setSelectedReturn] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isBooking, setIsBooking] = useState(false);
+
+  // 1. State الخاصة بالـ Pop-up
+  const [modal, setModal] = useState({ 
+    isOpen: false, 
+    type: "success", // 'success' أو 'error'
+    message: "" 
+  });
 
   const timeLeft = "01h 49m";
   const returnTimes = ["3:30 PM", "7:00 PM"];
@@ -46,7 +54,9 @@ export default function BookTripPage() {
   const currentTrip = trips.find(t => t._id === selectedTripId);
   const pickupPoints = currentTrip?.route?.stops || [];
 
+  // 2. تعديل الـ Confirm عشان يفتح الـ Pop-up بدل الـ alert
   const handleConfirm = async () => {
+    setIsBooking(true);
     try {
       const payload = {
         trip_id: selectedTripId,
@@ -55,15 +65,33 @@ export default function BookTripPage() {
       };
 
       const res = await Api.post('/bookings', payload);
-      alert("Success: " + res.data.message);
+      setModal({ 
+        isOpen: true, 
+        type: "success", 
+        message: res.data.message || "Your seat has been reserved successfully!" 
+      });
+      
+      // تفريغ الاختيارات بعد النجاح (اختياري)
+      setSelectedTripId("");
+      setSelectedPickupId("");
+      setSelectedReturn("");
+
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      alert("Error: " + (error.response?.data?.message || "Something went wrong"));
+      setModal({ 
+        isOpen: true, 
+        type: "error", 
+        message: error.response?.data?.message || "Failed to book trip. Please try again." 
+      });
+    } finally {
+      setIsBooking(false);
     }
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl animate-in fade-in duration-700">
+    // ضفت relative عشان لو حبينا الـ modal يكون جوه الكونتينر، بس الـ fixed أفضل
+    <div className="relative p-6 space-y-6 max-w-4xl animate-in fade-in duration-700">
+      
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-black font-syne text-app-tx uppercase tracking-tighter">
           Book <span className="text-app-am">Trip</span>
@@ -164,15 +192,53 @@ export default function BookTripPage() {
 
       <button 
         onClick={handleConfirm}
-        disabled={!selectedPickupId || !selectedReturn}
+        disabled={!selectedPickupId || !selectedReturn || isBooking}
         className={`w-full py-5 rounded-[24px] font-syne font-black text-sm uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all duration-500
-          ${(selectedPickupId && selectedReturn)
+          ${(selectedPickupId && selectedReturn && !isBooking)
             ? "bg-app-am text-black cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
             : "bg-app-card2 border border-app-bd text-app-mu2 cursor-not-allowed opacity-50"}`}
       >
         <Ic.Bus />
-        Confirm Booking
+        {isBooking ? "Confirming..." : "Confirm Booking"}
       </button>
+
+      {/* ── 3. واجهة الـ Pop-up (Modal) ── */}
+      {modal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-app-card border border-app-bd rounded-[24px] p-8 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-300">
+            <div className="flex flex-col items-center text-center gap-4">
+              
+              {/* أيقونة الحالة (نجاح أو خطأ) */}
+              <div className={`flex h-20 w-20 items-center justify-center rounded-full border-4 ${
+                modal.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-app-ok' : 'bg-red-500/10 border-red-500/20 text-app-err'
+              }`}>
+                {modal.type === 'success' ? <Ic.Check /> : <span className="font-bold text-3xl">!</span>}
+              </div>
+              
+              <h3 className="font-syne text-xl font-black text-app-tx uppercase tracking-wider mt-2">
+                {modal.type === 'success' ? 'Booking Confirmed!' : 'Action Failed'}
+              </h3>
+              
+              <p className="text-sm text-app-mu font-medium px-2">
+                {modal.message}
+              </p>
+              
+              <button
+                onClick={() => setModal({ ...modal, isOpen: false })}
+                className={`mt-4 w-full py-4 rounded-xl font-syne font-black text-[13px] uppercase tracking-widest transition-all ${
+                  modal.type === 'success' 
+                    ? 'bg-app-am text-black hover:brightness-110' 
+                    : 'bg-app-card2 border border-app-bd text-app-tx hover:border-app-err hover:text-app-err'
+                }`}
+              >
+                {modal.type === 'success' ? 'View My Trips' : 'Close & Try Again'}
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

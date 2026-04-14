@@ -1,60 +1,57 @@
 import { useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom"; // ضفنا useNavigate
 import type { Theme } from "../types";
 import { Ic } from "../icons";
 import { NOTIFS } from "../data";
 
-
 const META: Record<string, { title: string; sub: string }> = {
-  // Student
-  "/dashboard":         { title: "Dashboard",        sub: "Welcome back, Noha" },
-  "/book-trip":         { title: "Book Trip",         sub: "Reserve your seat for tomorrow" },
-  "/my-trips":          { title: "My Trips",          sub: "Manage your weekly transportation" },
-  "/route-details":     { title: "Route Details",     sub: "View routes and schedules" },
-  "/track-bus":         { title: "Track Bus",         sub: "Live bus location and ETA" },
-  "/attendance":        { title: "Attendance",        sub: "Your trip history and stats" },
-  "/notifications":     { title: "Notifications",     sub: "Alerts and updates" },
-  "/route-chat":        { title: "Route Chat",        sub: "Chat with your route group" },
-  "/support":           { title: "Support",           sub: "Help center & tickets" },
-  "/settings":          { title: "My Profile",        sub: "Manage your personal information" },
-  // Admin
-  "/admin/dashboard":   { title: "Dashboard",         sub: "Overview of today's operations" },
-  "/admin/users":       { title: "Users Management",  sub: "Manage students and drivers" },
-  "/admin/routes":      { title: "Manage Routes",     sub: "Configure bus routes" },
-  "/admin/live-tracking": { title: "Live Tracking",   sub: "Real-time bus locations" },
-  "/admin/notifications": { title: "Notifications",   sub: "Send system alerts" },
-  "/admin/reports":     { title: "System Reports",    sub: "Analytics and statistics" },
+  // Student Routes
+  "/dashboard": { title: "Dashboard", sub: "Welcome back, Noha" },
+  "/book-trip": { title: "Book Trip", sub: "Reserve your seat for tomorrow" },
+  "/my-trips": { title: "My Trips", sub: "Manage your weekly transportation" },
+  "/track-bus": { title: "Track Bus", sub: "Live bus location and ETA" },
+  "/settings": { title: "My Profile", sub: "Manage your personal information" },
+  // Admin Routes
+  "/admin/dashboard": { title: "Dashboard", sub: "Overview of today's operations" },
+  "/admin/users": { title: "Users Management", sub: "Manage students and drivers" },
+  "/admin/routes": { title: "Manage Routes", sub: "Configure bus routes" },
   "/admin/settings": { title: "Settings", sub: "Global system configuration" },
 };
 
-
 interface Props {
   theme: Theme;
-  setTheme: () => void;  
+  setTheme: () => void;
   onMenu: () => void;
   role: "student" | "admin" | null;
 }
 
 export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
-  const [nd, setNd] = useState(false);
-  const [ud, setUd] = useState(false);
+  const [nd, setNd] = useState(false); // Notifications Dropdown
+  const [ud, setUd] = useState(false); // User Dropdown
   const location = useLocation();
+  const navigate = useNavigate(); // Hook للتنقل بين الصفحات
 
   const isAdmin = role === "admin";
-
 
   const { title, sub } = META[location.pathname] || {
     title: "SmartBus",
     sub: isAdmin ? "Admin Panel" : "Student Portal",
   };
 
+  // دالة الخروج (Logout)
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // مسح التوكن من الجهاز
+    localStorage.removeItem("role");  // مسح الرول
+    navigate("/login");               // التوجه لصفحة التسجيل
+  };
+
   const closeDrops = () => { setNd(false); setUd(false); };
 
   const dropClass = "absolute right-0 mt-3 overflow-hidden rounded-2xl border border-app-bd/50 bg-app-card shadow-2xl animate-in fade-in zoom-in duration-200";
 
-  
+  // بيانات اليوزر (ممكن مستقبلاً تيجي من AuthContext)
   const user = isAdmin
-    ? { name: "Admin",      id: "ADM-001",  avatar: "Admin" }
+    ? { name: "Admin", id: "ADM-001", avatar: "Admin" }
     : { name: "Noha Khalil", id: "STU-7241", avatar: "Noha+Khalil" };
 
   return (
@@ -62,7 +59,7 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
       className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-app-bd/40 bg-app-bg/80 px-6 backdrop-blur-xl md:px-10"
       onClick={closeDrops}
     >
-    
+      {/* ── Left: Title & Mobile Menu ── */}
       <div className="flex items-center gap-5">
         <button
           className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-app-bd/50 text-app-mu transition-all hover:bg-app-card2 hover:text-app-tx lg:hidden"
@@ -75,7 +72,6 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
             <h2 className="font-syne text-lg font-extrabold tracking-tight text-app-tx md:text-xl">
               {title}
             </h2>
-            
             {isAdmin && (
               <span className="text-[9px] font-black uppercase tracking-widest bg-app-am/10 text-app-am border border-app-am/20 px-2 py-0.5 rounded-md">
                 Admin
@@ -88,7 +84,7 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
 
       {/* ── Right: Actions ── */}
       <div className="flex items-center gap-4 md:gap-6" onClick={(e) => e.stopPropagation()}>
-
+        
         {/* Search */}
         <div className="hidden items-center gap-3 rounded-xl border border-app-bd/30 bg-app-card2/40 px-4 py-2.5 transition-all focus-within:border-app-am/40 focus-within:bg-app-card2 lg:flex w-64">
           <Ic.Search />
@@ -138,14 +134,17 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
                   </div>
                 ))}
               </div>
-              <button className="w-full border-t border-app-bd/30 py-3 text-center text-[11px] font-black uppercase tracking-widest text-app-am hover:bg-app-am hover:text-white transition-all">
+              <button 
+                onClick={() => { navigate(isAdmin ? "/admin/notifications" : "/notifications"); setNd(false); }}
+                className="w-full border-t border-app-bd/30 py-3 text-center text-[11px] font-black uppercase tracking-widest text-app-am hover:bg-app-am hover:text-white transition-all"
+              >
                 See All Notifications
               </button>
             </div>
           )}
         </div>
 
-        {/* User Profile */}
+        {/* User Profile Dropdown */}
         <div className="relative">
           <div
             className="group flex items-center gap-3 cursor-pointer rounded-xl p-1 transition-all"
@@ -158,7 +157,9 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
                 className="p-0.5 rounded-full"
               />
             </div>
-            <Ic.ChevDown />
+            <div className="transition-transform duration-200" style={{ transform: ud ? 'rotate(180deg)' : 'rotate(0)' }}>
+               <Ic.ChevDown />
+            </div>
           </div>
 
           {ud && (
@@ -169,18 +170,31 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
               </div>
               <div className="h-[1px] bg-app-bd/30 mx-2 mb-1" />
 
-             
+              {/* Profile Button (For Students) */}
               {!isAdmin && (
-                <button className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all">
+                <button 
+                  onClick={() => { navigate("/settings"); setUd(false); }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all"
+                >
                   <Ic.User /> Profile
                 </button>
               )}
 
-              <button className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all">
+              {/* Settings Button (Dynamic Route) */}
+              <button 
+                onClick={() => { navigate(isAdmin ? "/admin/settings" : "/settings"); setUd(false); }}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all"
+              >
                 <Ic.Gear /> Settings
               </button>
+
               <div className="h-[1px] bg-app-bd/30 mx-2 my-1" />
-              <button className="flex w-full items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-app-err hover:bg-app-err/10 transition-all">
+
+              {/* Logout Button */}
+              <button 
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-app-err hover:bg-app-err/10 transition-all"
+              >
                 <Ic.Logout /> Sign Out
               </button>
             </div>

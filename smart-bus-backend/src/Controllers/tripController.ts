@@ -29,7 +29,13 @@ export const createTrip = async (req: Request, res: Response) => {
 //  Get All Trips
 export const getTrips = async (req: Request, res: Response) => {
   try {
-    const trips = await Trip.find().populate("route");
+    const trips = await Trip.find().populate({
+      path: "route",
+      populate: {
+        path: "stops",
+        model: "Stop" 
+      }
+    });
 
     res.json({
       results: trips.length,
@@ -41,13 +47,16 @@ export const getTrips = async (req: Request, res: Response) => {
   }
 };
 
-
-
-//    Get Single Trip
-
+// Get Single Trip 
 export const getTripById = async (req: Request, res: Response) => {
   try {
-    const trip = await Trip.findById(req.params.id).populate("route");
+    const trip = await Trip.findById(req.params.id).populate({
+      path: "route",
+      populate: {
+        path: "stops",
+        model: "Stop"
+      }
+    });
 
     if (!trip) {
       return res.status(404).json({ message: "Trip not found" });
