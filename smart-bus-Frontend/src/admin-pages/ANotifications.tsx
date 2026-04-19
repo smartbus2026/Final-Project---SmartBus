@@ -1,16 +1,10 @@
 import React, { useState } from 'react';
 import { Ic } from '../icons';
-
-interface Notification {
-  id: string;
-  title: string;
-  time: string;
-  target: string;
-  message: string;
-  readCount: number;
-}
+import { useAdminNotifications } from '../hooks/useAdminNotifications';
 
 const AdminNotifications: React.FC = () => {
+  const { isLoading, toast, history, setHistory, sendBroadcast } = useAdminNotifications();
+  
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [target, setTarget] = useState("All Users");
@@ -22,17 +16,27 @@ const AdminNotifications: React.FC = () => {
     { icon: <Ic.Bell />,     label: "General Announcement",   msg: "Important announcement from SmartBus administration." },
   ];
 
-  const notifications: Notification[] = [
-    { id: "N-001", title: "Registration Window Reminder", time: "Feb 7, 2026 • 11:00 AM", target: "All Students",           message: "Don't forget to register for tomorrow's bus. Window closes at 2:00 PM.", readCount: 892 },
-    { id: "N-002", title: "Route Change Notice",           time: "Feb 6, 2026 • 4:00 PM",  target: "Aqaleem Route Students", message: "Aqaleem route will use an alternative road due to construction. Please arrive early.", readCount: 234 },
-    { id: "N-003", title: "Return Trip Update",            time: "Feb 5, 2026 • 2:30 PM",  target: "Evening Return",         message: "Evening return trip has been moved from 7:00 PM to 7:15 PM for today only.", readCount: 156 },
-    { id: "N-004", title: "New Driver Assigned",           time: "Feb 4, 2026 • 9:00 AM",  target: "All Drivers",            message: "A new driver, Khaled Saeed, has been assigned to the Seil route.", readCount: 6 },
-  ];
+  const handleSend = async () => {
+    const success = await sendBroadcast({ title, message, target });
+    if (success) {
+      setTitle("");
+      setMessage("");
+    }
+  };
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-8 space-y-8 bg-app-bg text-app-tx min-h-screen transition-colors duration-500 relative">
       
-      {/* Page Header Like Dashboard Tabs */}
+      {/* Toast Notification */}
+      {toast.msg && (
+        <div className={`fixed top-10 right-10 z-[5000] px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border backdrop-blur-xl shadow-2xl animate-in fade-in slide-in-from-top ${
+          toast.type === 'success' ? 'bg-app-ok/20 border-app-ok text-app-ok' : 'bg-app-err/20 border-app-err text-app-err'
+        }`}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Page Header */}
       <div className="flex justify-between items-center mb-2">
         <h3 className="font-bold text-app-tx uppercase tracking-widest text-xs">Notification Center</h3>
         <div className="flex items-center gap-2">
@@ -78,21 +82,24 @@ const AdminNotifications: React.FC = () => {
                   onChange={e => setTarget(e.target.value)}
                   className="w-full bg-app-card2 border border-app-bd rounded-xl px-4 py-3 text-xs font-bold text-app-tx outline-none cursor-pointer focus:border-app-am/50 transition-all appearance-none"
                 >
-                  <option>All Users</option>
-                  <option>Drivers Only</option>
-                  <option>Students Only</option>
+                  <option value="All Users">All Users</option>
+                  <option value="Students Only">Students Only</option>
                 </select>
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button className="flex-1 bg-app-am hover:brightness-110 text-black py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-app-am/10">
-                  <Ic.Send /> Send Notification
+                <button 
+                  onClick={handleSend}
+                  disabled={isLoading}
+                  className="flex-1 bg-app-am hover:brightness-110 text-white dark:text-black py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-app-am/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Ic.Send /> {isLoading ? 'Transmitting...' : 'Send Notification'}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Templates - Dashboard Alert Style */}
+          {/* Templates */}
           <div className="space-y-3">
             <h3 className="text-[10px] font-black text-app-mu uppercase tracking-widest">Presets</h3>
             <div className="grid grid-cols-1 gap-2">
@@ -114,22 +121,25 @@ const AdminNotifications: React.FC = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center mb-2">
              <h3 className="text-[10px] font-black text-app-mu uppercase tracking-widest">Broadcast History</h3>
-             <button className="text-[9px] font-black text-app-mu hover:text-app-am transition-colors">CLEAR LOG</button>
+             <button onClick={() => setHistory([])} className="text-[9px] font-black text-app-mu hover:text-app-am transition-colors">CLEAR LOG</button>
           </div>
 
           <div className="space-y-4">
-            {notifications.map((notif) => (
+            {history.length === 0 ? (
+              <div className="bg-app-card border border-app-bd border-dashed p-10 rounded-2xl flex items-center justify-center text-app-mu text-xs font-bold uppercase tracking-widest opacity-50">
+                No active broadcasts in session
+              </div>
+            ) : history.map((notif) => (
               <div
                 key={notif.id}
-                className="bg-app-card border border-app-bd p-6 rounded-2xl group hover:border-app-am/20 transition-all relative overflow-hidden"
+                className="bg-app-card border border-app-bd p-6 rounded-2xl group hover:border-app-am/20 transition-all relative overflow-hidden animate-in slide-in-from-top-4"
               >
-                {/* ID Tag */}
                 <div className="absolute top-0 right-0 bg-app-card2 border-l border-b border-app-bd px-3 py-1 text-[9px] font-black text-app-mu rounded-bl-xl uppercase tracking-tighter">
                   {notif.id}
                 </div>
 
                 <div className="flex items-start gap-5">
-                  <div className="w-12 h-12 rounded-2xl bg-app-am/10 flex items-center justify-center text-app-am shrink-0 border border-app-am/5">
+                  <div className="w-12 h-12 rounded-2xl bg-app-am-g flex items-center justify-center text-app-am shrink-0 border border-app-am/10">
                     <Ic.Bell />
                   </div>
                   
@@ -152,7 +162,7 @@ const AdminNotifications: React.FC = () => {
 
                     <div className="flex items-center gap-2 text-[10px] font-black text-app-ok uppercase tracking-tighter">
                       <div className="w-1.5 h-1.5 rounded-full bg-app-ok"></div>
-                      Confirmed by {notif.readCount} recipients
+                      Delivered successfully
                     </div>
                   </div>
                 </div>
