@@ -54,15 +54,13 @@ export default function BookTripPage() {
   const currentTrip = trips.find(t => t._id === selectedTripId);
   const pickupPoints = currentTrip?.route?.stops || [];
 
-  // 2. تعديل الـ Confirm عشان يفتح الـ Pop-up بدل الـ alert
   const handleConfirm = async () => {
     setIsBooking(true);
     try {
       const payload = {
         trip_id: selectedTripId,
         pickup_point: selectedPickupId, 
-        seat_number: Math.floor(Math.random() * 30) + 1,
-        return_time: selectedReturn // << El T3deel: rabt el return time elly et3mlha select b el payload
+        return_time: selectedReturn 
       };
 
       const res = await Api.post('/bookings', payload);
@@ -72,7 +70,6 @@ export default function BookTripPage() {
         message: res.data.message || "Your seat has been reserved successfully!" 
       });
       
-      // تفريغ الاختيارات بعد النجاح (اختياري)
       setSelectedTripId("");
       setSelectedPickupId("");
       setSelectedReturn("");

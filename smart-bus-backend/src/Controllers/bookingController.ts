@@ -5,12 +5,13 @@ import Notification from "../models/notification";
 
 export const createBooking = async (req: Request, res: Response) => {
     const currentHour = new Date().getHours();
-    if (currentHour >= 14) { // 14 means 2:00 PM
+    if (currentHour >= 14) { 
       return res.status(400).json({ message: "Registration is closed. It opens daily from 12:00 AM to 2:00 PM." });
     }
   try {
     const user = (req as any).user;
-    const { trip_id, pickup_point, seat_number } = req.body;
+    // 1. Shelna el seat_number mn el req.body
+    const { trip_id, pickup_point } = req.body;
 
     const trip: any = await Trip.findById(trip_id).populate({
       path: "route",
@@ -31,7 +32,6 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Route has no stops" });
     }
 
-    // Validation: Verify pickup point exists in route stops
     const validStop = trip.route.stops.find(
       (s: any) => s._id.toString() === pickup_point.toString()
     );
@@ -40,14 +40,11 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid pickup point" });
     }
 
-    // --- Start: NEW LOGIC: ONE TRIP PER DAY VALIDATION ---
-    // N-fetch kol el bookings bta3t el user elly lsa active (msh cancelled) w n-populate el trip
     const userActiveBookings = await Booking.find({ 
       user: user.id, 
       status: { $ne: "cancelled" } 
     }).populate("trip");
 
-    // N-format el date bta3 el ra7la el gdeda 3shan nqarn b-el ayam (msh el wa2t)
     const newTripDay = tripDate.toDateString(); 
 
     const alreadyBookedToday = userActiveBookings.some((booking: any) => {
@@ -61,35 +58,26 @@ export const createBooking = async (req: Request, res: Response) => {
         message: "You have already booked a return trip for today. Registration is limited to one return trip per day." 
       });
     }
-    // --- End: NEW LOGIC ---
 
-    // Validation: Ensure seat number is valid and available
-    if (seat_number > trip.total_seats || seat_number < 1) {
-      return res.status(400).json({ message: "Invalid seat number" });
+    // --- Start: NEW LOGIC FOR CAPACITY ---
+    
+    if (trip.booked_seats >= trip.total_seats) {
+      return res.status(400).json({ message: "Sorry, this trip is fully booked. No seats available." });
     }
 
-    const seatTaken = await Booking.findOne({
-      trip: trip_id,
-      seat_number,
-      status: { $ne: "cancelled" },
-    });
+    const assigned_seat = trip.booked_seats + 1;
+    // --- End: NEW LOGIC FOR CAPACITY ---
 
-    if (seatTaken) {
-      return res.status(400).json({ message: "Seat already taken" });
-    }
-
-    // Create booking and increment booked seats in Trip model
     const booking = await Booking.create({
       user: user.id,
       trip: trip_id,
       pickup_point,
-      seat_number,
+      seat_number: assigned_seat, // Hena ednaho el raqam auto
     });
 
     trip.booked_seats += 1;
     await trip.save();
 
-    // Generate success notification
     await Notification.create({
       user: user.id,
       title: "Booking Confirmed",
