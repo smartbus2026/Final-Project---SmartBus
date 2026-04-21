@@ -1,5 +1,5 @@
 import express from "express";
-import { createRoute, getAllRoutes, updateRoute, deleteRoute, addStopToRoute, removeStopFromRoute} from "../controllers/routeController";
+import { createRoute, getAllRoutes, updateRoute, deleteRoute, addStopToRoute, removeStopFromRoute} from "../Controllers/routeController";
 import { protect } from "../middleware/authMiddleware";
 import { allowRoles } from "../middleware/roleMiddleware";
     

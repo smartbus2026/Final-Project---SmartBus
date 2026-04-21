@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import Booking from "../models/Booking";
+import Booking from "../models/Booking.model";
 import Trip from "../models/Trip";
 import Notification from "../models/notification";
 
@@ -31,7 +31,7 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Route has no stops" });
     }
 
-    //  Validation: Verify pickup point exists in route stops
+    // Validation: Verify pickup point exists in route stops
     const validStop = trip.route.stops.find(
       (s: any) => s._id.toString() === pickup_point.toString()
     );
@@ -39,18 +39,31 @@ export const createBooking = async (req: Request, res: Response) => {
     if (!validStop) {
       return res.status(400).json({ message: "Invalid pickup point" });
     }
-    // 4. Validation: Check for duplicate active booking for this specific trip [Day 13]
-    const existingBooking = await Booking.findOne({
-      user: user.id,
-      trip: trip_id,
-      status: { $ne: "cancelled" }
+
+    // --- Start: NEW LOGIC: ONE TRIP PER DAY VALIDATION ---
+    // N-fetch kol el bookings bta3t el user elly lsa active (msh cancelled) w n-populate el trip
+    const userActiveBookings = await Booking.find({ 
+      user: user.id, 
+      status: { $ne: "cancelled" } 
+    }).populate("trip");
+
+    // N-format el date bta3 el ra7la el gdeda 3shan nqarn b-el ayam (msh el wa2t)
+    const newTripDay = tripDate.toDateString(); 
+
+    const alreadyBookedToday = userActiveBookings.some((booking: any) => {
+      if (!booking.trip) return false;
+      const existingTripDay = new Date(booking.trip.date).toDateString();
+      return existingTripDay === newTripDay;
     });
 
-    if (existingBooking) {
-      return res.status(400).json({ message: "You already have an active booking for this trip" });
+    if (alreadyBookedToday) {
+      return res.status(400).json({ 
+        message: "You have already booked a return trip for today. Registration is limited to one return trip per day." 
+      });
     }
+    // --- End: NEW LOGIC ---
 
-    // 5. Validation: Ensure seat number is valid and available
+    // Validation: Ensure seat number is valid and available
     if (seat_number > trip.total_seats || seat_number < 1) {
       return res.status(400).json({ message: "Invalid seat number" });
     }
@@ -65,7 +78,7 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Seat already taken" });
     }
 
-    // 6. Create booking and increment booked seats in Trip model
+    // Create booking and increment booked seats in Trip model
     const booking = await Booking.create({
       user: user.id,
       trip: trip_id,
@@ -76,7 +89,7 @@ export const createBooking = async (req: Request, res: Response) => {
     trip.booked_seats += 1;
     await trip.save();
 
-    // 7. Generate success notification
+    // Generate success notification
     await Notification.create({
       user: user.id,
       title: "Booking Confirmed",
