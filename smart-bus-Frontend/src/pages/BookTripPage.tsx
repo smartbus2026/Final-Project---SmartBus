@@ -61,7 +61,8 @@ export default function BookTripPage() {
       const payload = {
         trip_id: selectedTripId,
         pickup_point: selectedPickupId, 
-        seat_number: Math.floor(Math.random() * 30) + 1 
+        seat_number: Math.floor(Math.random() * 30) + 1,
+        return_time: selectedReturn // << El T3deel: rabt el return time elly et3mlha select b el payload
       };
 
       const res = await Api.post('/bookings', payload);

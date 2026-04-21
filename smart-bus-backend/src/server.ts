@@ -2,15 +2,15 @@ import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
-import userRoutes from "./routes/userRoutes";
-import routeRoutes from "./routes/routeRoutes";
-import tripRoutes from "./routes/tripRoutes";
-import bookingRoutes from "./routes/bookingRoutes";
-import notificationRoutes from "./routes/notificationsRoutes";
-import chatRoutes from "./routes/chatRoutes";
+import userRoutes from "./Routes/userRoutes";
+import routeRoutes from "./Routes/routeRoutes";
+import tripRoutes from "./Routes/tripRoutes";
+import bookingRoutes from "./Routes/bookingRoutes";
+import notificationRoutes from "./Routes/notificationsRoutes";
+import chatRoutes from "./Routes/chatRoutes";
 import connectDB from "./config/db";
 
-import authRoutes from "./routes/authRoutes";
+import authRoutes from "./Routes/auth.routes";
 
 dotenv.config();
 connectDB();

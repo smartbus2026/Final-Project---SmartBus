@@ -32,18 +32,15 @@ const SignUp: React.FC<SignUpProps> = ({ onSuccess }) => {
     setLoading(true);
     setServerError(null);
     try {
-      const payload: any = {
-        name: data.fullName,
+      const payload = {
+        name: data.fullName, 
         email: data.email,
         password: data.password,
+        student_id: data.student_id,
         role: data.role,
-        phone_number: data.phone_number,
+        phone_number: data.phone_number
       };
-
-      if (data.role === 'student') {
-        payload.student_id = data.student_id;
-      }
-
+      
       const response = await Api.post('/auth/register', payload);
       
       const { token, user } = response.data;

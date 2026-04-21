@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ic } from '../icons';
-
+import Api from '../services/Api'; 
 
 interface TripStop {
   name: string;
@@ -21,16 +21,19 @@ interface MyTrip {
 
 // Derive progress % from stops
 const getTripProgress = (stops: TripStop[]): number => {
+  if (!stops || stops.length === 0) return 0;
   const completed = stops.filter((s) => s.isCompleted).length;
   return Math.round((completed / stops.length) * 100);
 };
 
 const getLastCompleted = (stops: TripStop[]): string | null => {
+  if (!stops) return null;
   const done = stops.filter((s) => s.isCompleted);
   return done.length ? done[done.length - 1].name : null;
 };
 
 const getNextStop = (stops: TripStop[]): string | null => {
+  if (!stops) return null;
   const next = stops.find((s) => !s.isCompleted);
   return next ? next.name : null;
 };
@@ -145,55 +148,83 @@ const TicketModal: React.FC<TicketModalProps> = ({ trip, onClose }) => (
 
 
 const MyTripsPageAdmin: React.FC = () => {
-  const [trips, setTrips] = useState<MyTrip[]>([
-    {
-      id: 'BT-9920',
-      routeName: 'Aqaleem → University Stadium',
-      busId: 'Bus #04',
-      driverName: 'Ahmad Hassan',
-      status: 'On Track',
-      departureTime: '07:30 AM',
-      arrivalTime: '08:15 AM',
-      stops: [
-        { name: 'Aqaleem Main Gate',  time: '07:30 AM', isCompleted: true },
-        { name: 'Plaza Mall Stop',    time: '07:45 AM', isCompleted: true },
-        { name: 'North Intersection', time: '08:00 AM', isCompleted: false },
-        { name: 'University Stadium', time: '08:15 AM', isCompleted: false },
-      ],
-    },
-    {
-      id: 'BT-9921',
-      routeName: 'Seil → University Stadium',
-      busId: 'Bus #07',
-      driverName: 'Omar Khalil',
-      status: 'Upcoming',
-      departureTime: '03:30 PM',
-      arrivalTime: '04:00 PM',
-      stops: [
-        { name: 'Seil East Gate',     time: '03:30 PM', isCompleted: false },
-        { name: 'Central Square',     time: '03:42 PM', isCompleted: false },
-        { name: 'University Stadium', time: '04:00 PM', isCompleted: false },
-      ],
-    },
-  ]);
-
-  const [selectedTripId, setSelectedTripId]   = useState<string>(trips[0].id);
+  // --- T3deel: States mbnya 3la el Backend ---
+  const [trips, setTrips] = useState<MyTrip[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTripId, setSelectedTripId] = useState<string>('');
   const [cancelTarget,   setCancelTarget]     = useState<string | null>(null);
   const [ticketTarget,   setTicketTarget]     = useState<string | null>(null);
 
-  const selectedTrip = trips.find((t) => t.id === selectedTripId) ?? trips[0];
+  // --- T3deel: Fetch Data w n3mlha mapping ---
+  const fetchTrips = async () => {
+    try {
+      const res = await Api.get('/trips');
+      const rawTrips = res.data?.data || res.data || [];
+      
+      const mappedTrips: MyTrip[] = rawTrips.map((t: any) => {
+        let uiStatus: MyTrip['status'] = 'Upcoming';
+        if (t.status === 'active') uiStatus = 'On Track';
+        if (t.status === 'completed') uiStatus = 'Arrived';
+        if (t.status === 'cancelled') uiStatus = 'Delayed';
 
-  const handleCancelConfirm = () => {
-    setTrips((prev) => prev.filter((t) => t.id !== cancelTarget));
-    setCancelTarget(null);
-    const remaining = trips.filter((t) => t.id !== cancelTarget);
-    if (remaining.length) setSelectedTripId(remaining[0].id);
+        return {
+          id: t._id,
+          routeName: t.route?.name || 'Unknown Route',
+          busId: t.route?.code || 'Bus #01', 
+          driverName: t.driver || 'Pending Driver',
+          status: uiStatus,
+          departureTime: t.time_slot ? t.time_slot.replace('_', ' ') : 'TBA',
+          arrivalTime: 'TBA',
+          stops: (t.route?.stops || []).map((stop: any) => ({
+            name: typeof stop === 'string' ? stop : stop.name || 'Stop',
+            time: 'TBA',
+            isCompleted: t.status === 'completed'
+          }))
+        };
+      });
+
+      setTrips(mappedTrips);
+      if (mappedTrips.length > 0 && !mappedTrips.find(mt => mt.id === selectedTripId)) {
+        setSelectedTripId(mappedTrips[0].id);
+      }
+    } catch (err) {
+      console.error("Failed to fetch trips", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const progress     = getTripProgress(selectedTrip.stops);
-  const lastStop     = getLastCompleted(selectedTrip.stops);
-  const nextStop     = getNextStop(selectedTrip.stops);
+  useEffect(() => {
+    fetchTrips();
+  }, []);
+
+  const selectedTrip = trips.find((t) => t.id === selectedTripId) ?? trips[0];
+
+  // --- T3deel: Delete/Cancel logic ---
+  const handleCancelConfirm = async () => {
+    if (!cancelTarget) return;
+    try {
+      await Api.delete(`/trips/${cancelTarget}`);
+      setCancelTarget(null);
+      fetchTrips(); // Refresh the list
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to cancel trip");
+      setCancelTarget(null);
+    }
+  };
+
+  const progress     = selectedTrip ? getTripProgress(selectedTrip.stops) : 0;
+  const lastStop     = selectedTrip ? getLastCompleted(selectedTrip.stops) : null;
+  const nextStop     = selectedTrip ? getNextStop(selectedTrip.stops) : null;
   const ticketTrip   = trips.find((t) => t.id === ticketTarget) ?? null;
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 bg-app-bg text-app-tx p-8 flex items-center justify-center min-h-screen">
+        <div className="animate-pulse text-app-mu font-black uppercase tracking-widest text-[10px]">Loading Trips Data...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen">
@@ -235,185 +266,188 @@ const MyTripsPageAdmin: React.FC = () => {
                       : 'bg-app-card border-app-bd text-app-mu hover:border-app-am/30'
                   }`}
                 >
-                  {trip.id} · {trip.status}
+                  {/* Showing first few chars of ID since MongoDB IDs are long */}
+                  {trip.id.slice(-6)} · {trip.status}
                 </button>
               ))}
             </div>
           )}
 
-          <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-8">
+          {selectedTrip && (
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-8">
 
-            {/* Left Column */}
-            <div className="space-y-8">
+              {/* Left Column */}
+              <div className="space-y-8">
 
-              {/* Active Trip Card */}
-              <div className="bg-app-card border border-app-bd rounded-[2.5rem] overflow-hidden shadow-2xl transition-all hover:border-app-am/20">
+                {/* Active Trip Card */}
+                <div className="bg-app-card border border-app-bd rounded-[2.5rem] overflow-hidden shadow-2xl transition-all hover:border-app-am/20">
 
-                {/* Card Header */}
-                <div className="p-8 border-b border-app-bd flex justify-between items-center bg-gradient-to-r from-app-am/5 to-transparent">
-                  <div>
-                    <div className="flex items-center gap-4 mb-2">
-                      <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border ${
-                        selectedTrip.status === 'On Track' ? 'bg-app-ok/10 text-app-ok border-app-ok/20'
-                        : selectedTrip.status === 'Delayed'  ? 'bg-red-500/10 text-red-400 border-red-400/20'
-                        : selectedTrip.status === 'Arrived'  ? 'bg-app-am/10 text-app-am border-app-am/20'
-                        : 'bg-app-card2 text-app-mu border-app-bd'
-                      }`}>
+                  {/* Card Header */}
+                  <div className="p-8 border-b border-app-bd flex justify-between items-center bg-gradient-to-r from-app-am/5 to-transparent">
+                    <div>
+                      <div className="flex items-center gap-4 mb-2">
+                        <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border ${
+                          selectedTrip.status === 'On Track' ? 'bg-app-ok/10 text-app-ok border-app-ok/20'
+                          : selectedTrip.status === 'Delayed'  ? 'bg-red-500/10 text-red-400 border-red-400/20'
+                          : selectedTrip.status === 'Arrived'  ? 'bg-app-am/10 text-app-am border-app-am/20'
+                          : 'bg-app-card2 text-app-mu border-app-bd'
+                        }`}>
+                          {selectedTrip.status}
+                        </span>
+                        <h2 className="text-xl font-black uppercase tracking-tight">{selectedTrip.routeName}</h2>
+                      </div>
+                      <div className="flex items-center gap-3 text-app-mu">
+                        <Ic.Bus size={14} />
+                        <p className="text-[10px] font-black tracking-widest uppercase">
+                          ID: {selectedTrip.id.slice(-6)} • {selectedTrip.busId}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] text-app-mu font-black uppercase mb-2 tracking-widest">System Status</p>
+                      <span className={`text-xs font-black flex items-center gap-2 justify-end tracking-widest uppercase ${STATUS_STYLE[selectedTrip.status]}`}>
+                        <span className={`w-2 h-2 rounded-full ${
+                          selectedTrip.status === 'On Track' ? 'bg-app-ok animate-ping'
+                          : selectedTrip.status === 'Delayed'  ? 'bg-red-400 animate-ping'
+                          : 'bg-app-mu'
+                        }`} />
                         {selectedTrip.status}
                       </span>
-                      <h2 className="text-xl font-black uppercase tracking-tight">{selectedTrip.routeName}</h2>
-                    </div>
-                    <div className="flex items-center gap-3 text-app-mu">
-                      <Ic.Bus size={14} />
-                      <p className="text-[10px] font-black tracking-widest uppercase">
-                        {selectedTrip.id} • {selectedTrip.busId}
-                      </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[9px] text-app-mu font-black uppercase mb-2 tracking-widest">System Status</p>
-                    <span className={`text-xs font-black flex items-center gap-2 justify-end tracking-widest uppercase ${STATUS_STYLE[selectedTrip.status]}`}>
-                      <span className={`w-2 h-2 rounded-full ${
-                        selectedTrip.status === 'On Track' ? 'bg-app-ok animate-ping'
-                        : selectedTrip.status === 'Delayed'  ? 'bg-red-400 animate-ping'
-                        : 'bg-app-mu'
-                      }`} />
-                      {selectedTrip.status}
-                    </span>
-                  </div>
-                </div>
 
-                {/* Info Grid */}
-                <div className="p-10 grid grid-cols-2 md:grid-cols-4 gap-10">
-                  <div className="space-y-1">
-                    <label className="block text-[9px] text-app-mu font-black uppercase tracking-widest">Assigned Driver</label>
-                    <p className="text-sm font-black flex items-center gap-2 uppercase">
-                      <Ic.User size={14} className="text-app-am" />
-                      {selectedTrip.driverName}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-[9px] text-app-mu font-black uppercase tracking-widest">Departure</label>
-                    <p className="text-sm font-black text-app-am uppercase">{selectedTrip.departureTime}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-[9px] text-app-mu font-black uppercase tracking-widest">Est. Arrival</label>
-                    <p className="text-sm font-black uppercase">{selectedTrip.arrivalTime}</p>
-                  </div>
-                  <div className="flex justify-end items-center">
-                    <button
-                      onClick={() => setTicketTarget(selectedTrip.id)}
-                      className="bg-app-card2 hover:bg-app-bd border border-app-bd px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-app-mu hover:text-app-tx"
-                    >
-                      View Ticket
-                    </button>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="px-10 pb-10">
-                  <div className="relative h-2 w-full bg-app-bd rounded-full overflow-hidden">
-                    <div
-                      className="absolute top-0 left-0 h-full bg-app-am rounded-full transition-all duration-700"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-4">
-                    <div className="flex items-center gap-2 opacity-50">
-                      <Ic.Check size={12} className="text-app-ok" />
-                      <p className="text-[9px] font-black text-app-mu uppercase tracking-widest">
-                        {lastStop ? `Passed: ${lastStop}` : 'Not departed yet'}
+                  {/* Info Grid */}
+                  <div className="p-10 grid grid-cols-2 md:grid-cols-4 gap-10">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-app-mu font-black uppercase tracking-widest">Assigned Driver</label>
+                      <p className="text-sm font-black flex items-center gap-2 uppercase">
+                        <Ic.User size={14} className="text-app-am" />
+                        {selectedTrip.driverName}
                       </p>
                     </div>
-                    {nextStop ? (
-                      <p className="text-[9px] font-black text-app-am uppercase tracking-[0.2em] animate-pulse">
-                        Next: {nextStop}
-                      </p>
-                    ) : (
-                      <p className="text-[9px] font-black text-app-ok uppercase tracking-[0.2em]">Arrived ✓</p>
-                    )}
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-app-mu font-black uppercase tracking-widest">Departure</label>
+                      <p className="text-sm font-black text-app-am uppercase">{selectedTrip.departureTime}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-app-mu font-black uppercase tracking-widest">Est. Arrival</label>
+                      <p className="text-sm font-black uppercase">{selectedTrip.arrivalTime}</p>
+                    </div>
+                    <div className="flex justify-end items-center">
+                      <button
+                        onClick={() => setTicketTarget(selectedTrip.id)}
+                        className="bg-app-card2 hover:bg-app-bd border border-app-bd px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-app-mu hover:text-app-tx"
+                      >
+                        View Ticket
+                      </button>
+                    </div>
                   </div>
-                  {/* progress % label */}
-                  <p className="text-right text-[9px] text-app-mu font-black mt-1 uppercase tracking-widest">
-                    {progress}% Complete
-                  </p>
-                </div>
-              </div>
 
-              {/* Quick Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 bg-app-card border border-app-bd rounded-[2rem] flex items-center gap-5 group hover:border-app-am/20 transition-all">
-                  <div className="w-12 h-12 bg-app-am/10 rounded-2xl flex items-center justify-center text-app-am group-hover:scale-110 transition-transform">
-                    <Ic.Shield size={24} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-app-mu font-black uppercase tracking-widest mb-1">Safety Protocol</p>
-                    <p className="text-[11px] text-app-tx font-bold leading-relaxed uppercase">
-                      Real-time tracking is <span className="text-app-ok">active</span> for this trip.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-6 bg-app-card border border-app-bd rounded-[2rem] flex items-center gap-5 group hover:border-app-am/20 transition-all">
-                  <div className="w-12 h-12 bg-app-am/10 rounded-2xl flex items-center justify-center text-app-am group-hover:scale-110 transition-transform">
-                    <Ic.Bell size={24} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-app-mu font-black uppercase tracking-widest mb-1">Boarding Notice</p>
-                    <p className="text-[11px] text-app-tx font-bold leading-relaxed uppercase">
-                      Arrive at stop <span className="text-app-am">5 minutes</span> before departure.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column: Timeline */}
-            <div className="bg-app-card border border-app-bd rounded-[3rem] p-10 h-fit sticky top-8 shadow-sm">
-              <div className="flex items-center gap-3 mb-10 pb-6 border-b border-app-bd">
-                <Ic.Route className="text-app-am" />
-                <h3 className="text-xs font-black uppercase tracking-[0.3em]">Trip Timeline</h3>
-              </div>
-
-              <div className="relative">
-                {selectedTrip.stops.map((stop, index) => (
-                  <div key={index} className="flex gap-6 group">
-                    <div className="flex flex-col items-center">
-                      <div className={`w-4 h-4 rounded-full border-2 transition-all duration-700 z-10
-                        ${stop.isCompleted
-                          ? 'bg-app-ok border-app-ok shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                          : index === selectedTrip.stops.findIndex((s) => !s.isCompleted)
-                            ? 'bg-app-am border-app-am animate-pulse'
-                            : 'bg-app-card border-app-bd'
-                        }`}
+                  {/* Progress Bar */}
+                  <div className="px-10 pb-10">
+                    <div className="relative h-2 w-full bg-app-bd rounded-full overflow-hidden">
+                      <div
+                        className="absolute top-0 left-0 h-full bg-app-am rounded-full transition-all duration-700"
+                        style={{ width: `${progress}%` }}
                       />
-                      {index !== selectedTrip.stops.length - 1 && (
-                        <div className={`w-[2px] h-16 transition-colors duration-700 ${stop.isCompleted ? 'bg-app-ok' : 'bg-app-bd'}`} />
+                    </div>
+                    <div className="flex justify-between mt-4">
+                      <div className="flex items-center gap-2 opacity-50">
+                        <Ic.Check size={12} className="text-app-ok" />
+                        <p className="text-[9px] font-black text-app-mu uppercase tracking-widest">
+                          {lastStop ? `Passed: ${lastStop}` : 'Not departed yet'}
+                        </p>
+                      </div>
+                      {nextStop ? (
+                        <p className="text-[9px] font-black text-app-am uppercase tracking-[0.2em] animate-pulse">
+                          Next: {nextStop}
+                        </p>
+                      ) : (
+                        <p className="text-[9px] font-black text-app-ok uppercase tracking-[0.2em]">Arrived ✓</p>
                       )}
                     </div>
-                    <div className="pb-10 pt-0.5">
-                      <p className={`text-[12px] font-black uppercase tracking-widest mb-2 ${stop.isCompleted ? 'text-app-tx' : 'text-app-mu'}`}>
-                        {stop.name}
-                      </p>
-                      <p className={`text-[10px] font-bold tracking-tighter ${stop.isCompleted ? 'text-app-ok' : 'text-app-mu/50'}`}>
-                        {stop.time}
+                    {/* progress % label */}
+                    <p className="text-right text-[9px] text-app-mu font-black mt-1 uppercase tracking-widest">
+                      {progress}% Complete
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-6 bg-app-card border border-app-bd rounded-[2rem] flex items-center gap-5 group hover:border-app-am/20 transition-all">
+                    <div className="w-12 h-12 bg-app-am/10 rounded-2xl flex items-center justify-center text-app-am group-hover:scale-110 transition-transform">
+                      <Ic.Shield size={24} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-app-mu font-black uppercase tracking-widest mb-1">Safety Protocol</p>
+                      <p className="text-[11px] text-app-tx font-bold leading-relaxed uppercase">
+                        Real-time tracking is <span className="text-app-ok">active</span> for this trip.
                       </p>
                     </div>
                   </div>
-                ))}
+
+                  <div className="p-6 bg-app-card border border-app-bd rounded-[2rem] flex items-center gap-5 group hover:border-app-am/20 transition-all">
+                    <div className="w-12 h-12 bg-app-am/10 rounded-2xl flex items-center justify-center text-app-am group-hover:scale-110 transition-transform">
+                      <Ic.Bell size={24} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-app-mu font-black uppercase tracking-widest mb-1">Boarding Notice</p>
+                      <p className="text-[11px] text-app-tx font-bold leading-relaxed uppercase">
+                        Arrive at stop <span className="text-app-am">5 minutes</span> before departure.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="mt-4 pt-8 border-t border-app-bd">
-                <button
-                  onClick={() => setCancelTarget(selectedTrip.id)}
-                  className="w-full bg-red-500/5 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 py-5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-[0.98]"
-                >
-                  Cancel Reservation
-                </button>
+              {/* Right Column: Timeline */}
+              <div className="bg-app-card border border-app-bd rounded-[3rem] p-10 h-fit sticky top-8 shadow-sm">
+                <div className="flex items-center gap-3 mb-10 pb-6 border-b border-app-bd">
+                  <Ic.Route className="text-app-am" />
+                  <h3 className="text-xs font-black uppercase tracking-[0.3em]">Trip Timeline</h3>
+                </div>
+
+                <div className="relative">
+                  {selectedTrip.stops.map((stop, index) => (
+                    <div key={index} className="flex gap-6 group">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-4 h-4 rounded-full border-2 transition-all duration-700 z-10
+                          ${stop.isCompleted
+                            ? 'bg-app-ok border-app-ok shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                            : index === selectedTrip.stops.findIndex((s) => !s.isCompleted)
+                              ? 'bg-app-am border-app-am animate-pulse'
+                              : 'bg-app-card border-app-bd'
+                          }`}
+                        />
+                        {index !== selectedTrip.stops.length - 1 && (
+                          <div className={`w-[2px] h-16 transition-colors duration-700 ${stop.isCompleted ? 'bg-app-ok' : 'bg-app-bd'}`} />
+                        )}
+                      </div>
+                      <div className="pb-10 pt-0.5">
+                        <p className={`text-[12px] font-black uppercase tracking-widest mb-2 ${stop.isCompleted ? 'text-app-tx' : 'text-app-mu'}`}>
+                          {stop.name}
+                        </p>
+                        <p className={`text-[10px] font-bold tracking-tighter ${stop.isCompleted ? 'text-app-ok' : 'text-app-mu/50'}`}>
+                          {stop.time}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 pt-8 border-t border-app-bd">
+                  <button
+                    onClick={() => setCancelTarget(selectedTrip.id)}
+                    className="w-full bg-red-500/5 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 py-5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-[0.98]"
+                  >
+                    Cancel Reservation
+                  </button>
+                </div>
               </div>
+
             </div>
-
-          </div>
+          )}
         </>
       )}
     </div>
