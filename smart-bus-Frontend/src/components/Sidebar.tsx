@@ -25,6 +25,7 @@ const ADMIN_NAV = [
   { id: "routes",         path: "/admin/routes",        label: "Manage Routes",     icon: <Ic.Route /> },
   { id: "liveTracking",   path: "/admin/trips",         label: "Live Tracking",     icon: <Ic.Target /> },
   { id: "notifications",  path: "/admin/notifications", label: "Notifications",     icon: <Ic.Bell /> },
+  { id: "support",        path: "/admin/support",       label: "Support Inbox",     icon: <Ic.Chat /> },
   { id: "reports",        path: "/admin/reports",       label: "System Reports",    icon: <Ic.Chart /> },
   { id: "settings",       path: "/admin/settings",      label: "Settings",          icon: <Ic.Gear /> },
 ];

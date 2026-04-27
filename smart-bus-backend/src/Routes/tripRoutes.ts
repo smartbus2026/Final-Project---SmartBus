@@ -2,7 +2,7 @@ import express from "express";
 import { protect } from "../middleware/authMiddleware";
 import { allowRoles } from "../middleware/roleMiddleware";
 
-import {createTrip,getTrips,getTripById,updateTrip, deleteTrip,startTrip,updateLocation,endTrip} from "../controllers/tripController";
+import {createTrip,getTrips,getTripById,updateTrip, deleteTrip,startTrip,updateLocation,endTrip} from "../Controllers/tripController";
 
 const router = express.Router();
 

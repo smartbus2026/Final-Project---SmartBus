@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { adminService } from '../services/adminService';
-import { userService } from '../services/userService';
 import Api from '../services/Api';
 
 export const useDashboard = () => {
@@ -18,8 +16,12 @@ export const useDashboard = () => {
         Api.get('/routes')
       ]);
 
+      // Count only users with role "student"
+      const allUsers: any[] = usersRes.data || [];
+      const studentCount = allUsers.filter((u: any) => u.role === 'student').length;
+
       setData({
-        totalStudents: usersRes.data.length,
+        totalStudents: studentCount,
         totalRoutes: routesRes.data.data?.length || 0,
         activeTrips: [], 
         loading: false
@@ -33,4 +35,4 @@ export const useDashboard = () => {
   useEffect(() => { fetchDashboardData(); }, []);
 
   return data;
-};
+};

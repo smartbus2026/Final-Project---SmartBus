@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Ic } from "../icons";
 import Api from "../services/Api"; 
 
@@ -16,8 +16,30 @@ interface Route {
 interface Trip {
   _id: string;
   date: string;
+  time_slot: string;
   route: Route;
+  booked_seats: number;
+  total_seats: number;
 }
+
+// ── Booking Window Logic ──────────────────────────────────────────────────────
+const getBookingWindowState = () => {
+  const now = new Date();
+  const closeHour = 14; // 2:00 PM
+  const closeTime = new Date(now);
+  closeTime.setHours(closeHour, 0, 0, 0);
+
+  const isOpen = now < closeTime;
+  const diffMs = isOpen ? closeTime.getTime() - now.getTime() : 0;
+  const diffH  = Math.floor(diffMs / 3600000);
+  const diffM  = Math.floor((diffMs % 3600000) / 60000);
+  const timeLeft = isOpen ? `${String(diffH).padStart(2,"0")}h ${String(diffM).padStart(2,"0")}m` : "00h 00m";
+  // Progress bar: percentage of window remaining (0–14 h window)
+  const windowMs = closeHour * 3600000;
+  const elapsed  = new Date().setHours(0,0,0,0);
+  const progress = isOpen ? Math.round(((closeTime.getTime() - now.getTime()) / windowMs) * 100) : 0;
+  return { isOpen, timeLeft, progress };
+};
 
 export default function BookTripPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -26,22 +48,30 @@ export default function BookTripPage() {
   const [selectedReturn, setSelectedReturn] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
+  const [windowState, setWindowState] = useState(getBookingWindowState());
 
-  // 1. State الخاصة بالـ Pop-up
   const [modal, setModal] = useState({ 
     isOpen: false, 
-    type: "success", // 'success' أو 'error'
+    type: "success",
     message: "" 
   });
 
-  const timeLeft = "01h 49m";
   const returnTimes = ["3:30 PM", "7:00 PM"];
+
+  // Tick the countdown every minute
+  useEffect(() => {
+    const timer = setInterval(() => setWindowState(getBookingWindowState()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await Api.get('/trips'); 
-        setTrips(res.data.data || []);
+        // Only fetch tomorrow's scheduled morning trips for booking
+        const res = await Api.get('/trips?date=tomorrow&status=scheduled'); 
+        const all: Trip[] = res.data.data || [];
+        // Only show morning time_slot for the morning booking
+        setTrips(all.filter(t => t.time_slot === "morning"));
       } catch (err) {
         console.error("Failed to fetch trips", err);
       } finally {
@@ -50,6 +80,7 @@ export default function BookTripPage() {
     };
     fetchData();
   }, []);
+
 
   const currentTrip = trips.find(t => t._id === selectedTripId);
   const pickupPoints = currentTrip?.route?.stops || [];
@@ -126,16 +157,20 @@ export default function BookTripPage() {
               <div className="flex items-center gap-2 text-app-am text-[11px] font-black uppercase tracking-widest">
                 <Ic.Calendar /> Booking Window
               </div>
-              <span className="bg-green-500/10 text-app-ok px-3 py-1 rounded-full text-[9px] border border-green-500/20 font-black animate-pulse">
-                OPEN
+              <span className={`px-3 py-1 rounded-full text-[9px] border font-black ${
+                windowState.isOpen
+                  ? "bg-green-500/10 text-app-ok border-green-500/20 animate-pulse"
+                  : "bg-red-500/10 text-app-err border-red-500/20"
+              }`}>
+                {windowState.isOpen ? "OPEN" : "CLOSED"}
               </span>
             </div>
             <div className="flex justify-between items-end mb-3 relative z-10">
-              <span className="text-app-mu text-[10px] font-bold uppercase tracking-tight">Time remaining</span>
-              <span className="text-app-am font-syne font-black text-3xl tracking-tighter">{timeLeft}</span>
+              <span className="text-app-mu text-[10px] font-bold uppercase tracking-tight">{windowState.isOpen ? "Time remaining" : "Closed at 2:00 PM"}</span>
+              <span className="text-app-am font-syne font-black text-3xl tracking-tighter">{windowState.timeLeft}</span>
             </div>
             <div className="w-full bg-app-card2 h-2 rounded-full overflow-hidden shadow-inner">
-              <div className="bg-app-am h-full rounded-full w-[65%]"></div>
+              <div className="bg-app-am h-full rounded-full transition-all duration-1000" style={{ width: `${windowState.progress}%` }}></div>
             </div>
           </div>
         </div>
@@ -190,9 +225,9 @@ export default function BookTripPage() {
 
       <button 
         onClick={handleConfirm}
-        disabled={!selectedPickupId || !selectedReturn || isBooking}
+        disabled={!selectedPickupId || !selectedReturn || isBooking || !windowState.isOpen}
         className={`w-full py-5 rounded-[24px] font-syne font-black text-sm uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all duration-500
-          ${(selectedPickupId && selectedReturn && !isBooking)
+          ${(selectedPickupId && selectedReturn && !isBooking && windowState.isOpen)
             ? "bg-app-am text-black cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
             : "bg-app-card2 border border-app-bd text-app-mu2 cursor-not-allowed opacity-50"}`}
       >

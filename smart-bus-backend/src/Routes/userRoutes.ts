@@ -14,7 +14,8 @@ router.get("/", protect, allowRoles("admin"), getAllUsers);
 
 router.get("/profile", protect, getProfile);
 
-router.put("/:id", protect, allowRoles("admin"), updateUser);
+// Students can update their own profile; admin can update anyone's
+router.put("/:id", protect, updateUser);
 
 router.delete("/:id", protect, allowRoles("admin"), deleteUser);
 

@@ -11,11 +11,12 @@ import {
 const router = express.Router();
 
 // Student Routes
-router.post("/", protect, allowRoles("student"), createBooking);
-router.get("/my", protect, allowRoles("student"), getMyBookings);
-router.put("/:id/cancel", protect, allowRoles("student"), cancelBooking);
+router.post("/",           protect, allowRoles("student"),          createBooking);
+router.get("/my",          protect, allowRoles("student"),          getMyBookings);
+// Allow both student (own booking) and admin to cancel
+router.put("/:id/cancel",  protect, allowRoles("student", "admin"), cancelBooking);
 
 // Admin Routes
-router.get("/", protect, allowRoles("admin"), getAllBookings);
+router.get("/",            protect, allowRoles("admin"),            getAllBookings);
 
-export default router;
+export default router;

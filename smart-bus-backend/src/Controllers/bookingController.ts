@@ -10,34 +10,51 @@ export const createBooking = async (req: Request, res: Response) => {
     }
   try {
     const user = (req as any).user;
-    // 1. Shelna el seat_number mn el req.body
-    const { trip_id, pickup_point } = req.body;
+    const { trip_id, pickup_point, return_time } = req.body;
 
-    const trip: any = await Trip.findById(trip_id).populate({
+    const morningTrip: any = await Trip.findById(trip_id).populate({
       path: "route",
       populate: { path: "stops" }
     });
 
-    if (!trip) {
+    if (!morningTrip) {
       return res.status(404).json({ message: "Trip not found" });
     }
 
     const currentTime = new Date();
-    const tripDate = new Date(trip.date);
-    if (tripDate < currentTime) {
-      return res.status(400).json({ message: "This trip has already departed" });
+    const tripDate = new Date(morningTrip.date);
+    
+    // Registration is for the NEXT DAY'S trip.
+    const tomorrow = new Date(currentTime);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (tripDate.toDateString() !== tomorrow.toDateString()) {
+      return res.status(400).json({ message: "You can only register for the next day's trips." });
     }
 
-    if (!trip.route || !trip.route.stops) {
+    if (!morningTrip.route || !morningTrip.route.stops) {
       return res.status(400).json({ message: "Route has no stops" });
     }
 
-    const validStop = trip.route.stops.find(
+    const validStop = morningTrip.route.stops.find(
       (s: any) => s._id.toString() === pickup_point.toString()
     );
 
     if (!validStop) {
       return res.status(400).json({ message: "Invalid pickup point" });
+    }
+
+    let returnTrip: any = null;
+    if (return_time) {
+      const returnTimeSlot = return_time === "3:30 PM" ? "return_1530" : "return_1900";
+      returnTrip = await Trip.findOne({
+        route: morningTrip.route._id,
+        date: morningTrip.date,
+        time_slot: returnTimeSlot
+      });
+
+      if (!returnTrip) {
+        return res.status(404).json({ message: "Selected return trip is not available." });
+      }
     }
 
     const userActiveBookings = await Booking.find({ 
@@ -47,48 +64,73 @@ export const createBooking = async (req: Request, res: Response) => {
 
     const newTripDay = tripDate.toDateString(); 
 
-    const alreadyBookedToday = userActiveBookings.some((booking: any) => {
-      if (!booking.trip) return false;
-      const existingTripDay = new Date(booking.trip.date).toDateString();
-      return existingTripDay === newTripDay;
+    let hasMorning = false;
+    let hasReturn = false;
+
+    userActiveBookings.forEach((b: any) => {
+      if (!b.trip) return;
+      if (new Date(b.trip.date).toDateString() === newTripDay) {
+        if (b.trip.time_slot === "morning") hasMorning = true;
+        else if (b.trip.time_slot.startsWith("return")) hasReturn = true;
+      }
     });
 
-    if (alreadyBookedToday) {
+    if (hasMorning) {
+      return res.status(400).json({ message: "You have already booked a morning trip for this day." });
+    }
+
+    if (returnTrip && hasReturn) {
       return res.status(400).json({ 
-        message: "You have already booked a return trip for today. Registration is limited to one return trip per day." 
+        message: "You have already booked a return trip for this day. Registration is limited to one return trip per day." 
       });
     }
 
-    // --- Start: NEW LOGIC FOR CAPACITY ---
-    
-    if (trip.booked_seats >= trip.total_seats) {
-      return res.status(400).json({ message: "Sorry, this trip is fully booked. No seats available." });
+    if (morningTrip.booked_seats >= morningTrip.total_seats) {
+      return res.status(400).json({ message: "Sorry, the morning trip is fully booked. No seats available." });
     }
 
-    const assigned_seat = trip.booked_seats + 1;
-    // --- End: NEW LOGIC FOR CAPACITY ---
+    if (returnTrip && returnTrip.booked_seats >= returnTrip.total_seats) {
+      return res.status(400).json({ message: "Sorry, the selected return trip is fully booked." });
+    }
 
-    const booking = await Booking.create({
+    // Create Morning Booking
+    const assignedMorningSeat = morningTrip.booked_seats + 1;
+    const bookingMorning = await Booking.create({
       user: user.id,
-      trip: trip_id,
+      trip: morningTrip._id,
       pickup_point,
-      seat_number: assigned_seat, // Hena ednaho el raqam auto
+      seat_number: assignedMorningSeat,
     });
+    morningTrip.booked_seats += 1;
+    await morningTrip.save();
 
-    trip.booked_seats += 1;
-    await trip.save();
+    const createdBookings = [bookingMorning];
+
+    // Create Return Booking
+    if (returnTrip) {
+      const assignedReturnSeat = returnTrip.booked_seats + 1;
+      const bookingReturn = await Booking.create({
+        user: user.id,
+        trip: returnTrip._id,
+        pickup_point, // Reusing pickup_point as destination/origin placeholder
+        seat_number: assignedReturnSeat,
+      });
+      returnTrip.booked_seats += 1;
+      await returnTrip.save();
+      createdBookings.push(bookingReturn);
+    }
 
     await Notification.create({
       user: user.id,
       title: "Booking Confirmed",
-      message: "Your seat has been booked successfully",
+      message: `Your trip(s) for ${newTripDay} have been booked successfully.`,
       type: "booking",
     });
 
     res.status(201).json({
       status: "success",
       message: "Booking created successfully",
-      data: { booking },
+      data: { bookings: createdBookings },
     });
 
   } catch (err: any) {
