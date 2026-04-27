@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { FAQS, TICKETS } from "../data";
+import { useState, useEffect } from "react";
+import { FAQS } from "../data";
 import { Ic } from "../icons";
+import Api from "../services/Api";
 
 const STATUS_MAP = {
   resolved: "bg-green-500/10 text-app-ok border-green-500/20",
@@ -8,11 +9,48 @@ const STATUS_MAP = {
   pending: "bg-app-bd2 text-app-mu border-app-bd",
 };
 
+interface Ticket {
+  _id: string;
+  subject: string;
+  description: string;
+  status: "open" | "pending" | "resolved";
+  createdAt: string;
+}
+
 export default function SupportPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [subject, setSubject] = useState("");
   const [desc, setDesc] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchTickets = async () => {
+    try {
+      const res = await Api.get("/support/my");
+      setTickets(res.data.data.tickets || []);
+    } catch (err) {
+      console.error("Failed to fetch tickets", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!subject.trim()) return;
+    setLoading(true);
+    try {
+      await Api.post("/support", { subject, description: desc });
+      setSubmitted(true);
+      fetchTickets(); // Refresh list
+    } catch (err) {
+      console.error("Failed to submit ticket", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-4">
@@ -36,7 +74,7 @@ export default function SupportPage() {
                 >
                   <span className="font-dm text-[13px] font-bold text-app-tx leading-tight pr-4">{f.q}</span>
                   <Ic.ChevDown 
-                    
+                    className={`transition-transform ${openFaq === i ? "rotate-180" : ""}`}
                   />
                 </button>
                 <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openFaq === i ? "max-h-40 pb-4 opacity-100" : "max-h-0 opacity-0"}`}>
@@ -93,11 +131,10 @@ export default function SupportPage() {
               </div>
               <button 
                 className="group flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-app-am py-3.5 text-[13px] font-bold text-white shadow-[0_4px_12px_var(--am-g)] transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => subject.trim() && setSubmitted(true)} 
-                disabled={!subject.trim()}
+                onClick={handleSubmit} 
+                disabled={!subject.trim() || loading}
               >
-                <Ic.Send  />
-                Submit Ticket
+                {loading ? <span className="animate-pulse">Submitting...</span> : <><Ic.Send  /> Submit Ticket</>}
               </button>
             </div>
           )}
@@ -107,23 +144,29 @@ export default function SupportPage() {
       {/* ── Bottom: History ── */}
       <div className="rounded-2xl border border-app-bd bg-app-card p-6">
         <h3 className="mb-5 font-syne text-[13px] font-bold uppercase tracking-wider text-app-tx">Previous Tickets</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {TICKETS.map(t => (
-            <div 
-              key={t.id} 
-              className="group flex items-center justify-between rounded-xl border border-app-bd2 bg-app-card2 p-4 transition-all hover:border-app-am-g cursor-pointer"
-            >
-              <div className="min-w-0">
-                <div className="truncate text-[13px] font-bold text-app-tx group-hover:text-app-am transition-colors">{t.subject}</div>
-                <div className="mt-0.5 text-[10px] font-medium text-app-mu">{t.id} • {t.date}</div>
+        {tickets.length === 0 ? (
+          <p className="text-center py-10 text-app-mu text-[12px] font-medium opacity-50">You haven't submitted any tickets yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {tickets.map(t => (
+              <div 
+                key={t._id} 
+                className="group flex items-center justify-between rounded-xl border border-app-bd2 bg-app-card2 p-4 transition-all hover:border-app-am-g cursor-pointer"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-bold text-app-tx group-hover:text-app-am transition-colors">{t.subject}</div>
+                  <div className="mt-0.5 text-[10px] font-medium text-app-mu">
+                    {t._id.slice(-6).toUpperCase()} • {new Date(t.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <span className={`rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${STATUS_MAP[t.status as keyof typeof STATUS_MAP]}`}>
+                  {t.status}
+                </span>
               </div>
-              <span className={`rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${STATUS_MAP[t.status as keyof typeof STATUS_MAP]}`}>
-                {t.status}
-              </span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
-}
+}

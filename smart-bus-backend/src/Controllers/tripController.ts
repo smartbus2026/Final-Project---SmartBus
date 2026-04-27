@@ -26,10 +26,26 @@ export const createTrip = async (req: Request, res: Response) => {
 
 
 
-//  Get All Trips
+//  Get All Trips — supports optional ?date=tomorrow&?status=scheduled
 export const getTrips = async (req: Request, res: Response) => {
   try {
-    const trips = await Trip.find().populate({
+    const filter: any = {};
+
+    // Allow filtering by status
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    // Allow filtering to only show tomorrow's trips for the booking page
+    if (req.query.date === "tomorrow") {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const start = new Date(tomorrow.setHours(0, 0, 0, 0));
+      const end   = new Date(tomorrow.setHours(23, 59, 59, 999));
+      filter.date = { $gte: start, $lte: end };
+    }
+
+    const trips = await Trip.find(filter).populate({
       path: "route",
       populate: {
         path: "stops",
