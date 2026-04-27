@@ -21,6 +21,7 @@ const STUDENT_NAV = [
 
 const ADMIN_NAV = [
   { id: "dashboard",      path: "/admin/dashboard",     label: "Dashboard",         icon: <Ic.Grid /> },
+  { id: "createTrip",     path: "/admin/create-trip",   label: "Create Trip",       icon: <Ic.Plus /> },
   { id: "users",          path: "/admin/users",         label: "Users Management",  icon: <Ic.Users /> },
   { id: "routes",         path: "/admin/routes",        label: "Manage Routes",     icon: <Ic.Route /> },
   { id: "liveTracking",   path: "/admin/trips",         label: "Live Tracking",     icon: <Ic.Target /> },

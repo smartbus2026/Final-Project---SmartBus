@@ -45,11 +45,10 @@ export const createBooking = async (req: Request, res: Response) => {
 
     let returnTrip: any = null;
     if (return_time) {
-      const returnTimeSlot = return_time === "3:30 PM" ? "return_1530" : "return_1900";
       returnTrip = await Trip.findOne({
         route: morningTrip.route._id,
         date: morningTrip.date,
-        time_slot: returnTimeSlot
+        time_slot: return_time
       });
 
       if (!returnTrip) {
