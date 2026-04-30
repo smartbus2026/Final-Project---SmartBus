@@ -69,9 +69,15 @@ export default function BookTripPage() {
       try {
         // Only fetch tomorrow's scheduled morning trips for booking
         const res = await Api.get('/trips?date=tomorrow&status=scheduled'); 
-        const all: Trip[] = res.data.data || [];
+        
+        // Robust data extraction: Handles { data: Trip[] } or just Trip[]
+        const responseData = res.data;
+        const all: Trip[] = Array.isArray(responseData) 
+          ? responseData 
+          : (responseData?.data || []);
+          
         // Only show morning time_slot for the morning booking
-        setTrips(all.filter(t => t.time_slot === "morning"));
+        setTrips(all.filter(t => t?.time_slot === "morning"));
       } catch (err) {
         console.error("Failed to fetch trips", err);
       } finally {
@@ -83,7 +89,10 @@ export default function BookTripPage() {
 
 
   const currentTrip = trips.find(t => t._id === selectedTripId);
-  const pickupPoints = currentTrip?.route?.stops || [];
+  // Ensure route is an object and has stops
+  const pickupPoints = (currentTrip?.route && typeof currentTrip.route === 'object') 
+    ? (currentTrip.route.stops || []) 
+    : [];
 
   const handleConfirm = async () => {
     setIsBooking(true);
@@ -143,11 +152,15 @@ export default function BookTripPage() {
               className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer"
             >
               <option value="">{isLoading ? "Loading..." : "-- Choose a Line --"}</option>
-              {trips.map(trip => (
-                <option key={trip._id} value={trip._id} className="bg-app-card text-app-tx">
-                  {trip.route?.name} - {new Date(trip.date).toLocaleDateString()}
-                </option>
-              ))}
+              {trips.map(trip => {
+                const routeName = (trip.route && typeof trip.route === 'object') ? trip.route.name : "Unknown Route";
+                const tripDate = trip.date ? new Date(trip.date).toLocaleDateString() : "No Date";
+                return (
+                  <option key={trip._id} value={trip._id} className="bg-app-card text-app-tx">
+                    {routeName} - {tripDate}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

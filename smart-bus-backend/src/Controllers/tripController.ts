@@ -38,10 +38,13 @@ export const getTrips = async (req: Request, res: Response) => {
 
     // Allow filtering to only show tomorrow's trips for the booking page
     if (req.query.date === "tomorrow") {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const start = new Date(tomorrow.setHours(0, 0, 0, 0));
-      const end   = new Date(tomorrow.setHours(23, 59, 59, 999));
+      const start = new Date();
+      start.setDate(start.getDate() + 1);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(start);
+      end.setHours(23, 59, 59, 999);
+
       filter.date = { $gte: start, $lte: end };
     }
 
