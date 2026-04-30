@@ -19,6 +19,11 @@ interface MyTrip {
   stops: TripStop[];
 }
 
+interface RouteOption {
+  _id: string;
+  name: string;
+}
+
 // Derive progress % from stops
 const getTripProgress = (stops: TripStop[]): number => {
   if (!stops || stops.length === 0) return 0;
@@ -62,7 +67,7 @@ const CancelModal: React.FC<CancelModalProps> = ({ tripId, onConfirm, onClose })
         </div>
         <div>
           <h2 className="text-base font-black uppercase tracking-widest">Cancel Reservation</h2>
-          <p className="text-[10px] text-app-mu font-bold uppercase tracking-widest mt-1">Trip {tripId}</p>
+          <p className="text-[10px] text-app-mu font-bold uppercase tracking-widest mt-1">Trip {tripId.slice(-6)}</p>
         </div>
       </div>
       <div className="p-8">
@@ -105,7 +110,7 @@ const TicketModal: React.FC<TicketModalProps> = ({ trip, onClose }) => (
           </div>
           <div>
             <h2 className="text-base font-black uppercase tracking-widest">Boarding Ticket</h2>
-            <p className="text-[10px] text-app-mu font-bold uppercase tracking-widest mt-1">{trip.id}</p>
+            <p className="text-[10px] text-app-mu font-bold uppercase tracking-widest mt-1">{trip.id.slice(-6)}</p>
           </div>
         </div>
         <button
@@ -132,7 +137,6 @@ const TicketModal: React.FC<TicketModalProps> = ({ trip, onClose }) => (
         ))}
       </div>
 
-      {/* Barcode-style decoration */}
       <div className="px-8 pb-8 flex justify-center gap-[3px]">
         {Array.from({ length: 28 }).map((_, i) => (
           <div
@@ -146,16 +150,155 @@ const TicketModal: React.FC<TicketModalProps> = ({ trip, onClose }) => (
   </div>
 );
 
+// --- Create Trip Modal ---
+interface CreateTripModalProps {
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+const CreateTripModal: React.FC<CreateTripModalProps> = ({ onClose, onSuccess }) => {
+  const [routes, setRoutes] = useState<RouteOption[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [formData, setFormData] = useState({
+    route_id: '',
+    departure_time: '',
+    time_slot: 'morning',
+    total_seats: 40
+  });
+
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      try {
+        const res = await Api.get('/routes');
+        setRoutes(res.data.data || res.data || []);
+      } catch (err) {
+        console.error("Failed to fetch routes", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchRoutes();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await Api.post('/trips', formData);
+      onSuccess();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to create trip");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
+      <div className="bg-app-card border border-app-bd w-full max-w-lg rounded-[2.5rem] relative z-10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="p-8 border-b border-app-bd flex justify-between items-center bg-gradient-to-r from-app-am/5 to-transparent">
+          <div className="flex items-center gap-4">
+            <div className="bg-app-am/20 p-3 rounded-2xl text-app-am">
+              <Ic.Plus />
+            </div>
+            <div>
+              <h2 className="text-base font-black uppercase tracking-widest text-app-tx">Create New Trip</h2>
+              <p className="text-[10px] text-app-mu font-bold uppercase tracking-widest mt-1">Schedule a fleet deployment</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-app-mu hover:text-app-tx transition-colors">
+            <Ic.Close />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">Select Route</label>
+            <select 
+              required
+              value={formData.route_id}
+              onChange={e => setFormData({ ...formData, route_id: e.target.value })}
+              className="w-full bg-app-card2 border border-app-bd rounded-2xl px-4 py-3 text-[13px] text-app-tx focus:outline-none focus:border-app-am transition-colors appearance-none"
+            >
+              <option value="">{isLoading ? "Loading Routes..." : "-- Choose Route --"}</option>
+              {routes.map(r => (
+                <option key={r._id} value={r._id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">Trip Date</label>
+              <input 
+                type="date" 
+                required
+                value={formData.departure_time}
+                onChange={e => setFormData({ ...formData, departure_time: e.target.value })}
+                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-4 py-3 text-[13px] text-app-tx focus:outline-none focus:border-app-am transition-colors"
+                style={{ colorScheme: 'dark' }}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">Time Slot</label>
+              <select 
+                value={formData.time_slot}
+                onChange={e => setFormData({ ...formData, time_slot: e.target.value })}
+                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-4 py-3 text-[13px] text-app-tx focus:outline-none focus:border-app-am transition-colors appearance-none"
+              >
+                <option value="morning">Morning Outbound</option>
+                <option value="return_1530">Return (3:30 PM)</option>
+                <option value="return_1900">Return (7:00 PM)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">Total Seats</label>
+            <input 
+              type="number" 
+              required
+              min="1"
+              value={formData.total_seats}
+              onChange={e => setFormData({ ...formData, total_seats: parseInt(e.target.value) || 0 })}
+              className="w-full bg-app-card2 border border-app-bd rounded-2xl px-4 py-3 text-[13px] text-app-tx focus:outline-none focus:border-app-am transition-colors"
+            />
+          </div>
+
+          <div className="pt-4 flex justify-end gap-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 text-app-mu font-black text-[10px] uppercase tracking-widest hover:text-app-tx transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-app-am text-black px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:brightness-110 transition-all flex items-center gap-2"
+            >
+              {isSubmitting ? "Creating..." : <><Ic.Plus size={14} /> Create Trip</>}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 
 const MyTripsPageAdmin: React.FC = () => {
-  // --- T3deel: States mbnya 3la el Backend ---
   const [trips, setTrips] = useState<MyTrip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTripId, setSelectedTripId] = useState<string>('');
   const [cancelTarget,   setCancelTarget]     = useState<string | null>(null);
   const [ticketTarget,   setTicketTarget]     = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // --- T3deel: Fetch Data w n3mlha mapping ---
   const fetchTrips = async () => {
     try {
       const res = await Api.get('/trips');
@@ -167,13 +310,19 @@ const MyTripsPageAdmin: React.FC = () => {
         if (t.status === 'completed') uiStatus = 'Arrived';
         if (t.status === 'cancelled') uiStatus = 'Delayed';
 
+        const departureTimeMap: Record<string, string> = {
+          'morning': 'Morning',
+          'return_1530': '3:30 PM',
+          'return_1900': '7:00 PM'
+        };
+
         return {
           id: t._id,
           routeName: t.route?.name || 'Unknown Route',
           busId: t.route?.code || 'Bus #01', 
           driverName: t.driver || 'Pending Driver',
           status: uiStatus,
-          departureTime: t.time_slot ? t.time_slot.replace('_', ' ') : 'TBA',
+          departureTime: departureTimeMap[t.time_slot] || t.time_slot,
           arrivalTime: 'TBA',
           stops: (t.route?.stops || []).map((stop: any) => ({
             name: typeof stop === 'string' ? stop : stop.name || 'Stop',
@@ -184,7 +333,7 @@ const MyTripsPageAdmin: React.FC = () => {
       });
 
       setTrips(mappedTrips);
-      if (mappedTrips.length > 0 && !mappedTrips.find(mt => mt.id === selectedTripId)) {
+      if (mappedTrips.length > 0 && (!selectedTripId || !mappedTrips.find(mt => mt.id === selectedTripId))) {
         setSelectedTripId(mappedTrips[0].id);
       }
     } catch (err) {
@@ -200,17 +349,21 @@ const MyTripsPageAdmin: React.FC = () => {
 
   const selectedTrip = trips.find((t) => t.id === selectedTripId) ?? trips[0];
 
-  // --- T3deel: Delete/Cancel logic ---
   const handleCancelConfirm = async () => {
     if (!cancelTarget) return;
     try {
       await Api.delete(`/trips/${cancelTarget}`);
       setCancelTarget(null);
-      fetchTrips(); // Refresh the list
+      fetchTrips(); 
     } catch (err: any) {
       alert(err.response?.data?.message || "Failed to cancel trip");
       setCancelTarget(null);
     }
+  };
+
+  const handleCreateSuccess = () => {
+    setIsCreateModalOpen(false);
+    fetchTrips();
   };
 
   const progress     = selectedTrip ? getTripProgress(selectedTrip.stops) : 0;
@@ -229,7 +382,23 @@ const MyTripsPageAdmin: React.FC = () => {
   return (
     <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen">
 
-      {/* Modals */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-black uppercase tracking-widest text-app-tx">Manage Trips</h1>
+          <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">Administer active fleet deployments</p>
+        </div>
+        <button 
+          onClick={() => setIsCreateModalOpen(true)}
+          className="bg-app-am text-black px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-app-am/90 transition-all shadow-lg flex items-center gap-2"
+        >
+          <Ic.Plus size={14} /> Create Trip
+        </button>
+      </div>
+
+      {isCreateModalOpen && (
+        <CreateTripModal onClose={() => setIsCreateModalOpen(false)} onSuccess={handleCreateSuccess} />
+      )}
+
       {cancelTarget && (
         <CancelModal
           tripId={cancelTarget}
@@ -244,8 +413,6 @@ const MyTripsPageAdmin: React.FC = () => {
         />
       )}
 
-
-      
       {trips.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 gap-4 opacity-30">
           <Ic.Bus size={48} />
@@ -253,7 +420,6 @@ const MyTripsPageAdmin: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Trip Selector Tabs — shown only when multiple trips */}
           {trips.length > 1 && (
             <div className="flex gap-3 mb-8 flex-wrap">
               {trips.map((trip) => (
@@ -266,7 +432,6 @@ const MyTripsPageAdmin: React.FC = () => {
                       : 'bg-app-card border-app-bd text-app-mu hover:border-app-am/30'
                   }`}
                 >
-                  {/* Showing first few chars of ID since MongoDB IDs are long */}
                   {trip.id.slice(-6)} · {trip.status}
                 </button>
               ))}
@@ -276,13 +441,10 @@ const MyTripsPageAdmin: React.FC = () => {
           {selectedTrip && (
             <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-8">
 
-              {/* Left Column */}
               <div className="space-y-8">
 
-                {/* Active Trip Card */}
                 <div className="bg-app-card border border-app-bd rounded-[2.5rem] overflow-hidden shadow-2xl transition-all hover:border-app-am/20">
 
-                  {/* Card Header */}
                   <div className="p-8 border-b border-app-bd flex justify-between items-center bg-gradient-to-r from-app-am/5 to-transparent">
                     <div>
                       <div className="flex items-center gap-4 mb-2">
@@ -316,7 +478,6 @@ const MyTripsPageAdmin: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Info Grid */}
                   <div className="p-10 grid grid-cols-2 md:grid-cols-4 gap-10">
                     <div className="space-y-1">
                       <label className="block text-[9px] text-app-mu font-black uppercase tracking-widest">Assigned Driver</label>
@@ -343,7 +504,6 @@ const MyTripsPageAdmin: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
                   <div className="px-10 pb-10">
                     <div className="relative h-2 w-full bg-app-bd rounded-full overflow-hidden">
                       <div
@@ -366,14 +526,12 @@ const MyTripsPageAdmin: React.FC = () => {
                         <p className="text-[9px] font-black text-app-ok uppercase tracking-[0.2em]">Arrived ✓</p>
                       )}
                     </div>
-                    {/* progress % label */}
                     <p className="text-right text-[9px] text-app-mu font-black mt-1 uppercase tracking-widest">
                       {progress}% Complete
                     </p>
                   </div>
                 </div>
 
-                {/* Quick Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="p-6 bg-app-card border border-app-bd rounded-[2rem] flex items-center gap-5 group hover:border-app-am/20 transition-all">
                     <div className="w-12 h-12 bg-app-am/10 rounded-2xl flex items-center justify-center text-app-am group-hover:scale-110 transition-transform">
@@ -401,7 +559,6 @@ const MyTripsPageAdmin: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right Column: Timeline */}
               <div className="bg-app-card border border-app-bd rounded-[3rem] p-10 h-fit sticky top-8 shadow-sm">
                 <div className="flex items-center gap-3 mb-10 pb-6 border-b border-app-bd">
                   <Ic.Route className="text-app-am" />

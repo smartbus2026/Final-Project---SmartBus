@@ -21,12 +21,14 @@ import BookTripPage        from "./pages/BookTripPage";
 // --- Admin Pages ---
 //import AdminLogin         from "./admin-pages/AdminLogin";
 import AdminDashboard     from "./admin-pages/ADashboard";
+import CreateTripPage     from "./admin-pages/CreateTripPage";
 import AdminNotifications from "./admin-pages/ANotifications";
 import ManageRoutes       from "./admin-pages/ManageRoutes";
 import UsersPage          from "./admin-pages/Users";
 import TripsPage          from "./admin-pages/Trips";
 import AdminReports       from "./admin-pages/AReports";
 import ASupport           from "./admin-pages/ASupport";
+import SettingsPage       from "./admin-pages/SettingsPage";
 
 // --- Types ---
 type Role  = "student" | "admin" | null;
@@ -116,12 +118,14 @@ export default function App() {
 
           {/* Admin Routes */}
           <Route path="/admin/dashboard"     element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminDashboard /></Guard>} />
+          <Route path="/admin/create-trip"   element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><CreateTripPage /></Guard>} />
           <Route path="/admin/notifications" element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminNotifications /></Guard>} />
           <Route path="/admin/routes"        element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><ManageRoutes /></Guard>} />
           <Route path="/admin/users"         element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><UsersPage /></Guard>} />
           <Route path="/admin/trips"         element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><TripsPage /></Guard>} />
           <Route path="/admin/support"       element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><ASupport /></Guard>} />
           <Route path="/admin/reports"       element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminReports /></Guard>} />
+          <Route path="/admin/settings"      element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><SettingsPage /></Guard>} />
 
         </Route>
 
