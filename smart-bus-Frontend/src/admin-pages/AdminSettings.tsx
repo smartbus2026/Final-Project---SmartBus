@@ -8,6 +8,8 @@ const AdminSettings: React.FC = () => {
         <p className="text-[11px] text-app-mu font-medium">Configure global parameters and preferences</p>
       </div>
 
+
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
         {/* Registration Window */}

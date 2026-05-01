@@ -9,27 +9,29 @@ interface Props {
 }
 
 const STUDENT_NAV = [
-  { id: "dashboard",      path: "/dashboard",      label: "Dashboard",      icon: <Ic.Grid /> },
+  { id: "dashboard",     path: "/dashboard",      label: "Dashboard",      icon: <Ic.Grid /> },
   { id: "bookTrip",       path: "/book-trip",       label: "Book Trip",      icon: <Ic.Calendar /> },
   { id: "myTrips",        path: "/my-trips",        label: "My Trips",       icon: <Ic.Route /> },
   { id: "routeDetails",   path: "/route-details",   label: "Route Details",  icon: <Ic.Map /> },
   { id: "trackBus",       path: "/track-bus",       label: "Track Bus",      icon: <Ic.Target /> },
   { id: "attendance",     path: "/attendance",     label: "Attendance",     icon: <Ic.Chart /> },
   { id: "notifications",  path: "/notifications",   label: "Notifications",  icon: <Ic.Bell /> },
-  { id: "routeChat",      path: "/route-chat",      label: "Route Chat",     icon: <Ic.Chat /> },
+  // مربوط بصفحة الشات المباشر اللي عملناها
+  { id: "routeChat",      path: "/route-chat",      label: "Live Chat",      icon: <Ic.Chat /> }, 
 ];
 
 const ADMIN_NAV = [
-  { id: "dashboard",      path: "/admin/dashboard",     label: "Dashboard",         icon: <Ic.Grid /> },
-  { id: "createTrip",     path: "/admin/create-trip",   label: "Create Trip",       icon: <Ic.Plus /> },
-  { id: "users",          path: "/admin/users",         label: "Users Management",  icon: <Ic.Users /> },
-  { id: "routes",         path: "/admin/routes",        label: "Manage Routes",     icon: <Ic.Route /> },
-  { id: "manageTrips",    path: "/admin/trips",         label: "Manage Trips",      icon: <Ic.Route /> },
-  { id: "liveTracking",   path: "/admin/live-tracking", label: "Live Tracking",     icon: <Ic.Target /> },
-  { id: "notifications",  path: "/admin/notifications", label: "Notifications",     icon: <Ic.Bell /> },
-  { id: "support",        path: "/admin/support",       label: "Support Inbox",     icon: <Ic.Chat /> },
-  { id: "reports",        path: "/admin/reports",       label: "System Reports",    icon: <Ic.Chart /> },
-  { id: "settings",       path: "/admin/settings",      label: "Settings",          icon: <Ic.Gear /> },
+  { id: "dashboard",      path: "/admin/dashboard",     label: "Dashboard",          icon: <Ic.Grid /> },
+  { id: "createTrip",     path: "/admin/create-trip",   label: "Create Trip",        icon: <Ic.Plus /> },
+  { id: "users",           path: "/admin/users",         label: "Users Management",  icon: <Ic.Users /> },
+  { id: "routes",          path: "/admin/routes",        label: "Manage Routes",      icon: <Ic.Route /> },
+  { id: "manageTrips",     path: "/admin/trips",         label: "Manage Trips",       icon: <Ic.Route /> },
+  { id: "liveTracking",    path: "/admin/live-tracking", label: "Live Tracking",      icon: <Ic.Target /> },
+  { id: "notifications",   path: "/admin/notifications", label: "Notifications",      icon: <Ic.Bell /> },
+  { id: "support",         path: "/admin/support",       label: "Support Inbox",      icon: <Ic.Chat /> },
+  { id: "reports",         path: "/admin/reports",       label: "System Reports",     icon: <Ic.Chart /> },
+  // مربوط بصفحة الـ ASettings الجديدة
+  { id: "settings",        path: "/admin/settings",      label: "Settings",           icon: <Ic.Gear /> }, 
 ];
 
 export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
@@ -67,9 +69,6 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
           </div>
         </div>
 
-        {/* Container with No Scrollbar 
-            هنا استعملنا no-scrollbar عشان السكرول يختفي وشكله يبقى أنظف
-        */}
         <div className="flex h-[calc(100%-5rem)] flex-col justify-between px-4 pb-8 overflow-y-auto no-scrollbar">
           
           <div className="mt-8">
@@ -102,6 +101,7 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
 
           <div className="mt-auto space-y-1.5 border-t border-app-bd/40 pt-6">
             
+            {/* إظهار الروابط السفلية للطلاب فقط لأن الإدمن عنده إعداداته الخاصة فوق */}
             {role !== "admin" && (
               <>
                 <NavLink 
@@ -111,7 +111,7 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
                   onClick={() => setOpen(false)}
                 >
                   <Ic.Help />
-                  <span className="text-[13px] font-bold">Support</span>
+                  <span className="text-[13px] font-bold">Support Center</span>
                 </NavLink>
 
                 <NavLink 

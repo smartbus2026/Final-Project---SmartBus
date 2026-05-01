@@ -10,7 +10,8 @@ import NotificationsPage from "./pages/NotificationsPage";
 import SupportPage from "./pages/SupportPage";
 import ProfilePage from "./pages/ProfilePage";
 import ReportPage from "./pages/ReportPage";
-import NewNotifPage from "./pages/NewNotifPage";
+// import NewNotifPage from "./pages/NewNotifPage";
+import TripChat from "./pages/TripChat";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import WelcomePage from "./pages/WelcomePage";
 import SignUp from "./pages/SignUp";
@@ -113,7 +114,7 @@ export default function App() {
           <Route path="/support" element={<Guard role={role} allowed={["student"]} redirectTo="/login"><SupportPage /></Guard>} />
           <Route path="/settings" element={<Guard role={role} allowed={["student"]} redirectTo="/login"><ProfilePage /></Guard>} />
           <Route path="/attendance" element={<Guard role={role} allowed={["student"]} redirectTo="/login"><ReportPage /></Guard>} />
-          <Route path="/route-chat" element={<Guard role={role} allowed={["student"]} redirectTo="/login"><NewNotifPage /></Guard>} />
+<Route path="/route-chat"    element={<Guard role={role} allowed={["student"]} redirectTo="/login"><TripChat tripId="default" currentUserId="user-id" /></Guard>} />
           <Route path="/book-trip" element={<Guard role={role} allowed={["student"]} redirectTo="/login"><BookTripPage /></Guard>} />
           <Route path="/track-bus" element={<Guard role={role} allowed={["student"]} redirectTo="/login"><TrackBusPage /></Guard>} />
 

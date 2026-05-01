@@ -1,3 +1,4 @@
+//socket/index.ts
 import { Server as HttpServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 
@@ -33,6 +34,19 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
     socket.on("leave-route-room", (routeId: string) => {
       if (routeId) {
         socket.leave(`route:${routeId}`);
+      }
+    });
+
+ 
+    socket.on("join-trip-room", (tripId: string) => {
+      if (tripId) {
+        socket.join(`trip:${tripId}`);
+      }
+    });
+
+    socket.on("leave-trip-room", (tripId: string) => {
+      if (tripId) {
+        socket.leave(`trip:${tripId}`);
       }
     });
   });
