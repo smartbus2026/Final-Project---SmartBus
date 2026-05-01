@@ -21,6 +21,7 @@ interface Trip {
   route?: Route;
   booked_seats: number;
   total_seats: number;
+  bus_number?: string;
 }
 
 // ── Booking Window Logic ──────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ export default function BookTripPage() {
               <option value="">{isLoading ? "Loading..." : "-- Choose a Line --"}</option>
               {morningTrips.map(trip => (
                 <option key={trip._id} value={trip._id} className="bg-app-card text-app-tx">
-                  {trip?.route?.name || "Unknown Route"} - {trip?.date ? new Date(trip.date).toLocaleDateString() : ""}
+                  {trip?.route?.name || "Unknown Route"} {trip?.bus_number ? `- ${trip.bus_number}` : ''} - {trip?.date ? new Date(trip.date).toLocaleDateString() : ""}
                 </option>
               ))}
             </select>

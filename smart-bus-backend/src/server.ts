@@ -8,6 +8,7 @@ import bookingRoutes from "./Routes/bookingRoutes";
 import notificationRoutes from "./Routes/notificationsRoutes";
 import chatRoutes from "./Routes/chatRoutes";
 import supportRoutes from "./Routes/supportRoutes";
+import reportRoutes from "./Routes/reportRoutes";
 import connectDB from "./config/db";
 import authRoutes from "./Routes/auth.routes";
 
@@ -36,6 +37,7 @@ app.use("/api/bookings",      bookingRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages",      chatRoutes);
 app.use("/api/support",       supportRoutes);
+app.use("/api/reports",       reportRoutes);
 
 app.get("/", (_req: Request, res: Response) => {
   res.json({ status: "ok", message: "SmartBus API is running" });
