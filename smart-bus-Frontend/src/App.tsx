@@ -14,7 +14,6 @@ import ReportPage from "./pages/ReportPage";
 import TripChat from "./pages/TripChat";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import WelcomePage from "./pages/WelcomePage";
-import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
 import TrackBusPage from "./pages/TrackBusPage";
 import BookTripPage from "./pages/BookTripPage";
@@ -86,13 +85,8 @@ export default function App() {
         {/* --- Public Pages --- */}
         {/* --- Public Pages --- */}
         <Route path="/welcome" element={<WelcomePage theme={theme} toggleTheme={toggleTheme} />} />
-
-        <Route path="/signup" element={<SignUp onSuccess={(detectedRole: Role) => handleSetRole(detectedRole)} />} />
-
         <Route path="/login" element={<Login onSuccess={(detectedRole: Role) => handleSetRole(detectedRole)} />} />
-
         {/* <Route path="/admin/login" element={<AdminLogin onSuccess={(detectedRole: Role) => handleSetRole(detectedRole || "admin")} />} />  */}
-
         {/* Root redirect based on role */}
         <Route
           path="/"
