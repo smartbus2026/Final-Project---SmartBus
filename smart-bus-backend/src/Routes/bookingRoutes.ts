@@ -5,18 +5,28 @@ import {
   createBooking, 
   getMyBookings, 
   getAllBookings, 
-  cancelBooking 
+  cancelBooking,
+  markAttendance,
+  closeTrip,
+  getBookingStats,
+  getTodayBookings
 } from "../Controllers/bookingController";
 
 const router = express.Router();
 
-// Student Routes
-router.post("/",           protect, allowRoles("student"),          createBooking);
-router.get("/my",          protect, allowRoles("student"),          getMyBookings);
-// Allow both student (own booking) and admin to cancel
-router.put("/:id/cancel",  protect, allowRoles("student", "admin"), cancelBooking);
+// ── Static Routes ──
+router.post("/", protect, allowRoles("student"), createBooking);
+router.get("/my", protect, allowRoles("student"), getMyBookings);
+router.get("/stats", protect, allowRoles("admin"), getBookingStats);
+router.get("/today", protect, allowRoles("admin"), getTodayBookings);
+router.get("/", protect, allowRoles("admin"), getAllBookings);
 
-// Admin Routes
-router.get("/",            protect, allowRoles("admin"),            getAllBookings);
+// ── Semi-static (فيها /trip/ prefix) ──
+router.patch("/trip/:id/close", protect, allowRoles("admin"), closeTrip); // ← اتنقلت لفوق
 
-export default router;
+// ── Dynamic/ID Routes ──
+router.put("/:id/cancel", protect, allowRoles("student", "admin"), cancelBooking);
+router.patch("/:id/attend", protect, allowRoles("student", "admin"), markAttendance);
+
+export default router;
+
