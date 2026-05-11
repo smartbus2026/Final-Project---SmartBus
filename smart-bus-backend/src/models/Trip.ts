@@ -4,6 +4,7 @@ export interface ITrip extends Document {
   route: mongoose.Types.ObjectId;
   date: Date;
   time_slot: "morning" | "return_1530" | "return_1900"; 
+  bus_number: string;
   total_seats: number;
   booked_seats: number;
   status: "scheduled" | "active" | "completed" | "cancelled"; 
@@ -24,6 +25,7 @@ const tripSchema = new Schema<ITrip>({
     required: true 
   },
   
+  bus_number: { type: String, required: true },
   total_seats: { type: Number, required: true },
   booked_seats: { type: Number, default: 0 },
   status: {

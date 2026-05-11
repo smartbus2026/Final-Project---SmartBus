@@ -133,15 +133,8 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
             </button>
           </form>
 
-          {/* Link to Signup */}
-          <div className="mt-8 text-center text-sm border-t border-[#2d3036] pt-6">
-            <p className="text-[#8a8d91]">
-              New to SmartBus? 
-              <Link to="/signup" className="text-[#f7a01b] font-bold hover:underline decoration-2 underline-offset-4 ml-1">
-                Create Account
-              </Link>
-            </p>
-          </div>
+          
+         
         </div>
 
         <footer className="mt-10 text-[#8a8d91] text-[10px] font-bold uppercase tracking-[3px] opacity-40">

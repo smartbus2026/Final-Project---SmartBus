@@ -18,6 +18,7 @@ const CreateTripPage: React.FC = () => {
     route_id: '',
     departure_time: '',
     time_slot: 'morning',
+    bus_number: '',
     total_seats: 40
   });
 
@@ -56,6 +57,7 @@ const CreateTripPage: React.FC = () => {
         route_id: '',
         departure_time: '',
         time_slot: 'morning',
+        bus_number: '',
         total_seats: 40
       });
     } catch (err: any) {
@@ -133,18 +135,34 @@ const CreateTripPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
-              <Ic.Users size={14} /> Total Seats Capacity
-            </label>
-            <input 
-              type="number" 
-              required
-              min="1"
-              value={formData.total_seats}
-              onChange={e => setFormData({ ...formData, total_seats: parseInt(e.target.value) || 0 })}
-              className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
+                <Ic.Bus size={14} /> Bus Number
+              </label>
+              <input 
+                type="text" 
+                required
+                placeholder="e.g. Bus 101 or Plate #123"
+                value={formData.bus_number}
+                onChange={e => setFormData({ ...formData, bus_number: e.target.value })}
+                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
+                <Ic.Users size={14} /> Total Seats Capacity
+              </label>
+              <input 
+                type="number" 
+                required
+                min="1"
+                value={formData.total_seats}
+                onChange={e => setFormData({ ...formData, total_seats: parseInt(e.target.value) || 0 })}
+                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors"
+              />
+            </div>
           </div>
 
           <div className="pt-6 border-t border-app-bd flex justify-end gap-4">
