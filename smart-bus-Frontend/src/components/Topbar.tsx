@@ -81,8 +81,7 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
     if (!token) return;
     try {
       const res = await Api.get("/notifications");
-      setNotifs(res.data || []);
-    } catch {}
+setNotifs(res.data?.data?.notifications || []);    } catch {}
   }, []);
 
   // Fetch on mount and every 60 seconds
@@ -277,4 +276,4 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
       </div>
     </header>
   );
-}
+}
