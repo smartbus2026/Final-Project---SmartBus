@@ -8,11 +8,19 @@ interface RouteOption {
   name: string;
 }
 
+interface BookingSettings {
+  booking_open_hour: number;
+  booking_open_minute: number;
+  booking_close_hour: number;
+  booking_close_minute: number;
+}
+
 const CreateTripPage: React.FC = () => {
   const navigate = useNavigate();
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const [formData, setFormData] = useState({
     route_id: '',
@@ -20,6 +28,13 @@ const CreateTripPage: React.FC = () => {
     time_slot: 'morning',
     bus_number: '',
     total_seats: 40
+  });
+
+  const [settings, setSettings] = useState<BookingSettings>({
+    booking_open_hour: 20,
+    booking_open_minute: 0,
+    booking_close_hour: 23,
+    booking_close_minute: 0,
   });
 
   const [modal, setModal] = useState({ 
@@ -39,7 +54,18 @@ const CreateTripPage: React.FC = () => {
         setIsLoading(false);
       }
     };
+
+    const fetchSettings = async () => {
+      try {
+        const res = await Api.get('/settings');
+        setSettings(res.data.data.settings);
+      } catch (err) {
+        console.error("Failed to fetch settings", err);
+      }
+    };
+
     fetchRoutes();
+    fetchSettings();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,34 +73,32 @@ const CreateTripPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       await Api.post('/trips', formData);
-      setModal({ 
-        isOpen: true, 
-        type: "success", 
-        message: "Trip created successfully!" 
-      });
-      // Optionally reset form
-      setFormData({
-        route_id: '',
-        departure_time: '',
-        time_slot: 'morning',
-        bus_number: '',
-        total_seats: 40
-      });
+      setModal({ isOpen: true, type: "success", message: "Trip created successfully!" });
+      setFormData({ route_id: '', departure_time: '', time_slot: 'morning', bus_number: '', total_seats: 40 });
     } catch (err: any) {
-      setModal({ 
-        isOpen: true, 
-        type: "error", 
-        message: err.response?.data?.message || "Failed to create trip" 
-      });
+      setModal({ isOpen: true, type: "error", message: err.response?.data?.message || "Failed to create trip" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      await Api.put('/settings', settings);
+      setModal({ isOpen: true, type: "success", message: "Booking window updated successfully!" });
+    } catch (err: any) {
+      setModal({ isOpen: true, type: "error", message: err.response?.data?.message || "Failed to save settings" });
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
   return (
-    <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen">
+    <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen space-y-8">
       
-      <div className="flex items-center gap-4 mb-8">
+      {/* ── Header ── */}
+      <div className="flex items-center gap-4">
         <div className="bg-app-am/10 p-3 rounded-2xl text-app-am">
           <Ic.Plus size={24} />
         </div>
@@ -84,6 +108,7 @@ const CreateTripPage: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Create Trip Form ── */}
       <div className="bg-app-card border border-app-bd rounded-[2.5rem] p-10 max-w-3xl shadow-xl">
         <form onSubmit={handleSubmit} className="space-y-8">
           
@@ -178,26 +203,139 @@ const CreateTripPage: React.FC = () => {
         </form>
       </div>
 
-      {/* Modal for Success/Error Notification */}
+      {/* ── Booking Window Settings ── */}
+      {/* ── Booking Window Settings ── */}
+<div className="bg-app-card border border-app-bd rounded-[2.5rem] p-10 max-w-3xl shadow-xl">
+  <div className="flex items-center gap-3 mb-8">
+    <div className="bg-app-am/10 p-2.5 rounded-xl text-app-am">
+      <Ic.Time size={18} />
+    </div>
+    <div>
+      <h2 className="font-syne text-[15px] font-black uppercase tracking-wider text-app-tx">Booking Window</h2>
+      <p className="text-[10px] font-bold text-app-mu mt-0.5">Control when students can register for trips</p>
+    </div>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    
+    {/* Open Time */}
+    <div className="space-y-3">
+      <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">Booking Opens At</label>
+      <div className="flex gap-2">
+        <select
+          value={settings.booking_open_hour > 12 ? settings.booking_open_hour - 12 : settings.booking_open_hour === 0 ? 12 : settings.booking_open_hour}
+          onChange={e => {
+            const h = parseInt(e.target.value);
+            const isAm = settings.booking_open_hour < 12;
+            setSettings({ ...settings, booking_open_hour: isAm ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12) });
+          }}
+          className="flex-1 bg-app-card2 border border-app-bd rounded-xl px-3 py-3 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors text-center appearance-none cursor-pointer"
+        >
+          {[12,1,2,3,4,5,6,7,8,9,10,11].map(h => (
+            <option key={h} value={h}>{String(h).padStart(2,"0")}</option>
+          ))}
+        </select>
+
+        <select
+          value={settings.booking_open_minute}
+          onChange={e => setSettings({ ...settings, booking_open_minute: parseInt(e.target.value) })}
+          className="flex-1 bg-app-card2 border border-app-bd rounded-xl px-3 py-3 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors text-center appearance-none cursor-pointer"
+        >
+          {[0,15,30,45].map(m => (
+            <option key={m} value={m}>{String(m).padStart(2,"0")}</option>
+          ))}
+        </select>
+
+        <select
+          value={settings.booking_open_hour >= 12 ? "PM" : "AM"}
+          onChange={e => {
+            const isPM = e.target.value === "PM";
+            const h = settings.booking_open_hour % 12;
+            setSettings({ ...settings, booking_open_hour: isPM ? (h === 0 ? 12 : h + 12) : (h === 0 ? 0 : h) });
+          }}
+          className="bg-app-card2 border border-app-bd rounded-xl px-3 py-3 text-[13px] text-app-am font-black outline-none focus:border-app-am transition-colors appearance-none cursor-pointer"
+        >
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+      </div>
+      <div className="text-[10px] text-app-ok font-bold">
+        Opens: {settings.booking_open_hour === 0 ? "12" : settings.booking_open_hour > 12 ? settings.booking_open_hour - 12 : settings.booking_open_hour}:{String(settings.booking_open_minute).padStart(2,"0")} {settings.booking_open_hour >= 12 ? "PM" : "AM"}
+      </div>
+    </div>
+
+    {/* Close Time */}
+    <div className="space-y-3">
+      <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">Booking Closes At</label>
+      <div className="flex gap-2">
+        <select
+          value={settings.booking_close_hour > 12 ? settings.booking_close_hour - 12 : settings.booking_close_hour === 0 ? 12 : settings.booking_close_hour}
+          onChange={e => {
+            const h = parseInt(e.target.value);
+            const isAm = settings.booking_close_hour < 12;
+            setSettings({ ...settings, booking_close_hour: isAm ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12) });
+          }}
+          className="flex-1 bg-app-card2 border border-app-bd rounded-xl px-3 py-3 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors text-center appearance-none cursor-pointer"
+        >
+          {[12,1,2,3,4,5,6,7,8,9,10,11].map(h => (
+            <option key={h} value={h}>{String(h).padStart(2,"0")}</option>
+          ))}
+        </select>
+
+        <select
+          value={settings.booking_close_minute}
+          onChange={e => setSettings({ ...settings, booking_close_minute: parseInt(e.target.value) })}
+          className="flex-1 bg-app-card2 border border-app-bd rounded-xl px-3 py-3 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors text-center appearance-none cursor-pointer"
+        >
+          {[0,15,30,45].map(m => (
+            <option key={m} value={m}>{String(m).padStart(2,"0")}</option>
+          ))}
+        </select>
+
+        <select
+          value={settings.booking_close_hour >= 12 ? "PM" : "AM"}
+          onChange={e => {
+            const isPM = e.target.value === "PM";
+            const h = settings.booking_close_hour % 12;
+            setSettings({ ...settings, booking_close_hour: isPM ? (h === 0 ? 12 : h + 12) : (h === 0 ? 0 : h) });
+          }}
+          className="bg-app-card2 border border-app-bd rounded-xl px-3 py-3 text-[13px] text-app-am font-black outline-none focus:border-app-am transition-colors appearance-none cursor-pointer"
+        >
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+      </div>
+      <div className="text-[10px] text-app-err font-bold">
+        Closes: {settings.booking_close_hour === 0 ? "12" : settings.booking_close_hour > 12 ? settings.booking_close_hour - 12 : settings.booking_close_hour}:{String(settings.booking_close_minute).padStart(2,"0")} {settings.booking_close_hour >= 12 ? "PM" : "AM"}
+      </div>
+    </div>
+  </div>
+
+  <div className="pt-6 border-t border-app-bd mt-6 flex justify-end">
+    <button
+      onClick={handleSaveSettings}
+      disabled={isSavingSettings}
+      className={`bg-app-am text-black px-10 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center gap-3
+        ${isSavingSettings ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'}`}
+    >
+      {isSavingSettings ? "Saving..." : <><Ic.Check size={16} /> Save Settings</>}
+    </button>
+  </div>
+</div>
+      {/* ── Modal ── */}
       {modal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-app-card border border-app-bd rounded-[24px] p-8 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-300">
             <div className="flex flex-col items-center text-center gap-4">
-              
               <div className={`flex h-20 w-20 items-center justify-center rounded-full border-4 ${
                 modal.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-app-ok' : 'bg-red-500/10 border-red-500/20 text-app-err'
               }`}>
                 {modal.type === 'success' ? <Ic.Check /> : <span className="font-bold text-3xl">!</span>}
               </div>
-              
               <h3 className="font-syne text-xl font-black text-app-tx uppercase tracking-wider mt-2">
-                {modal.type === 'success' ? 'Trip Created!' : 'Action Failed'}
+                {modal.type === 'success' ? 'Success!' : 'Action Failed'}
               </h3>
-              
-              <p className="text-sm text-app-mu font-medium px-2">
-                {modal.message}
-              </p>
-              
+              <p className="text-sm text-app-mu font-medium px-2">{modal.message}</p>
               <div className="flex gap-3 w-full mt-4">
                 <button
                   onClick={() => setModal({ ...modal, isOpen: false })}

@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import Trip from "../models/Trip";
 import Route from "../models/Route";
-
+import Notification from "../models/notification";
+import User from "../models/User";
 
 // Create Trip (Admin)
-
 export const createTrip = async (req: Request, res: Response) => {
   try {
     const { route_id, time_slot, departure_time, total_seats, bus_number } = req.body;
@@ -19,13 +19,23 @@ export const createTrip = async (req: Request, res: Response) => {
       bus_number,
       total_seats
     });
+
+    // ← هنا جوه الـ try وقبل الـ res
+    const students = await User.find({ role: "student" }).select("_id");
+    const notifications = students.map((s: any) => ({
+      user: s._id,
+      title: "New Trip Added",
+      message: `A new bus trip has been scheduled for ${new Date(trip.date).toDateString()} - ${trip.time_slot}`,
+      type: "trip",
+      read: false
+    }));
+    await Notification.insertMany(notifications);
+
     res.status(201).json(trip);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 //  Get All Trips — supports optional ?date=tomorrow&?status=scheduled
 export const getTrips = async (req: Request, res: Response) => {
