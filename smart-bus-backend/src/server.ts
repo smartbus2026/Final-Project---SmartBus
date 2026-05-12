@@ -9,25 +9,27 @@ import userRoutes from "./Routes/userRoutes";
 import routeRoutes from "./Routes/routeRoutes";
 import tripRoutes from "./Routes/tripRoutes";
 import bookingRoutes from "./Routes/bookingRoutes";
-import notificationRoutes from "./Routes/notificationsRoutes";
 import chatRoutes from "./Routes/chatRoutes";
 import supportRoutes from "./Routes/supportRoutes";
 import reportRoutes from "./Routes/reportRoutes";
 import authRoutes from "./Routes/auth.routes";
+import notificationRoutes from "./Routes/notificationsRoutes";
+import settingsRoutes from "./Routes/settingsRoutes";
 
 // Socket Integration
-import { initSocket } from "./socket"; 
+import { initSocket } from "./socket";
 
 dotenv.config();
 connectDB();
 
+// Start cron jobs after DB connection
+import { startTripReminderJob } from "./jobs/tripReminder";
+startTripReminderJob();
+
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Initialize HTTP Server for Socket.io support
 const server = http.createServer(app);
-
-// Initialize Socket.io instance
 initSocket(server);
 
 // Middleware
@@ -47,9 +49,10 @@ app.use("/api/routes",        routeRoutes);
 app.use("/api/trips",         tripRoutes);
 app.use("/api/bookings",      bookingRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/chat",          chatRoutes); // Changed from /messages to /chat to match frontend
+app.use("/api/chat",          chatRoutes);
 app.use("/api/support",       supportRoutes);
 app.use("/api/reports",       reportRoutes);
+app.use("/api/settings",      settingsRoutes); // ← هنا قبل الـ 404
 
 app.get("/", (_req: Request, res: Response) => {
   res.json({ status: "ok", message: "SmartBus API is running" });
@@ -69,7 +72,6 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-// Use server.listen instead of app.listen to enable Socket.io
 server.listen(PORT, () => {
   console.log(`✅ Server & Socket.io running on port ${PORT}`);
 });

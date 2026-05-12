@@ -19,7 +19,7 @@ export default function NotificationsPage() {
     const fetchNotifications = async () => {
       try {
         const res = await Api.get("/notifications");
-        setNotifications(res.data || []);
+setNotifications(res.data?.data?.notifications || []);
       } catch (err) {
         console.error("Failed to fetch notifications", err);
       } finally {
@@ -113,4 +113,4 @@ export default function NotificationsPage() {
       </div>
     </div>
   );
-}
+}
