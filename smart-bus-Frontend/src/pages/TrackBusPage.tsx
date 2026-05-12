@@ -1,7 +1,28 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import { io, Socket } from "socket.io-client";
 import { Ic } from "../icons";
 import type { Page } from "../types";
 import Api from "../services/Api";
+
+// Component to dynamically update map view based on props
+function MapUpdater({ theme, center }: { theme: "dark" | "light", center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom(), { animate: true });
+  }, [center, map]);
+  return null;
+}
+
+const busIcon = new L.DivIcon({
+  className: "custom-bus-marker",
+  html: `<div style="background-color:#f7a01b;width:18px;height:18px;border-radius:50%;border:3px solid white;box-shadow:0 0 20px #f7a01b;"></div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
 
 function StopItem({ stop, isPickup, index }: { stop: any, isPickup: boolean, index: number }) {
   const baseLine = "flex items-center gap-5 relative transition-all duration-500";
@@ -36,29 +57,23 @@ function StopItem({ stop, isPickup, index }: { stop: any, isPickup: boolean, ind
 }
 
 export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | "light", go?: (p: Page) => void }) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const tileLayerRef = useRef<any>(null);
-  const busMarkerRef = useRef<any>(null);
-
+  const navigate = useNavigate();
   const [activeBooking, setActiveBooking] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [eta, setEta] = useState(12);
+  const [busPosition, setBusPosition] = useState<[number, number] | null>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   // Fetch student bookings
   useEffect(() => {
     const fetchActiveBooking = async () => {
       try {
         const res = await Api.get('/bookings/my');
+        console.log("My Bookings Data:", res.data);
         const bookings = res.data?.data?.bookings || [];
 
-        // Find today's active/scheduled booking
-        const today = new Date().toDateString();
-        const active = bookings.find((b: any) => {
-          if (b.status === 'cancelled' || !b.trip) return false;
-          const tripDate = new Date(b.trip.date).toDateString();
-          return tripDate === today && ['scheduled', 'active'].includes(b.trip.status);
-        });
+        // Pick the first non-cancelled booking to bypass strict date/status checks
+        const active = bookings.find((b: any) => b.status !== 'cancelled' && b.trip);
 
         setActiveBooking(active || null);
       } catch (err) {
@@ -70,58 +85,27 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
     fetchActiveBooking();
   }, []);
 
-  const updateMapTheme = (isDark: boolean, mapInstance: any) => {
-    if (tileLayerRef.current) mapInstance.removeLayer(tileLayerRef.current);
-    const style = isDark ? "dark_all" : "rastertiles/voyager";
-    tileLayerRef.current = (window as any).L.tileLayer(
-      `https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`
-    ).addTo(mapInstance);
-  };
-
   useEffect(() => {
-    if (!activeBooking || mapInstanceRef.current || !mapRef.current || !(window as any).L) return;
+    if (!activeBooking?.trip?._id) return;
 
-    const L = (window as any).L;
-
-    // Determine starting location: Bus current location, or fallback to the pickup point coordinates
-    const pickupStop = activeBooking.trip?.route?.stops?.find((s: any) => s._id === activeBooking.pickup_point);
-    let centerLat = pickupStop?.location?.lat || 30.0444;
-    let centerLng = pickupStop?.location?.lng || 31.2357;
-
-    if (activeBooking.trip?.current_location?.lat) {
-      centerLat = activeBooking.trip.current_location.lat;
-      centerLng = activeBooking.trip.current_location.lng;
-    }
-
-    const map = L.map(mapRef.current, { zoomControl: false }).setView([centerLat, centerLng], 15);
-    mapInstanceRef.current = map;
-
-    updateMapTheme(theme === "dark", map);
-
-    const busIcon = L.divIcon({
-      className: "custom-bus-marker",
-      html: `<div style="background-color:#f7a01b;width:18px;height:18px;border-radius:50%;border:3px solid white;box-shadow:0 0 20px #f7a01b;"></div>`,
-      iconSize: [18, 18],
-      iconAnchor: [9, 9],
+    socketRef.current = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5001", {
+      transports: ["websocket", "polling"]
     });
 
-    busMarkerRef.current = L.marker([centerLat, centerLng], { icon: busIcon }).addTo(map);
+    socketRef.current.emit("join-trip-room", activeBooking.trip._id);
 
-    setTimeout(() => map.invalidateSize(), 400);
+    socketRef.current.on("bus_location_update", (data: any) => {
+      if (data.tripId === activeBooking.trip._id && data.location) {
+        setBusPosition([data.location.lat, data.location.lng]);
+        setEta(prev => (prev > 1 ? prev - 1 : 1)); // Mock ETA decrease
+      }
+    });
 
     return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
+      socketRef.current?.emit("leave-trip-room", activeBooking.trip._id);
+      socketRef.current?.disconnect();
     };
   }, [activeBooking]);
-
-  useEffect(() => {
-    if (mapInstanceRef.current) {
-      updateMapTheme(theme === "dark", mapInstanceRef.current);
-    }
-  }, [theme]);
 
   if (isLoading) {
     return (
@@ -147,7 +131,10 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
               You have no active or scheduled trips to track right now. Please book a seat first.
             </p>
             <button
-              onClick={() => go?.("bookTrip")}
+              onClick={() => {
+                if (go) go("bookTrip");
+                navigate('/book-trip');
+              }}
               className="bg-app-am text-black px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:brightness-110 transition-all w-full flex items-center justify-center gap-2"
             >
               <Ic.Calendar /> Book a Seat
@@ -161,6 +148,15 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
   const routeStops = activeBooking.trip?.route?.stops || [];
   const busNumber = activeBooking.trip?.bus_number || "AWAITING ASSIGNMENT";
   const driverName = activeBooking.trip?.driver || "Pending Driver";
+
+  const pickupStop = activeBooking.trip?.route?.stops?.find((s: any) => s._id === activeBooking.pickup_point);
+  const centerLat = busPosition?.[0] || activeBooking.trip?.current_location?.lat || pickupStop?.location?.lat || 24.0889;
+  const centerLng = busPosition?.[1] || activeBooking.trip?.current_location?.lng || pickupStop?.location?.lng || 32.8998;
+  const center: [number, number] = [centerLat, centerLng];
+
+  const tileUrl = theme === "dark" 
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
   return (
     <div className="p-4 md:p-6 space-y-6 h-full flex flex-col bg-app-bg overflow-hidden animate-in fade-in duration-500">
@@ -183,8 +179,12 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
             </button>
           </div>
 
-          <div className="relative flex-1 rounded-[24px] overflow-hidden border border-app-bd z-10">
-            <div ref={mapRef} className="h-full w-full" />
+          <div className="relative flex-1 rounded-[24px] overflow-hidden border border-app-bd z-10 bg-app-card2">
+            <MapContainer center={center} zoom={15} zoomControl={false} className="h-full w-full">
+              <TileLayer url={tileUrl} />
+              <MapUpdater theme={theme} center={center} />
+              <Marker position={center} icon={busIcon} />
+            </MapContainer>
 
             {/* Arrival Tag Floating */}
             <div className="absolute top-4 right-4 z-[1000] bg-app-card/80 backdrop-blur-xl p-3 px-6 rounded-2xl border border-white/5 text-center shadow-2xl">
