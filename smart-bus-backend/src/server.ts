@@ -5,15 +5,15 @@ import cors from "cors";
 import connectDB from "./config/db";
 
 // Route Imports
-import userRoutes from "./routes/userRoutes";
-import routeRoutes from "./routes/routeRoutes";
-import tripRoutes from "./routes/tripRoutes";
-import bookingRoutes from "./routes/bookingRoutes";
-import notificationRoutes from "./routes/notificationsRoutes";
-import chatRoutes from "./routes/chatRoutes";
-import supportRoutes from "./routes/supportRoutes";
-import reportRoutes from "./routes/reportRoutes";
-import authRoutes from "./routes/auth.routes";
+import userRoutes from "./Routes/userRoutes";
+import routeRoutes from "./Routes/routeRoutes";
+import tripRoutes from "./Routes/tripRoutes";
+import bookingRoutes from "./Routes/bookingRoutes";
+import notificationRoutes from "./Routes/notificationsRoutes";
+import chatRoutes from "./Routes/chatRoutes";
+import supportRoutes from "./Routes/supportRoutes";
+import reportRoutes from "./Routes/reportRoutes";
+import authRoutes from "./Routes/auth.routes";
 
 // Socket Integration
 import { initSocket } from "./socket"; 
