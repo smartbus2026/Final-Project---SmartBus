@@ -15,6 +15,7 @@ import reportRoutes from "./Routes/reportRoutes";
 import authRoutes from "./Routes/auth.routes";
 import notificationRoutes from "./Routes/notificationsRoutes";
 import settingsRoutes from "./Routes/settingsRoutes";
+import aiRoutes from "./Routes/aiRoutes";
 
 // Socket Integration
 import { initSocket } from "./socket";
@@ -52,7 +53,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/chat",          chatRoutes);
 app.use("/api/support",       supportRoutes);
 app.use("/api/reports",       reportRoutes);
-app.use("/api/settings",      settingsRoutes); // ← هنا قبل الـ 404
+app.use("/api/settings",      settingsRoutes); 
+app.use("/api/ai",            aiRoutes);
 
 app.get("/", (_req: Request, res: Response) => {
   res.json({ status: "ok", message: "SmartBus API is running" });
