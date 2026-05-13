@@ -1,27 +1,53 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
+import mongoose from "mongoose";
 import Booking from "../../models/Booking.model";
 import Trip from "../../models/Trip";
 import User from "../../models/User";
+import Stop from "../../models/stop";
+
+// ─── Helper ────────────────────────────────────────────────────────────────────
+/** Returns true only if the string is a valid 24-hex MongoDB ObjectId. */
+function isValidObjectId(id: string): boolean {
+  return mongoose.Types.ObjectId.isValid(id) && /^[a-f\d]{24}$/i.test(id);
+}
 
 /**
- * getBookingStatus
- * ----------------
- * A LangChain tool that retrieves a student's bookings from MongoDB.
- * The AI agent calls this whenever a user asks about their booking status.
- *
- * Accepts userId (MongoDB ObjectId string) and an optional date filter.
+ * getBookingStatusTool
+ * --------------------
+ * Retrieves a student's bookings from MongoDB.
+ * Every code path returns a string so the LangChain message history stays valid.
  */
 export const getBookingStatusTool = tool(
   async ({ userId, date }: { userId: string; date?: string }) => {
+    const args = { userId, date };
+    console.log(`[Tool Called]: getBookingStatus with args:`, args);
+
     try {
-      // Verify user exists
+      // ── Guard: validate userId is a real ObjectId ──────────────────────────
+      if (!isValidObjectId(userId)) {
+        return JSON.stringify({
+          error: `Invalid userId "${userId}". Must be a 24-character MongoDB ObjectId.`,
+        });
+      }
+
+      // ── Guard: validate date format if supplied ────────────────────────────
+      if (date) {
+        const parsed = new Date(date);
+        if (isNaN(parsed.getTime())) {
+          return JSON.stringify({
+            error: `Invalid date format "${date}". Please use YYYY-MM-DD.`,
+          });
+        }
+      }
+
+      // ── Verify user exists ─────────────────────────────────────────────────
       const user = await User.findById(userId).select("name email student_id role");
       if (!user) {
         return JSON.stringify({ error: "User not found." });
       }
 
-      // Build date filter
+      // ── Build date filter ──────────────────────────────────────────────────
       let dateFilter: Record<string, unknown> = {};
       if (date) {
         const start = new Date(date);
@@ -31,7 +57,7 @@ export const getBookingStatusTool = tool(
         dateFilter = { createdAt: { $gte: start, $lte: end } };
       }
 
-      // Fetch bookings, populate trip details
+      // ── Fetch bookings with populated trip details ─────────────────────────
       const bookings = await Booking.find({ user: userId, ...dateFilter })
         .populate({
           path: "trip",
@@ -47,14 +73,12 @@ export const getBookingStatusTool = tool(
       if (!bookings.length) {
         return JSON.stringify({
           student: { name: user.name, student_id: user.student_id ?? "N/A" },
-          message: date
-            ? `No bookings found for ${date}.`
-            : "No bookings found.",
+          message: date ? `No bookings found for ${date}.` : "No bookings found.",
           bookings: [],
         });
       }
 
-      // Map to a clean shape for the AI to read
+      // ── Map to a clean shape for the AI to read ────────────────────────────
       const formatted = bookings.map((b: any) => ({
         bookingId: b._id.toString(),
         status: b.status,
@@ -82,7 +106,7 @@ export const getBookingStatusTool = tool(
       });
     } catch (err: any) {
       console.error("[getBookingStatus tool error]", err.message);
-      return JSON.stringify({ error: "Failed to fetch booking data. Please try again." });
+      return JSON.stringify({ error: `Tool failed: ${err.message}. Do not retry.` });
     }
   },
   {
@@ -108,25 +132,27 @@ export const getBookingStatusTool = tool(
 /**
  * getAvailableTripsTool
  * ----------------------
- * A LangChain tool that fetches active trips/time-slots from MongoDB for a
- * given date (defaults to tomorrow in Cairo time when no date is supplied).
- *
- * The AI agent should call this whenever a student asks which trips or return
- * slots are available — ensuring the response always reflects the Admin's
- * latest schedule rather than any hard-coded times.
+ * Fetches active trips/time-slots from MongoDB for a given date.
+ * Defaults to tomorrow (Cairo time) when no date is supplied.
+ * Every code path returns a string so the LangChain message history stays valid.
  */
 export const getAvailableTripsTool = tool(
   async ({ date }: { date?: string }) => {
+    const args = { date };
+    console.log(`[Tool Called]: getAvailableTrips with args:`, args);
+
     try {
-      // Default to tomorrow (Cairo time) when no date is provided
+      // ── Resolve target date ────────────────────────────────────────────────
       let targetDate: Date;
       if (date) {
         targetDate = new Date(date);
         if (isNaN(targetDate.getTime())) {
-          return JSON.stringify({ error: `Invalid date format: "${date}". Please use YYYY-MM-DD.` });
+          return JSON.stringify({
+            error: `Invalid date format "${date}". Please use YYYY-MM-DD.`,
+          });
         }
       } else {
-        // Get current Cairo time and advance by one day
+        // Default: tomorrow in Cairo time
         const cairoNow = new Date(
           new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" })
         );
@@ -139,6 +165,7 @@ export const getAvailableTripsTool = tool(
       const end = new Date(targetDate);
       end.setHours(23, 59, 59, 999);
 
+      // ── Query active trips ─────────────────────────────────────────────────
       const trips = await Trip.find({
         date: { $gte: start, $lte: end },
         status: "active",
@@ -176,7 +203,7 @@ export const getAvailableTripsTool = tool(
       });
     } catch (err: any) {
       console.error("[getAvailableTrips tool error]", err.message);
-      return JSON.stringify({ error: "Failed to fetch available trips. Please try again." });
+      return JSON.stringify({ error: `Tool failed: ${err.message}. Do not retry.` });
     }
   },
   {
@@ -184,8 +211,8 @@ export const getAvailableTripsTool = tool(
     description:
       "Fetches the list of active trips (time slots) available for a specific date from the database. " +
       "Defaults to tomorrow (Cairo time) if no date is provided. " +
-      "ALWAYS call this tool before answering any question about available trips, return slots, or schedule times. " +
-      "Never assume or hard-code time slots — the Admin controls the schedule dynamically.",
+      "Use this to answer questions about available trips or schedules. " +
+      "Do NOT call this before bookTrip — bookTrip resolves the trip internally.",
     schema: z.object({
       date: z
         .string()
@@ -193,6 +220,164 @@ export const getAvailableTripsTool = tool(
         .describe(
           "Optional date in YYYY-MM-DD format. Defaults to tomorrow (Cairo time) if omitted."
         ),
+    }),
+  }
+);
+
+/**
+ * bookTripTool
+ * ------------
+ * Books a trip for an authenticated student.
+ * Accepts date + timeSlot — resolves the trip internally so the AI does NOT
+ * need to call getAvailableTrips first. Eliminates the two-tool chain that
+ * caused recursion loops.
+ * Every code path returns a string so the LangChain message history stays valid.
+ */
+export const bookTripTool = tool(
+  async ({
+    userId,
+    date,
+    timeSlot,
+    pickupPointName,
+  }: {
+    userId: string;
+    date: string;
+    timeSlot: string;
+    pickupPointName: string;
+  }) => {
+    const args = { userId, date, timeSlot, pickupPointName };
+    console.log(`[Tool Called]: bookTrip with args:`, args);
+
+    try {
+      // ── Guard: validate userId ─────────────────────────────────────────────
+      if (!isValidObjectId(userId)) {
+        return JSON.stringify({
+          error: `Invalid userId "${userId}". Must be a 24-character MongoDB ObjectId.`,
+        });
+      }
+
+      // ── Guard: validate date format ────────────────────────────────────────
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        return JSON.stringify({
+          error: `Invalid date "${date}". Please use YYYY-MM-DD format.`,
+        });
+      }
+
+      const dayStart = new Date(parsedDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(parsedDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      // ── 1. Verify user exists ──────────────────────────────────────────────
+      const user = await User.findById(userId).select("name student_id");
+      if (!user) {
+        return JSON.stringify({ error: "Student account not found. Booking cancelled." });
+      }
+
+      // ── 2. Look up the active trip by date + timeSlot (no tripId needed) ──
+      const trip = await Trip.findOne({
+        date: { $gte: dayStart, $lte: dayEnd },
+        time_slot: timeSlot,
+        status: "active",
+      });
+
+      if (!trip) {
+        return "Booking failed: No active trip found for this date and time. Please check available trips.";
+      }
+
+      // ── 3. Check seat availability ────────────────────────────────────────
+      const availableSeats = trip.total_seats - trip.booked_seats;
+      if (availableSeats <= 0) {
+        return JSON.stringify({
+          error: `No seats available on the ${timeSlot} trip for ${date}. Please choose a different trip.`,
+        });
+      }
+
+      // ── 4. Check if student already has ANY booking for this date ─────────
+      // Covers one-return-per-day rule and duplicate prevention in one query.
+      // No status filter — any prior booking on this day blocks a new one.
+      const allTripsOnDay = await Trip.find({
+        date: { $gte: dayStart, $lte: dayEnd },
+      }).select("_id");
+
+      const allTripIds = allTripsOnDay.map((t) => t._id);
+
+      const existingBooking = await Booking.findOne({
+        user: userId,
+        trip: { $in: allTripIds },
+      });
+
+      if (existingBooking) {
+        return "Booking failed: You already have a booking for this date.";
+      }
+
+      // ── 5. Resolve pickup stop by name (case-insensitive) ─────────────────
+      const stop = await Stop.findOne({
+        name: { $regex: new RegExp(`^${pickupPointName}$`, "i") },
+      });
+      if (!stop) {
+        return JSON.stringify({
+          error: `Pickup point "${pickupPointName}" was not found in the system. Please provide a valid stop name and try again.`,
+        });
+      }
+
+      // ── 6. Auto-assign next seat number ───────────────────────────────────
+      const nextSeat = trip.booked_seats + 1;
+
+      // ── 7. Create booking record ──────────────────────────────────────────
+      const newBooking = await Booking.create({
+        user: userId,
+        trip: trip._id,
+        pickup_point: stop._id,
+        seat_number: nextSeat,
+        status: "active",
+        attended: false,
+      });
+
+      // ── 8. Increment booked_seats on the trip atomically ──────────────────
+      await Trip.findByIdAndUpdate(trip._id, { $inc: { booked_seats: 1 } });
+
+      return "Booking successful! " + JSON.stringify({
+        student: `${user.name} (ID: ${user.student_id ?? "N/A"})`,
+        trip: `${trip.time_slot} on ${new Date(trip.date).toLocaleDateString("en-EG")}`,
+        pickup: stop.name,
+        seat: nextSeat,
+        bookingId: newBooking._id.toString(),
+        status: "active",
+      });
+    } catch (err: any) {
+      console.error("[bookTrip tool error]", err.message);
+      return JSON.stringify({ error: `Tool failed: ${err.message}. Do not retry.` });
+    }
+  },
+  {
+    name: "bookTrip",
+    description:
+      "Books a bus trip for the authenticated student. " +
+      "Use this tool ONLY when the student explicitly asks to book or reserve a trip. " +
+      "Pass: date (YYYY-MM-DD), timeSlot ('morning', 'return_1530', or 'return_1900'), and pickupPointName. " +
+      "The tool looks up the trip internally — do NOT call getAvailableTrips before this. " +
+      "Enforces seat availability and one-booking-per-day automatically.",
+    schema: z.object({
+      userId: z
+        .string()
+        .describe("The MongoDB ObjectId string of the authenticated student."),
+      date: z
+        .string()
+        .describe(
+          "The date of the trip in YYYY-MM-DD format. " +
+          "Calculate it yourself from 'today'/'tomorrow' using the current Cairo date — never ask the user."
+        ),
+      timeSlot: z
+        .string()
+        .describe(
+          "The time slot to book. Must be exactly one of: 'morning', 'return_1530', 'return_1900'. " +
+          "Map user phrases: morning/before noon → 'morning'; 1:30 PM/afternoon → 'return_1530'; 7 PM/evening → 'return_1900'."
+        ),
+      pickupPointName: z
+        .string()
+        .describe("The name of the student's pickup stop (e.g. 'Cairo University Gate')."),
     }),
   }
 );
