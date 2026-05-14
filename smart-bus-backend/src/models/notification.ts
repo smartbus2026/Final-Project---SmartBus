@@ -6,6 +6,8 @@ export interface INotification extends Document {
   message: string;
   type: "booking" | "trip" | "general";
   read: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const notificationSchema = new Schema<INotification>(

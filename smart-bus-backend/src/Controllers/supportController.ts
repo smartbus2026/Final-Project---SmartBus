@@ -30,13 +30,18 @@ export const createTicket = async (req: Request, res: Response) => {
         type: "general",
         read: false,
       }));
-      await Notification.insertMany(notifications);
+      const savedNotifs = await Notification.insertMany(notifications);
       try {
         const io = getIO();
-        io.to("admins").emit("new_notification", {
-          title: "New Support Ticket",
-          message: `Student submitted a new ticket: "${subject}"`,
-          createdAt: new Date()
+        savedNotifs.forEach((notif, i) => {
+          io.to(`user:${admins[i]._id}`).emit("new_notification", {
+            _id: notif._id.toString(),
+            title: notif.title,
+            message: notif.message,
+            type: notif.type,
+            read: false,
+            createdAt: notif.createdAt ?? new Date(),
+          });
         });
       } catch (err) { console.error("Socket emit error:", err); }
     }
@@ -95,7 +100,7 @@ export const updateTicketStatus = async (req: Request, res: Response) => {
     }
 
     // Notify the student about the status change
-    await Notification.create({
+    const savedNotif = await Notification.create({
       user: ticket.user._id,
       title: "Support Ticket Updated",
       message: `Your ticket "${ticket.subject}" has been marked as ${status}.`,
@@ -105,9 +110,12 @@ export const updateTicketStatus = async (req: Request, res: Response) => {
     try {
       const io = getIO();
       io.to(`user:${ticket.user._id}`).emit("new_notification", {
-        title: "Support Ticket Updated",
-        message: `Your ticket "${ticket.subject}" has been marked as ${status}.`,
-        createdAt: new Date()
+        _id: savedNotif._id.toString(),
+        title: savedNotif.title,
+        message: savedNotif.message,
+        type: savedNotif.type,
+        read: false,
+        createdAt: savedNotif.createdAt ?? new Date(),
       });
     } catch (err) { console.error("Socket emit error:", err); }
 

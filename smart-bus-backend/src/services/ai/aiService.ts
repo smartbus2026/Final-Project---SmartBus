@@ -89,8 +89,8 @@ export async function handleAiChat(userId: string, message: string): Promise<str
     {
       // thread_id isolates conversation history per student
       configurable: { thread_id: userId },
-      // Stop the agent after 5 iterations to prevent infinite tool loops
-      recursionLimit: 5,
+      // Stop the agent after 20 iterations to prevent infinite tool loops
+      recursionLimit: 20,
     }
   );
 

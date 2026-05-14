@@ -116,7 +116,7 @@ const Chatbot = () => {
 
                         {chatHistory.map((msg, i) => (
                             <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
-                                <div className={`max-w-[85%] px-4 py-3 rounded-[20px] text-[13px] font-medium leading-relaxed shadow-sm ${msg.role === 'user'
+                                <div className={`whitespace-pre-wrap max-w-[85%] px-4 py-3 rounded-[20px] text-[13px] font-medium leading-relaxed shadow-sm ${msg.role === 'user'
                                     ? 'bg-app-am text-black rounded-tr-none font-bold'
                                     : 'bg-app-card2/80 text-app-tx border border-white/5 rounded-tl-none'
                                     }`}>

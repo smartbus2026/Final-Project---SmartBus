@@ -147,10 +147,14 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
   const unreadCount = notifs.filter((n) => !n.read).length;
 
   const handleMarkRead = async (id: string) => {
+    // Optimistic UI update
+    setNotifs((prev) => prev.map((n) => (n._id === id ? { ...n, read: true } : n)));
     try {
       await Api.put(`/notifications/${id}/read`);
-      setNotifs((prev) => prev.map((n) => (n._id === id ? { ...n, read: true } : n)));
-    } catch {}
+    } catch {
+      // Revert on failure
+      setNotifs((prev) => prev.map((n) => (n._id === id ? { ...n, read: false } : n)));
+    }
   };
 
   const handleLogout = () => {
@@ -282,10 +286,18 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
                   notifs.slice(0, 5).map((n) => (
                     <div
                       key={n._id}
-                      className={`group flex gap-3 border-b border-app-bd/20 p-4 last:border-0 hover:bg-app-card2/50 cursor-pointer transition-colors ${n.read ? "opacity-60" : ""}`}
-                      onClick={() => handleMarkRead(n._id)}
+                      className={`group flex gap-3 border-b border-app-bd/20 p-4 last:border-0 hover:bg-app-card2/50 cursor-pointer transition-colors ${n.read ? "opacity-60 bg-app-card2/30" : "bg-app-card/10"}`}
+                      onClick={() => {
+                        handleMarkRead(n._id);
+                        if (n.title.toLowerCase().includes("ticket") || n.message.toLowerCase().includes("ticket")) {
+                          navigate(isAdmin ? "/admin/support" : "/support");
+                        } else {
+                          navigate(isAdmin ? "/admin/notifications" : "/notifications");
+                        }
+                        setNd(false);
+                      }}
                     >
-                      <div className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full transition-opacity ${n.read ? "bg-app-mu opacity-30" : "bg-app-am opacity-100"}`} />
+                      <div className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full transition-all ${n.read ? "hidden" : "bg-app-am opacity-100"}`} />
                       <div className="space-y-1">
                         <div className="text-[12px] font-bold text-app-tx">{n.title}</div>
                         <div className="text-[10px] leading-relaxed text-app-mu line-clamp-2">{n.message}</div>
@@ -329,15 +341,13 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
               </div>
               <div className="h-[1px] bg-app-bd/30 mx-2 mb-1" />
 
-              {/* Profile Button (For Students) */}
-              {!isAdmin && (
-                <button
-                  onClick={() => { navigate("/settings"); setUd(false); }}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all"
-                >
-                  <Ic.User /> Profile
-                </button>
-              )}
+              {/* Profile Button (For Students & Admins) */}
+              <button
+                onClick={() => { navigate(isAdmin ? "/admin/profile" : "/profile"); setUd(false); }}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all"
+              >
+                <Ic.User /> Profile
+              </button>
 
               {/* Settings Button (Dynamic Route) */}
               <button

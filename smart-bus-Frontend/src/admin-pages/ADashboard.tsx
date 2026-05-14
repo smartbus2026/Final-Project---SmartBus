@@ -10,25 +10,25 @@ const AdminDashboard: React.FC = () => {
     totalRoutes: 0,
     totalBookings: 0,
     trips: [] as any[],
-    alerts: [] as any[]
+    tickets: [] as any[]
   });
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [usersRes, tripsRes, routesRes, bookingsRes, notifRes] = await Promise.all([
+        const [usersRes, tripsRes, routesRes, bookingsRes, supportRes] = await Promise.all([
           Api.get('/users').catch(() => ({ data: [] })),
           Api.get('/trips').catch(() => ({ data: { data: [] } })),
           Api.get('/routes').catch(() => ({ data: { data: [] } })),
           Api.get('/bookings').catch(() => ({ data: { data: [] } })),
-          Api.get('/notifications').catch(() => ({ data: { data: [] } }))
+          Api.get('/support').catch(() => ({ data: { data: { tickets: [] } } }))
         ]);
 
         const users = usersRes.data || [];
         const trips = tripsRes.data?.data || tripsRes.data || [];
         const routes = routesRes.data?.data || routesRes.data || [];
         const bookings = bookingsRes.data?.data || bookingsRes.data || [];
-        const notifications = notifRes.data?.data || notifRes.data || [];
+        const supportTickets = supportRes.data?.data?.tickets || supportRes.data?.tickets || [];
 
         const studentCount = Array.isArray(users) ? users.filter((u: any) => u.role === 'student').length : 0;
         const activeTripsList = Array.isArray(trips) ? trips.filter((t: any) => t.status === 'active') : [];
@@ -43,13 +43,15 @@ const AdminDashboard: React.FC = () => {
           return d.getTime() === today.getTime();
         }) : [];
 
+        const pendingTickets = supportTickets.filter((t: any) => t.status === 'open' || t.status === 'pending');
+
         setData({
           totalStudents: studentCount,
           activeTripsCount: activeTripsList.length,
           totalRoutes: Array.isArray(routes) ? routes.length : 0,
           totalBookings: Array.isArray(bookings) ? bookings.length : 0,
           trips: todaysTrips.slice(0, 5),
-          alerts: Array.isArray(notifications) ? notifications.slice(0, 5) : []
+          tickets: pendingTickets.slice(0, 5)
         });
       } catch (err) {
         console.error("Failed to fetch dashboard data", err);
@@ -59,6 +61,18 @@ const AdminDashboard: React.FC = () => {
     };
     fetchDashboardData();
   }, []);
+
+  const handleResolveTicket = async (id: string) => {
+    try {
+      await Api.put(`/support/${id}/status`, { status: "resolved" });
+      setData(prev => ({
+        ...prev,
+        tickets: prev.tickets.filter((t: any) => t._id !== id)
+      }));
+    } catch (err) {
+      console.error("Failed to resolve ticket", err);
+    }
+  };
 
   const stats = [
     { 
@@ -120,22 +134,31 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Alerts (Occupies 1 column, Today's Trips occupies 2) */}
+        {/* Pending Tickets Widget (Occupies 1 column, Today's Trips occupies 2) */}
         <div className="bg-app-card rounded-2xl border border-app-bd shadow-sm overflow-hidden lg:col-span-1 h-fit">
           <div className="flex justify-between items-center px-6 py-4 border-b border-app-bd">
-            <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest">Alerts</h3>
-            <button className="text-[10px] font-black text-app-am hover:underline tracking-wider">View All</button>
+            <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest">Pending Tickets</h3>
+            <button className="text-[10px] font-black text-app-am hover:underline tracking-wider" onClick={() => window.location.href='/admin/support'}>View All</button>
           </div>
           <div className="divide-y divide-app-bd">
             {loading ? (
-              <div className="p-6 text-center text-xs text-app-mu">Loading alerts...</div>
-            ) : data.alerts.length === 0 ? (
-              <div className="p-6 text-center text-xs text-app-mu">No recent alerts</div>
+              <div className="p-6 text-center text-xs text-app-mu">Loading tickets...</div>
+            ) : data.tickets.length === 0 ? (
+              <div className="p-6 text-center text-xs text-app-mu">No pending tickets</div>
             ) : (
-              data.alerts.map((a: any, i) => (
-                <div key={a._id || i} className="px-6 py-4 hover:bg-app-card2/50 transition-colors cursor-pointer">
-                  <p className="text-[12px] font-bold text-app-tx mb-1">{a.title || a.message}</p>
-                  <p className="text-[10px] text-app-mu">{new Date(a.createdAt).toLocaleString()}</p>
+              data.tickets.map((t: any, i) => (
+                <div key={t._id || i} className="px-6 py-4 hover:bg-app-card2/50 transition-colors">
+                  <div className="flex justify-between items-start mb-2">
+                    <p className="text-[12px] font-bold text-app-tx">{t.subject}</p>
+                    <button 
+                      onClick={() => handleResolveTicket(t._id)}
+                      className="px-2 py-1 bg-app-ok/10 text-app-ok text-[9px] font-black uppercase tracking-widest rounded hover:bg-app-ok hover:text-white transition-colors cursor-pointer"
+                    >
+                      Resolve
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-app-mu mb-2 line-clamp-2">{t.description}</p>
+                  <p className="text-[9px] font-bold text-app-mu2 uppercase">{new Date(t.createdAt).toLocaleString()}</p>
                 </div>
               ))
             )}

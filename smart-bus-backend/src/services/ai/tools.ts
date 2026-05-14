@@ -146,37 +146,45 @@ export const getAvailableTripsTool = tool(
       // ── Resolve target date ────────────────────────────────────────────────
       let targetDate: Date;
       if (date) {
-        targetDate = new Date(date);
-        if (isNaN(targetDate.getTime())) {
-          return JSON.stringify({
-            error: `Invalid date format "${date}". Please use YYYY-MM-DD.`,
-          });
+        if (date.toLowerCase() === 'today') {
+          const cairoNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+          targetDate = new Date(cairoNow.getFullYear(), cairoNow.getMonth(), cairoNow.getDate());
+        } else if (date.toLowerCase() === 'tomorrow') {
+          const cairoNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+          cairoNow.setDate(cairoNow.getDate() + 1);
+          targetDate = new Date(cairoNow.getFullYear(), cairoNow.getMonth(), cairoNow.getDate());
+        } else {
+          // parse YYYY-MM-DD locally to avoid UTC timezone shifts
+          const parts = date.split("-").map(Number);
+          if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+            targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
+          } else {
+            return JSON.stringify({ error: `Invalid date format "${date}". Please use YYYY-MM-DD.` });
+          }
         }
       } else {
         // Default: tomorrow in Cairo time
-        const cairoNow = new Date(
-          new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" })
-        );
+        const cairoNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
         cairoNow.setDate(cairoNow.getDate() + 1);
-        targetDate = cairoNow;
+        targetDate = new Date(cairoNow.getFullYear(), cairoNow.getMonth(), cairoNow.getDate());
       }
 
-      const start = new Date(targetDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(targetDate);
-      end.setHours(23, 59, 59, 999);
+      const startOfTomorrow = new Date(targetDate);
+      startOfTomorrow.setHours(0, 0, 0, 0);
+      const endOfTomorrow = new Date(targetDate);
+      endOfTomorrow.setHours(23, 59, 59, 999);
 
       // ── Query active trips ─────────────────────────────────────────────────
       const trips = await Trip.find({
-        date: { $gte: start, $lte: end },
-        status: "active",
+        date: { $gte: startOfTomorrow, $lte: endOfTomorrow },
+        status: { $in: ['scheduled', 'upcoming', 'active', 'pending'] }
       })
         .populate("route", "name")
         .select("date time_slot bus_number total_seats booked_seats status route")
         .sort({ time_slot: 1 })
         .lean();
 
-      const dateLabel = start.toLocaleDateString("en-EG");
+      const dateLabel = startOfTomorrow.toLocaleDateString("en-EG");
 
       if (!trips.length) {
         return JSON.stringify({
@@ -258,11 +266,21 @@ export const bookTripTool = tool(
       }
 
       // ── Guard: validate date format ────────────────────────────────────────
-      const parsedDate = new Date(date);
-      if (isNaN(parsedDate.getTime())) {
-        return JSON.stringify({
-          error: `Invalid date "${date}". Please use YYYY-MM-DD format.`,
-        });
+      let parsedDate: Date;
+      if (date.toLowerCase() === 'today') {
+        const cairoNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+        parsedDate = new Date(cairoNow.getFullYear(), cairoNow.getMonth(), cairoNow.getDate());
+      } else if (date.toLowerCase() === 'tomorrow') {
+        const cairoNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+        cairoNow.setDate(cairoNow.getDate() + 1);
+        parsedDate = new Date(cairoNow.getFullYear(), cairoNow.getMonth(), cairoNow.getDate());
+      } else {
+        const parts = date.split("-").map(Number);
+        if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+          parsedDate = new Date(parts[0], parts[1] - 1, parts[2]);
+        } else {
+          return JSON.stringify({ error: `Invalid date "${date}". Please use YYYY-MM-DD format.` });
+        }
       }
 
       const dayStart = new Date(parsedDate);
@@ -280,7 +298,7 @@ export const bookTripTool = tool(
       const trip = await Trip.findOne({
         date: { $gte: dayStart, $lte: dayEnd },
         time_slot: timeSlot,
-        status: "active",
+        status: { $in: ['scheduled', 'upcoming', 'active', 'pending'] }
       });
 
       if (!trip) {
@@ -386,7 +404,8 @@ export const bookTripTool = tool(
 /**
  * getRegistrationWindowTool
  * -------------------------
- * Fetches the dynamic registration opening and closing times from the Settings model.
+ * Fetches the dynamic registration opening and closing times from the Settings model
+ * and PROGRAMMATICALLY compares them against the exact current Africa/Cairo time.
  */
 export const getRegistrationWindowTool = tool(
   async () => {
@@ -394,21 +413,43 @@ export const getRegistrationWindowTool = tool(
 
     try {
       const settings = await Settings.findOne();
-      if (!settings) {
-        return JSON.stringify({
-          booking_open_hour: 0,
-          booking_open_minute: 0,
-          booking_close_hour: 14,
-          booking_close_minute: 0,
-          message: "Settings not found, using default 12:00 AM to 2:00 PM."
-        });
-      }
+      const openH = settings ? settings.booking_open_hour : 0;
+      const openM = settings ? settings.booking_open_minute : 0;
+      const closeH = settings ? settings.booking_close_hour : 14;
+      const closeM = settings ? settings.booking_close_minute : 0;
+
+      // Format strings for presentation
+      const formatTime = (h: number, m: number) => {
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const hr = h % 12 || 12;
+        return `${hr}:${m.toString().padStart(2, '0')} ${ampm}`;
+      };
+
+      const startTimeStr = formatTime(openH, openM);
+      const endTimeStr = formatTime(closeH, closeM);
+
+      // Get exact current time in Cairo
+      const cairoNowString = new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" });
+      const cairoNow = new Date(cairoNowString);
+      
+      const currentH = cairoNow.getHours();
+      const currentM = cairoNow.getMinutes();
+      
+      // Calculate minutes since midnight for easy comparison
+      const currentMinutes = currentH * 60 + currentM;
+      const startMinutes = openH * 60 + openM;
+      const endMinutes = closeH * 60 + closeM;
+
+      const isOpen = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 
       return JSON.stringify({
-        booking_open_hour: settings.booking_open_hour,
-        booking_open_minute: settings.booking_open_minute,
-        booking_close_hour: settings.booking_close_hour,
-        booking_close_minute: settings.booking_close_minute,
+        startTime: startTimeStr,
+        endTime: endTimeStr,
+        currentTime: formatTime(currentH, currentM),
+        isOpen: isOpen,
+        message: isOpen 
+          ? `The window is currently OPEN. Registration closes at ${endTimeStr}.`
+          : `The window is currently CLOSED. Registration is only open between ${startTimeStr} and ${endTimeStr}.`
       });
     } catch (err: any) {
       console.error("[getRegistrationWindow tool error]", err.message);
@@ -418,10 +459,10 @@ export const getRegistrationWindowTool = tool(
   {
     name: "getRegistrationWindow",
     description:
-      "Fetches the current dynamic registration opening and closing times set by the Admin. " +
-      "You MUST ALWAYS call this tool to check the allowed start and end times before assisting " +
-      "a user with a booking or answering questions about deadlines.",
+      "Fetches the dynamic registration opening and closing times and definitively tells you if the window is currently OPEN or CLOSED. " +
+      "You MUST ALWAYS call this tool before assisting with a new booking and strictly obey the isOpen flag it returns.",
     schema: z.object({}),
   }
 );
+
 
