@@ -126,7 +126,7 @@ export default function App() {
         <Route path="*" element={<PlaceholderPage label="Page Not Found" />} />
 
       </Routes>
-      <Chatbot />
+      {role === "student" && <Chatbot />}
     </BrowserRouter>
   );
 }

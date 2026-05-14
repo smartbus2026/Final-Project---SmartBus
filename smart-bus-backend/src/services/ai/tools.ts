@@ -5,6 +5,7 @@ import Booking from "../../models/Booking.model";
 import Trip from "../../models/Trip";
 import User from "../../models/User";
 import Stop from "../../models/stop";
+import Settings from "../../models/Settings.model";
 
 // ─── Helper ────────────────────────────────────────────────────────────────────
 /** Returns true only if the string is a valid 24-hex MongoDB ObjectId. */
@@ -381,3 +382,46 @@ export const bookTripTool = tool(
     }),
   }
 );
+
+/**
+ * getRegistrationWindowTool
+ * -------------------------
+ * Fetches the dynamic registration opening and closing times from the Settings model.
+ */
+export const getRegistrationWindowTool = tool(
+  async () => {
+    console.log(`[Tool Called]: getRegistrationWindow`);
+
+    try {
+      const settings = await Settings.findOne();
+      if (!settings) {
+        return JSON.stringify({
+          booking_open_hour: 0,
+          booking_open_minute: 0,
+          booking_close_hour: 14,
+          booking_close_minute: 0,
+          message: "Settings not found, using default 12:00 AM to 2:00 PM."
+        });
+      }
+
+      return JSON.stringify({
+        booking_open_hour: settings.booking_open_hour,
+        booking_open_minute: settings.booking_open_minute,
+        booking_close_hour: settings.booking_close_hour,
+        booking_close_minute: settings.booking_close_minute,
+      });
+    } catch (err: any) {
+      console.error("[getRegistrationWindow tool error]", err.message);
+      return JSON.stringify({ error: `Tool failed: ${err.message}. Do not retry.` });
+    }
+  },
+  {
+    name: "getRegistrationWindow",
+    description:
+      "Fetches the current dynamic registration opening and closing times set by the Admin. " +
+      "You MUST ALWAYS call this tool to check the allowed start and end times before assisting " +
+      "a user with a booking or answering questions about deadlines.",
+    schema: z.object({}),
+  }
+);
+
