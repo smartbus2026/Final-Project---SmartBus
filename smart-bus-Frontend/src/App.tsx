@@ -28,6 +28,7 @@ import LiveTrackingPage from "./admin-pages/LiveTracking";
 import AdminReports from "./admin-pages/AReports";
 import ASupport from "./admin-pages/ASupport";
 import SettingsPage from "./admin-pages/SettingsPage";
+import StudentSettingsPage from "./pages/SettingsPage";
 
 import Chatbot from "./components/Chatbot";
 
@@ -103,7 +104,8 @@ export default function App() {
           <Route path="/route-details" element={<Guard role={role} allowed={["student"]} redirectTo="/login"><RouteDetailsPage /></Guard>} />
           <Route path="/notifications" element={<Guard role={role} allowed={["student"]} redirectTo="/login"><NotificationsPage /></Guard>} />
           <Route path="/support"       element={<Guard role={role} allowed={["student"]} redirectTo="/login"><SupportPage /></Guard>} />
-          <Route path="/settings"      element={<Guard role={role} allowed={["student"]} redirectTo="/login"><ProfilePage /></Guard>} />
+          <Route path="/profile"       element={<Guard role={role} allowed={["student"]} redirectTo="/login"><ProfilePage /></Guard>} />
+          <Route path="/settings"      element={<Guard role={role} allowed={["student"]} redirectTo="/login"><StudentSettingsPage /></Guard>} />
           <Route path="/attendance"    element={<Guard role={role} allowed={["student"]} redirectTo="/login"><AttendancePage /></Guard>} />
           <Route path="/route-chat"    element={<Guard role={role} allowed={["student"]} redirectTo="/login"><TripChat tripId="default" currentUserId="user-id" /></Guard>} />
           <Route path="/book-trip"     element={<Guard role={role} allowed={["student"]} redirectTo="/login"><BookTripPage /></Guard>} />
@@ -115,6 +117,7 @@ export default function App() {
           <Route path="/admin/notifications" element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminNotifications /></Guard>} />
           <Route path="/admin/routes"        element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><ManageRoutes /></Guard>} />
           <Route path="/admin/users"         element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><UsersPage /></Guard>} />
+          <Route path="/admin/users/:id/settings" element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><StudentSettingsPage /></Guard>} />
           <Route path="/admin/trips"         element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><TripsPage /></Guard>} />
           <Route path="/admin/live-tracking" element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><LiveTrackingPage /></Guard>} />
           <Route path="/admin/support"       element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><ASupport /></Guard>} />

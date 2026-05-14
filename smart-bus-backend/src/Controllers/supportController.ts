@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import SupportTicket from "../models/SupportTicket";
 import Notification from "../models/notification";
 import User from "../models/User";
+import { getIO } from "../socket";
 
 // ── Student: Submit a new support ticket ─────────────────────────────────────
 export const createTicket = async (req: Request, res: Response) => {
@@ -30,6 +31,14 @@ export const createTicket = async (req: Request, res: Response) => {
         read: false,
       }));
       await Notification.insertMany(notifications);
+      try {
+        const io = getIO();
+        io.to("admins").emit("new_notification", {
+          title: "New Support Ticket",
+          message: `Student submitted a new ticket: "${subject}"`,
+          createdAt: new Date()
+        });
+      } catch (err) { console.error("Socket emit error:", err); }
     }
 
     res.status(201).json({
@@ -92,6 +101,15 @@ export const updateTicketStatus = async (req: Request, res: Response) => {
       message: `Your ticket "${ticket.subject}" has been marked as ${status}.`,
       type: "general",
     });
+
+    try {
+      const io = getIO();
+      io.to(`user:${ticket.user._id}`).emit("new_notification", {
+        title: "Support Ticket Updated",
+        message: `Your ticket "${ticket.subject}" has been marked as ${status}.`,
+        createdAt: new Date()
+      });
+    } catch (err) { console.error("Socket emit error:", err); }
 
     res.status(200).json({
       status: "success",

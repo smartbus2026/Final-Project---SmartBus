@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Notification from "../models/notification";
 import User from "../models/User"; 
+import { getIO } from "../socket"; 
 
 export const getNotifications = async (req: Request, res: Response) => {
   try {
@@ -60,6 +61,19 @@ export const broadcastNotification = async (req: Request, res: Response) => {
     }));
 
     await Notification.insertMany(notifications);
+
+    try {
+      const io = getIO();
+      if (target === "Students Only" || target === "student") {
+        users.forEach(u => {
+          io.to(`user:${u._id}`).emit("new_notification", { title, message, createdAt: new Date() });
+        });
+      } else if (target === "Admins Only" || target === "admin") {
+        io.to("admins").emit("new_notification", { title, message, createdAt: new Date() });
+      } else {
+        io.emit("new_notification", { title, message, createdAt: new Date() });
+      }
+    } catch (err) { console.error("Socket broadcast error", err); }
 
     res.status(201).json({ status: "success", message: `Broadcasted successfully to ${users.length} users.` });
   } catch (err: any) {

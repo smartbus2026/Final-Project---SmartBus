@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import type { Theme } from "../types";
 import { Ic } from "../icons";
 import Api from "../services/Api";
+import { io } from "socket.io-client";
+
 
 const META: Record<string, { title: string; sub: string }> = {
   "/dashboard":          { title: "Dashboard",        sub: "Welcome back" },
@@ -40,6 +42,36 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
 
   const isAdmin = role === "admin";
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin || searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await Api.get("/users");
+        const allUsers = res.data || [];
+        const query = searchQuery.toLowerCase();
+        const filtered = allUsers.filter((u: any) => 
+          u.name?.toLowerCase().includes(query) || 
+          u.email?.toLowerCase().includes(query) ||
+          u.student_id?.toLowerCase().includes(query)
+        );
+        setSearchResults(filtered.slice(0, 5));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, isAdmin]);
+
   const { title, sub } = META[location.pathname] || {
     title: "SmartBus",
     sub: isAdmin ? "Admin Panel" : "Student Portal",
@@ -50,6 +82,7 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
     name: isAdmin ? "Admin" : "...",
     id: isAdmin ? "ADM-001" : "STU-???",
     initials: isAdmin ? "A" : "?",
+    _id: ""
   });
 
   useEffect(() => {
@@ -68,6 +101,7 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
           name: u.name || "User",
           id: u.student_id || (isAdmin ? "ADM-001" : u._id?.slice(-6) || "N/A"),
           initials,
+          _id: u._id
         });
       })
       .catch(() => {});
@@ -90,6 +124,25 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
     const interval = setInterval(fetchNotifs, 60000);
     return () => clearInterval(interval);
   }, [fetchNotifs]);
+
+  useEffect(() => {
+    if (!user._id && !isAdmin) return;
+    const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5001");
+    
+    if (isAdmin) {
+      socket.emit("join-admins");
+    } else {
+      socket.emit("join-user-room", user._id);
+    }
+
+    socket.on("new_notification", (notif) => {
+      setNotifs(prev => [{ ...notif, _id: Date.now().toString(), read: false }, ...prev]);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user._id, isAdmin]);
 
   const unreadCount = notifs.filter((n) => !n.read).length;
 
@@ -141,13 +194,46 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
       <div className="flex items-center gap-4 md:gap-6" onClick={(e) => e.stopPropagation()}>
         
         {/* Search */}
-        <div className="hidden items-center gap-3 rounded-xl border border-app-bd/30 bg-app-card2/40 px-4 py-2.5 transition-all focus-within:border-app-am/40 focus-within:bg-app-card2 lg:flex w-64">
-          <Ic.Search />
-          <input
-            placeholder={isAdmin ? "Search users, routes..." : "Quick search..."}
-            className="bg-transparent text-[13px] font-medium outline-none placeholder:text-app-mu2 text-app-tx w-full"
-          />
-        </div>
+        {isAdmin && (
+          <div className="relative">
+            <div className="hidden items-center gap-3 rounded-xl border border-app-bd/30 bg-app-card2/40 px-4 py-2.5 transition-all focus-within:border-app-am/40 focus-within:bg-app-card2 lg:flex w-64 z-50">
+              <Ic.Search />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search students..."
+                className="bg-transparent text-[13px] font-medium outline-none placeholder:text-app-mu2 text-app-tx w-full"
+              />
+            </div>
+            
+            {/* Search Dropdown */}
+            {searchQuery.length >= 2 && (
+              <div className="absolute top-full mt-2 left-0 w-full rounded-2xl border border-app-bd/50 bg-app-card shadow-2xl z-50 overflow-hidden">
+                <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                  {isSearching ? (
+                    <div className="p-4 text-center text-[10px] font-bold text-app-mu uppercase tracking-widest">Searching...</div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="p-4 text-center text-[10px] font-bold text-app-mu uppercase tracking-widest">No users found</div>
+                  ) : (
+                    searchResults.map(u => (
+                      <div 
+                        key={u._id} 
+                        className="p-3 border-b border-app-bd/30 hover:bg-app-card2 cursor-pointer transition-colors"
+                        onClick={() => {
+                          setSearchQuery("");
+                          navigate(`/admin/users/${u._id}/settings`);
+                        }}
+                      >
+                        <p className="text-[12px] font-bold text-app-tx">{u.name}</p>
+                        <p className="text-[10px] text-app-mu">{u.email}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Theme Toggle */}
         <button
