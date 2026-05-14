@@ -68,6 +68,10 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
       socket.join("admin_tracking");
     });
     
+    socket.on("join-admins", () => {
+      socket.join("admins");
+    });
+    
     socket.on("leave-admin-tracking", () => {
       socket.leave("admin_tracking");
     });

@@ -54,21 +54,24 @@ const Chatbot = () => {
             {/* Floating Button with Pulse Effect */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`relative w-16 h-16 flex items-center justify-center rounded-2xl shadow-2xl transition-all duration-500 group ${isOpen ? 'bg-zinc-800 rotate-90' : 'bg-app-am hover:scale-110 active:scale-95'
+                className={`relative w-14 h-14 flex items-center justify-center rounded-2xl shadow-2xl transition-all duration-500 group ${isOpen ? 'bg-zinc-800 rotate-90' : 'bg-app-am hover:scale-110 active:scale-95'
                     }`}
             >
                 {/* Pulse Aura (Only when closed) */}
                 {!isOpen && (
-                    <span className="absolute inset-0 rounded-2xl bg-app-am animate-ping opacity-20"></span>
+                    <span className="absolute inset-0 rounded-2xl bg-app-am animate-ping opacity-10"></span>
                 )}
 
                 {isOpen ? (
                     <span className="text-white text-2xl">✕</span>
                 ) : (
-                    <div className="flex flex-col items-center">
-                        <span className="text-2xl mb-0.5">🤖</span>
-                        <span className="text-[8px] font-black uppercase tracking-tighter text-black/60">AI Assistant</span>
-                    </div>
+                    <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                        <rect x="3" y="11" width="18" height="10" rx="2" />
+                        <circle cx="12" cy="5" r="2" />
+                        <path d="M12 7v4" />
+                        <line x1="8" y1="16" x2="8" y2="16" />
+                        <line x1="16" y1="16" x2="16" y2="16" />
+                    </svg>
                 )}
             </button>
 
@@ -113,7 +116,7 @@ const Chatbot = () => {
 
                         {chatHistory.map((msg, i) => (
                             <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
-                                <div className={`max-w-[85%] px-4 py-3 rounded-[20px] text-[13px] font-medium leading-relaxed shadow-sm ${msg.role === 'user'
+                                <div className={`whitespace-pre-wrap max-w-[85%] px-4 py-3 rounded-[20px] text-[13px] font-medium leading-relaxed shadow-sm ${msg.role === 'user'
                                     ? 'bg-app-am text-black rounded-tr-none font-bold'
                                     : 'bg-app-card2/80 text-app-tx border border-white/5 rounded-tl-none'
                                     }`}>

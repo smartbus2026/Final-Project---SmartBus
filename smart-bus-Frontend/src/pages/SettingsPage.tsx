@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { Ic } from "../icons";
+import Api from "../services/Api";
 
 interface PasswordForm {
   current: string;
@@ -12,46 +14,166 @@ interface NotificationPrefs {
   busArrival: boolean;
 }
 
-const inputClass = "w-full rounded-xl border border-app-bd bg-app-card2 px-4 py-3 text-[13px] text-app-tx outline-none transition-all focus:border-app-am focus:ring-1 focus:ring-app-am/20 placeholder:text-app-mu";
+const inputClass = "w-full rounded-xl border border-app-bd bg-app-card2 px-4 py-3 text-[13px] text-app-tx outline-none transition-all focus:border-app-am focus:ring-1 focus:ring-app-am/20 placeholder:text-app-mu disabled:opacity-50 disabled:cursor-not-allowed";
 const labelClass = "mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-app-mu";
 
 export default function SettingsPage() {
+  const { id } = useParams(); // If present, Admin is editing a user
+  const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<string | null>(null);
+  const [targetUserId, setTargetUserId] = useState<string | null>(null);
+  
+  const [profileData, setProfileData] = useState<any>({
+    name: "",
+    email: "",
+    phone: "",
+    student_id: ""
+  });
+
   const [passForm, setPassForm] = useState<PasswordForm>({ current: "", newPass: "", confirm: "" });
-  const [phone, setPhone] = useState("+962 79 123 4567");
   const [prefs, setPrefs] = useState<NotificationPrefs>({ bookingAlerts: true, busArrival: true });
 
-  const handleSave = () => {
-    if (passForm.newPass !== passForm.confirm) {
+  useEffect(() => {
+    const currentRole = localStorage.getItem("role");
+    setRole(currentRole);
+
+    const fetchData = async () => {
+      try {
+        let dataToSet;
+        if (id && currentRole === "admin") {
+          // Admin editing someone else
+          const res = await Api.get('/users');
+          const users = res.data || [];
+          dataToSet = users.find((u: any) => u._id === id);
+        } else {
+          // Logged in user editing their own settings
+          const res = await Api.get('/users/profile');
+          dataToSet = res.data;
+        }
+
+        if (dataToSet) {
+          setTargetUserId(dataToSet._id);
+          setProfileData({
+            name: dataToSet.name || "",
+            email: dataToSet.email || "",
+            phone: dataToSet.phone || "",
+            student_id: dataToSet.student_id || ""
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
+
+  const handleSave = async () => {
+    if (passForm.newPass && passForm.newPass !== passForm.confirm) {
       alert("Passwords do not match!");
       return;
     }
-    alert("Settings saved successfully!");
+
+    try {
+      const updatePayload: any = {
+        name: profileData.name,
+        phone: profileData.phone,
+      };
+
+      if (role === "admin") {
+        updatePayload.email = profileData.email;
+        updatePayload.student_id = profileData.student_id;
+      }
+
+      if (passForm.newPass) {
+        updatePayload.password = passForm.newPass;
+      }
+
+      await Api.put(`/users/${targetUserId}`, updatePayload);
+      alert("Settings saved successfully!");
+      setPassForm({ current: "", newPass: "", confirm: "" });
+    } catch (e) {
+      console.error(e);
+      alert("Error saving settings.");
+    }
   };
 
+  if (loading) return <div className="p-8 text-center text-app-mu">Loading settings...</div>;
+
   return (
-    <div className="mx-auto max-w-2xl p-6 pb-20 font-sans">
+    <div className="mx-auto max-w-2xl p-6 pb-20 font-sans animate-in fade-in zoom-in-95 duration-300">
       <header className="mb-8">
-        <h1 className="text-2xl font-black text-app-tx">Settings</h1>
-        <p className="text-xs text-app-mu">Manage your profile and app preferences</p>
+        <h1 className="text-2xl font-black text-app-tx">{id && role === 'admin' ? "Edit User" : "Settings"}</h1>
+        <p className="text-xs text-app-mu">Manage {id && role === 'admin' ? "student's account" : "your profile and app preferences"}</p>
       </header>
 
       <div className="space-y-6">
 
+        {/* --- Profile Information --- */}
+        <div className="rounded-2xl border border-app-bd bg-app-card p-6 shadow-sm">
+          <h4 className="mb-6 flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-app-tx">
+            <Ic.User className="text-app-am" size={16} /> Account Information
+          </h4>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Full Name</label>
+              <input
+                type="text"
+                className={inputClass}
+                value={profileData.name}
+                onChange={e => setProfileData({...profileData, name: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Student ID</label>
+              <input
+                type="text"
+                className={inputClass}
+                value={profileData.student_id}
+                disabled={role !== "admin"}
+                onChange={e => setProfileData({...profileData, student_id: e.target.value})}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass}>Email Address {role === 'student' && <span className="text-app-err ml-1">(Read-only)</span>}</label>
+              <input
+                type="email"
+                className={inputClass}
+                value={profileData.email}
+                disabled={role !== "admin"}
+                onChange={e => setProfileData({...profileData, email: e.target.value})}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass}>Phone Number</label>
+              <input
+                type="text"
+                className={inputClass}
+                value={profileData.phone}
+                onChange={e => setProfileData({...profileData, phone: e.target.value})}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* --- Password Section --- */}
         <div className="rounded-2xl border border-app-bd bg-app-card p-6 shadow-sm">
           <h4 className="mb-6 flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-app-tx">
-            <Ic.Shield className="text-app-am" size={16} /> Change Password
+            <Ic.Shield className="text-app-am" size={16} /> {id && role === 'admin' ? "Reset Password" : "Change Password"}
           </h4>
           <div className="space-y-4">
-            <div>
-              <label className={labelClass}>Current Password</label>
-              <input
-                type="password"
-                className={inputClass}
-                value={passForm.current}
-                onChange={e => setPassForm({...passForm, current: e.target.value})}
-              />
-            </div>
+            {(!id || role !== 'admin') && (
+              <div>
+                <label className={labelClass}>Current Password</label>
+                <input
+                  type="password"
+                  className={inputClass}
+                  value={passForm.current}
+                  onChange={e => setPassForm({...passForm, current: e.target.value})}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>New Password</label>
@@ -73,19 +195,6 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* --- Phone Section --- */}
-        <div className="rounded-2xl border border-app-bd bg-app-card p-6 shadow-sm">
-          <h4 className="mb-4 flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-app-tx">
-            <Ic.User className="text-app-am" size={16} /> Phone Number
-          </h4>
-          <input
-            type="text"
-            className={inputClass}
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-          />
         </div>
 
         {/* --- Notifications Section --- */}

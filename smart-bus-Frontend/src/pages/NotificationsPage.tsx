@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { io } from "socket.io-client";
 import { Ic } from "../icons";
 import Api from "../services/Api";
 
@@ -19,7 +20,7 @@ export default function NotificationsPage() {
     const fetchNotifications = async () => {
       try {
         const res = await Api.get("/notifications");
-setNotifications(res.data?.data?.notifications || []);
+        setNotifications(res.data?.data?.notifications || []);
       } catch (err) {
         console.error("Failed to fetch notifications", err);
       } finally {
@@ -29,14 +30,39 @@ setNotifications(res.data?.data?.notifications || []);
     fetchNotifications();
   }, []);
 
+  // Real-time socket: prepend incoming notifications to state immediately
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5001");
+    if (userId) socket.emit("join-user-room", userId);
+
+    socket.on("new_notification", (notif: Partial<Notification>) => {
+      setNotifications(prev => [{
+        _id: (notif as any)._id || Date.now().toString(),
+        title: (notif as any).title || "New Alert",
+        message: (notif as any).message || "",
+        type: (notif as any).type || "general",
+        read: false,
+        createdAt: (notif as any).createdAt || new Date().toISOString(),
+      }, ...prev]);
+    });
+
+    return () => { socket.disconnect(); };
+  }, []);
+
   const handleMarkRead = async (id: string) => {
+    // Optimistic UI update
+    setNotifications(prev =>
+      prev.map(n => n._id === id ? { ...n, read: true } : n)
+    );
     try {
       await Api.put(`/notifications/${id}/read`);
-      setNotifications(prev =>
-        prev.map(n => n._id === id ? { ...n, read: true } : n)
-      );
     } catch (err) {
       console.error("Failed to mark as read", err);
+      // Revert on failure
+      setNotifications(prev =>
+        prev.map(n => n._id === id ? { ...n, read: false } : n)
+      );
     }
   };
 

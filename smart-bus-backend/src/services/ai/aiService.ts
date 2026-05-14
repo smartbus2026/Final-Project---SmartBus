@@ -4,7 +4,7 @@ import { HumanMessage, SystemMessage, BaseMessage } from "@langchain/core/messag
 import { MemorySaver } from "@langchain/langgraph";
 const { createReactAgent } = require("@langchain/langgraph/prebuilt");
 import { SMARTBUS_SYSTEM_PROMPT } from "./systemPrompt";
-import { getAvailableTripsTool, getBookingStatusTool, bookTripTool } from "./tools";
+import { getAvailableTripsTool, getBookingStatusTool, bookTripTool, getRegistrationWindowTool } from "./tools";
 
 // ─── Singleton agent (shared across all requests) ─────────────────────────────
 // MemorySaver stores conversation threads in-memory, keyed by thread_id.
@@ -36,7 +36,7 @@ async function getAgent() {
   // Bind the tools so the LLM can call them
   agentInstance = createReactAgent({
     llm,
-    tools: [getBookingStatusTool, getAvailableTripsTool, bookTripTool],
+    tools: [getBookingStatusTool, getAvailableTripsTool, bookTripTool, getRegistrationWindowTool],
     checkpointSaver: memorySaver,
   });
 
@@ -61,13 +61,19 @@ export async function handleAiChat(userId: string, message: string): Promise<str
   const agent = await getAgent();
 
   // Build the current-time context so the AI can evaluate registration windows
-  const nowEgypt = new Date().toLocaleString("en-EG", {
+  const currentTime = new Date().toLocaleString('en-US', { 
+    timeZone: 'Africa/Cairo', 
+    hour12: true, 
+    hour: 'numeric', 
+    minute: 'numeric' 
+  });
+  
+  const currentDate = new Date().toLocaleString("en-EG", {
     timeZone: "Africa/Cairo",
     dateStyle: "full",
-    timeStyle: "short",
   });
 
-  const systemWithTime = `${SMARTBUS_SYSTEM_PROMPT}\n\nCurrent date/time (Cairo, EET): ${nowEgypt}`;
+  const systemWithTime = SMARTBUS_SYSTEM_PROMPT.replace("{CURRENT_TIME}", currentTime) + `\n\nCurrent date (Cairo, EET): ${currentDate}`;
 
   // Inject userId into the system message so the tool always has it available
   const systemWithContext =
@@ -83,8 +89,8 @@ export async function handleAiChat(userId: string, message: string): Promise<str
     {
       // thread_id isolates conversation history per student
       configurable: { thread_id: userId },
-      // Stop the agent after 5 iterations to prevent infinite tool loops
-      recursionLimit: 5,
+      // Stop the agent after 20 iterations to prevent infinite tool loops
+      recursionLimit: 20,
     }
   );
 

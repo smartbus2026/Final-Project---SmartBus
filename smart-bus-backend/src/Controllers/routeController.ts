@@ -1,11 +1,54 @@
 import { Request, Response } from "express";
 import Route from "../models/Route";
 import Stop from "../models/stop";
+import Notification from "../models/notification";
+import User from "../models/User";
+import { getIO } from "../socket";
 
+// ── Helper: bulk-create notifications for all students + socket broadcast ──────
+async function broadcastNewRouteAlert(routeName: string) {
+  try {
+    const students = await User.find({ role: "student" }).select("_id").lean();
+    if (!students.length) return;
+
+    const title = "🚌 New Route Alert";
+    const message = `A new bus route "${routeName}" has just been added! Check it out and book your seat.`;
+    const now = new Date();
+
+    // Bulk-insert one notification per student
+    const docs = students.map((s) => ({
+      user: s._id,
+      title,
+      message,
+      type: "general",
+      read: false,
+      createdAt: now,
+    }));
+    // Bulk-insert one notification per student (capture returned docs for real _ids)
+    const savedNotifs = await Notification.insertMany(docs);
+
+    // Emit real-time event to each student's personal socket room (include real _id)
+    const io = getIO();
+    savedNotifs.forEach((notif: any, i: number) => {
+      io.to(`user:${students[i]._id}`).emit("new_notification", {
+        _id: notif._id.toString(),
+        title: notif.title,
+        message: notif.message,
+        type: notif.type,
+        read: false,
+        createdAt: notif.createdAt ?? now,
+      });
+    });
+
+    console.log(`[Route] Broadcasted new-route notification to ${students.length} student(s).`);
+  } catch (err) {
+    console.error("[Route] broadcastNewRouteAlert error:", err);
+  }
+}
 
 export const createRoute = async (req: Request, res: Response) => {
   try {
-    const { name, distance, duration, stops } = req.body; 
+    const { name, distance, duration, stops } = req.body;
 
     const stopIds = [];
     if (stops && Array.isArray(stops)) {
@@ -18,12 +61,10 @@ export const createRoute = async (req: Request, res: Response) => {
       }
     }
 
-    const newRoute = await Route.create({
-      name,
-      distance,
-      duration,
-      stops: stopIds
-    });
+    const newRoute = await Route.create({ name, distance, duration, stops: stopIds });
+
+    // Fire-and-forget: notify all students in the background
+    broadcastNewRouteAlert(newRoute.name);
 
     res.status(201).json(newRoute);
   } catch (err: any) {
