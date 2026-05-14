@@ -29,6 +29,8 @@ import AdminReports from "./admin-pages/AReports";
 import ASupport from "./admin-pages/ASupport";
 import SettingsPage from "./admin-pages/SettingsPage";
 
+import Chatbot from "./components/Chatbot";
+
 // --- Types ---
 type Role = "student" | "admin" | null;
 type Theme = "dark" | "light";
@@ -124,6 +126,7 @@ export default function App() {
         <Route path="*" element={<PlaceholderPage label="Page Not Found" />} />
 
       </Routes>
+      <Chatbot />
     </BrowserRouter>
   );
 }

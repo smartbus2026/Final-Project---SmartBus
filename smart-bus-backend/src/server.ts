@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import http from "http";
 import dotenv from "dotenv";
+dotenv.config();
 import cors from "cors";
 import connectDB from "./config/db";
 
@@ -20,7 +21,7 @@ import aiRoutes from "./Routes/aiRoutes";
 // Socket Integration
 import { initSocket } from "./socket";
 
-dotenv.config();
+
 connectDB();
 
 // Start cron jobs after DB connection
@@ -44,17 +45,17 @@ app.use(cors({
 app.use(express.json());
 
 // API Routes
-app.use("/api/auth",          authRoutes);
-app.use("/api/users",         userRoutes);
-app.use("/api/routes",        routeRoutes);
-app.use("/api/trips",         tripRoutes);
-app.use("/api/bookings",      bookingRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/routes", routeRoutes);
+app.use("/api/trips", tripRoutes);
+app.use("/api/bookings", bookingRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/chat",          chatRoutes);
-app.use("/api/support",       supportRoutes);
-app.use("/api/reports",       reportRoutes);
-app.use("/api/settings",      settingsRoutes); 
-app.use("/api/ai",            aiRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/support", supportRoutes);
+app.use("/api/reports", reportRoutes);
+app.use("/api/settings", settingsRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.get("/", (_req: Request, res: Response) => {
   res.json({ status: "ok", message: "SmartBus API is running" });
@@ -77,3 +78,4 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 server.listen(PORT, () => {
   console.log(`✅ Server & Socket.io running on port ${PORT}`);
 });
+

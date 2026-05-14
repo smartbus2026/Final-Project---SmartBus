@@ -15,8 +15,10 @@ let agentInstance: ReturnType<typeof createReactAgent> | null = null;
 
 async function getAgent() {
   if (agentInstance) return agentInstance;
+  require('dotenv').config();
 
   const apiKey = process.env.OPENAI_API_KEY;
+
   if (!apiKey) {
     throw new Error(
       "Missing OPENAI_API_KEY in environment variables. " +
