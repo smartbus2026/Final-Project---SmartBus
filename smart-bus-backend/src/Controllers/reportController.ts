@@ -16,7 +16,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       User.countDocuments({ role: "student" }),
       Trip.countDocuments(),
       Trip.countDocuments({ status: { $in: ["active", "scheduled"] } }),
-      Booking.countDocuments({ status: "active" }),
+      Booking.countDocuments({ status: { $in: ["active", "pending", "completed"] } }),
       Trip.aggregate([
         {
           $group: {
@@ -26,14 +26,11 @@ export const getDashboardStats = async (req: Request, res: Response) => {
           }
         }
       ]),
-      Booking.find({ status: "active" })
+      Booking.find({ status: { $in: ["active", "pending", "completed"] } })
         .sort({ createdAt: -1 })
         .limit(5)
         .populate("user", "name email")
-        .populate({
-          path: "trip",
-          populate: { path: "route", select: "name" }
-        })
+        .populate("route", "name")
     ]);
 
     let utilizationRate = 0;

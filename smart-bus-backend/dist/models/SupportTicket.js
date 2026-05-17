@@ -34,27 +34,14 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const tripSchema = new mongoose_1.Schema({
-    route: { type: mongoose_1.Schema.Types.ObjectId, ref: "Route", required: true },
-    date: { type: Date, required: true },
-    time_slot: {
-        type: String,
-        enum: ["morning", "return_1530", "return_1900"],
-        required: true
-    },
-    bus_number: { type: String, required: true },
-    total_seats: { type: Number, required: true },
-    booked_seats: { type: Number, default: 0 },
+const supportTicketSchema = new mongoose_1.Schema({
+    user: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
+    subject: { type: String, required: true },
+    description: { type: String, default: "" },
     status: {
         type: String,
-        enum: ["scheduled", "active", "completed", "cancelled"],
-        default: "scheduled"
+        enum: ["open", "pending", "resolved"],
+        default: "open",
     },
-    current_location: {
-        lat: Number,
-        lng: Number,
-        last_updated: Date
-    }
 }, { timestamps: true });
-tripSchema.index({ route: 1, date: 1, time_slot: 1 }, { unique: true });
-exports.default = mongoose_1.default.model("Trip", tripSchema);
+exports.default = mongoose_1.default.model("SupportTicket", supportTicketSchema);

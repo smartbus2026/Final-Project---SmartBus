@@ -22,7 +22,7 @@ export interface IBus extends Document {
 const busSchema = new Schema<IBus>(
   {
     busCode: { type: String, required: true, unique: true, trim: true },
-    route: { type: Schema.Types.ObjectId, ref: "Route", required: true },
+    route: { type: Schema.Types.ObjectId, ref: "Route" },
     driverName: { type: String, required: true, trim: true },
     speedKmh: { type: Number, default: 0 },
     capacity: { type: Number },

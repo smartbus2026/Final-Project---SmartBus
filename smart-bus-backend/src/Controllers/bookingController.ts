@@ -1,145 +1,91 @@
 import { Request, Response } from "express";
 import Booking from "../models/Booking.model";
+import Route from "../models/Route";
 import Trip from "../models/Trip";
 import Notification from "../models/notification";
 import Settings from "../models/Settings.model";
+import Bus from "../models/Bus";
+import { getIO } from "../socket";
 
 export const createBooking = async (req: Request, res: Response) => {
   try {
     await Booking.collection.dropIndexes();
 
     const user = (req as any).user;
-    const { trip_id, pickup_point, return_time } = req.body;
+    const { routeId, date, timeSlot, specificReturnTime } = req.body;
 
-    // تحقق من وقت البوكينج
+    if (!routeId || !date || !timeSlot) {
+      return res.status(400).json({ message: "routeId, date, and timeSlot are required." });
+    }
+
+    if (timeSlot === "Return" && !specificReturnTime) {
+      return res.status(400).json({ message: "specificReturnTime is required for Return trips." });
+    }
+
     const settings = await Settings.findOne();
     if (settings) {
       const now = new Date();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const openMinutes  = settings.booking_open_hour  * 60 + settings.booking_open_minute;
+      const openMinutes = settings.booking_open_hour * 60 + settings.booking_open_minute;
       const closeMinutes = settings.booking_close_hour * 60 + settings.booking_close_minute;
       if (currentMinutes < openMinutes || currentMinutes > closeMinutes) {
-        return res.status(400).json({ 
-          message: `Booking is only available between ${settings.booking_open_hour}:${String(settings.booking_open_minute).padStart(2,"0")} and ${settings.booking_close_hour}:${String(settings.booking_close_minute).padStart(2,"0")}` 
+        return res.status(400).json({
+          message: `Booking is only available between ${settings.booking_open_hour}:${String(settings.booking_open_minute).padStart(2, "0")} and ${settings.booking_close_hour}:${String(settings.booking_close_minute).padStart(2, "0")}`
         });
       }
     }
 
-    const morningTrip: any = await Trip.findById(trip_id).populate({
-      path: "route",
-      populate: { path: "stops" }
-    });
-
-    if (!morningTrip) {
-      return res.status(404).json({ message: "Trip not found" });
+    const route = await Route.findById(routeId);
+    if (!route) {
+      return res.status(404).json({ message: "Route not found" });
     }
 
-    const currentTime = new Date();
-    const tripDate = new Date(morningTrip.date);
-    
-    const tomorrow = new Date(currentTime);
+    const bookingDate = new Date(date);
+
+    const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    if (tripDate.toDateString() !== tomorrow.toDateString()) {
-      return res.status(400).json({ message: "You can only register for the next day's trips." });
+    if (bookingDate.toDateString() !== tomorrow.toDateString()) {
+      return res.status(400).json({ message: "You can only register for the next day's routes." });
     }
 
-    if (!morningTrip.route || !morningTrip.route.stops) {
-      return res.status(400).json({ message: "Route has no stops" });
-    }
+    const dayStart = new Date(bookingDate); dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(bookingDate); dayEnd.setHours(23, 59, 59, 999);
 
-    const validStop = morningTrip.route.stops.find(
-      (s: any) => s._id.toString() === pickup_point.toString()
-    );
-
-    if (!validStop) {
-      return res.status(400).json({ message: "Invalid pickup point" });
-    }
-
-    let returnTrip: any = null;
-    if (return_time) {
-      returnTrip = await Trip.findOne({
-        route: morningTrip.route._id,
-        date: morningTrip.date,
-        time_slot: return_time
-      });
-
-      if (!returnTrip) {
-        return res.status(404).json({ message: "Selected return trip is not available." });
-      }
-    }
-
-    const userActiveBookings = await Booking.find({ 
-      user: user.id, 
-      status: { $ne: "cancelled" } 
-    }).populate("trip");
-
-    const newTripDay = tripDate.toDateString(); 
-
-    let hasMorning = false;
-    let hasReturn = false;
-
-    userActiveBookings.forEach((b: any) => {
-      if (!b.trip) return;
-      if (new Date(b.trip.date).toDateString() === newTripDay) {
-        if (b.trip.time_slot === "morning") hasMorning = true;
-        else if (b.trip.time_slot.startsWith("return")) hasReturn = true;
-      }
-    });
-
-    if (hasMorning) {
-      return res.status(400).json({ message: "You have already booked a morning trip for this day." });
-    }
-
-    if (returnTrip && hasReturn) {
-      return res.status(400).json({ 
-        message: "You have already booked a return trip for this day. Registration is limited to one return trip per day." 
-      });
-    }
-
-    if (morningTrip.booked_seats >= morningTrip.total_seats) {
-      return res.status(400).json({ message: "Sorry, the morning trip is fully booked. No seats available." });
-    }
-
-    if (returnTrip && returnTrip.booked_seats >= returnTrip.total_seats) {
-      return res.status(400).json({ message: "Sorry, the selected return trip is fully booked." });
-    }
-
-    const assignedMorningSeat = morningTrip.booked_seats + 1;
-    const bookingMorning = await Booking.create({
+    const todaysBookings = await Booking.find({
       user: user.id,
-      trip: morningTrip._id,
-      pickup_point,
-      seat_number: assignedMorningSeat,
+      date: { $gte: dayStart, $lte: dayEnd },
+      status: { $ne: "cancelled" }
     });
-    morningTrip.booked_seats += 1;
-    await morningTrip.save();
 
-    const createdBookings = [bookingMorning];
-
-    if (returnTrip) {
-      const assignedReturnSeat = returnTrip.booked_seats + 1;
-      const bookingReturn = await Booking.create({
-        user: user.id,
-        trip: returnTrip._id,
-        pickup_point,
-        seat_number: assignedReturnSeat,
-      });
-      returnTrip.booked_seats += 1;
-      await returnTrip.save();
-      createdBookings.push(bookingReturn);
+    if (todaysBookings.length >= 2) {
+      return res.status(400).json({ message: "You can only have a maximum of 2 bookings per day." });
     }
+
+    const duplicateSlot = todaysBookings.find((b: any) => b.timeSlot === timeSlot);
+    if (duplicateSlot) {
+      return res.status(400).json({ message: `You already have a ${timeSlot} trip booked. Please edit your existing booking instead.` });
+    }
+
+    const booking = await Booking.create({
+      user: user.id,
+      route: routeId,
+      date: bookingDate,
+      timeSlot,
+      specificReturnTime: timeSlot === "Return" ? specificReturnTime : undefined,
+      status: "pending"
+    });
 
     await Notification.create({
       user: user.id,
-      title: "Booking Confirmed",
-      message: `Your trip(s) for ${newTripDay} have been booked successfully.`,
+      title: "Booking Requested",
+      message: `Your booking demand for a ${timeSlot} trip on ${bookingDate.toDateString()} has been recorded.`,
       type: "booking",
     });
 
     res.status(201).json({
       status: "success",
-      message: "Booking created successfully",
-      data: { bookings: createdBookings },
+      message: "Booking demand saved successfully",
+      data: { bookings: [booking] },
     });
 
   } catch (err: any) {
@@ -154,23 +100,14 @@ export const getMyBookings = async (req: Request, res: Response) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const bookings = await Booking.find({ user: user.id })
-      .populate({
-        path: "trip",
-        match: { date: { $gte: todayStart } },
-        populate: { 
-          path: "route",
-          populate: { path: "stops" }
-        }
-      })
+    const bookings = await Booking.find({ user: user.id, date: { $gte: todayStart } })
+      .populate("route")
       .sort("-createdAt");
-
-    const activeBookings = bookings.filter(b => b.trip != null);
 
     res.status(200).json({
       status: "success",
-      results: activeBookings.length,
-      data: { bookings: activeBookings }
+      results: bookings.length,
+      data: { bookings }
     });
 
   } catch (err: any) {
@@ -182,10 +119,7 @@ export const getAllBookings = async (req: Request, res: Response) => {
   try {
     const bookings = await Booking.find()
       .populate("user", "name email")
-      .populate({
-        path: "trip",
-        populate: { path: "route", select: "name" }
-      });
+      .populate("route", "name");
 
     res.status(200).json({
       status: "success",
@@ -217,17 +151,12 @@ export const cancelBooking = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Booking is already cancelled" });
     }
 
-    const trip: any = await Trip.findById(booking.trip);
-    if (trip && new Date(trip.date) < new Date()) {
-      return res.status(400).json({ message: "Cannot cancel a booking for a trip that has already departed" });
+    if (new Date(booking.date) < new Date()) {
+      return res.status(400).json({ message: "Cannot cancel a booking for a date that has already passed" });
     }
 
     booking.status = "cancelled";
     await booking.save();
-
-    await Trip.findByIdAndUpdate(booking.trip, {
-      $inc: { booked_seats: -1 }
-    });
 
     await Notification.create({
       user: user.id,
@@ -238,7 +167,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
 
     res.status(200).json({
       status: "success",
-      message: "Booking cancelled successfully and seat released"
+      message: "Booking cancelled successfully"
     });
 
   } catch (err: any) {
@@ -246,9 +175,65 @@ export const cancelBooking = async (req: Request, res: Response) => {
   }
 };
 
-export const markAttendance = async (req: Request, res: Response) => {
+export const updateBooking = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { id } = req.params;
+    const { routeId, timeSlot, specificReturnTime } = req.body;
+
+    const booking: any = await Booking.findById(id);
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+    if (booking.user.toString() !== user.id) return res.status(403).json({ message: "Not authorized to edit this booking" });
+    if (booking.status === "cancelled") return res.status(400).json({ message: "Cannot edit a cancelled booking" });
+
+    const settings = await Settings.findOne();
+    if (settings) {
+      const now = new Date();
+      const cur = now.getHours() * 60 + now.getMinutes();
+      const open = settings.booking_open_hour * 60 + settings.booking_open_minute;
+      const close = settings.booking_close_hour * 60 + settings.booking_close_minute;
+      if (cur < open || cur > close) {
+        return res.status(400).json({ message: "Booking edits are only allowed during the registration window." });
+      }
+    }
+
+    if (timeSlot && timeSlot !== booking.timeSlot) {
+      const dayStart = new Date(booking.date); dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(booking.date); dayEnd.setHours(23, 59, 59, 999);
+      const conflict = await Booking.findOne({
+        user: user.id,
+        _id: { $ne: id } as any,
+        date: { $gte: dayStart, $lte: dayEnd },
+        timeSlot,
+        status: { $ne: "cancelled" }
+      });
+      if (conflict) return res.status(400).json({ message: `You already have a ${timeSlot} booking for this date.` });
+      booking.timeSlot = timeSlot;
+    }
+
+    if (routeId) booking.route = routeId;
+    if (booking.timeSlot === "Return" && specificReturnTime) {
+      booking.specificReturnTime = specificReturnTime;
+    } else if (booking.timeSlot === "Morning") {
+      booking.specificReturnTime = undefined;
+    }
+
+    await booking.save();
+    const updated = await Booking.findById(id).populate("route");
+    res.status(200).json({ status: "success", data: { booking: updated } });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", error: err.message });
+  }
+};
+
+export const markAttendanceStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { attendanceStatus } = req.body;
+
+    if (!["completed", "missed"].includes(attendanceStatus)) {
+      return res.status(400).json({ message: "Invalid attendance status" });
+    }
 
     const booking: any = await Booking.findById(id);
     if (!booking) {
@@ -259,13 +244,20 @@ export const markAttendance = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Cannot mark attendance for a cancelled booking" });
     }
 
-    booking.attended = true;
-    booking.status = "completed";
+    booking.attendanceStatus = attendanceStatus;
+    if (attendanceStatus === "completed") {
+      booking.attended = true;
+      booking.status = "completed";
+    } else {
+      booking.attended = false;
+      booking.status = "missed";
+    }
+
     await booking.save();
 
     res.status(200).json({
       status: "success",
-      message: "Attendance marked successfully",
+      message: `Attendance marked as ${attendanceStatus}`,
       data: { booking }
     });
 
@@ -284,7 +276,7 @@ export const closeTrip = async (req: Request, res: Response) => {
     }
 
     await Booking.updateMany(
-      { trip: id, attended: false, status: "active" },
+      { route: trip.route, date: trip.date, timeSlot: trip.time_slot === 'morning' ? 'Morning' : 'Return', attended: false, status: { $in: ["active", "pending"] } },
       { status: "missed" }
     );
 
@@ -302,9 +294,9 @@ export const getBookingStats = async (req: Request, res: Response) => {
   try {
     const allBookings = await Booking.find({ status: { $ne: "cancelled" } });
     const present = allBookings.filter((b: any) => b.attended === true).length;
-    const absent  = allBookings.filter((b: any) => b.status === "missed").length;
-    const pending = allBookings.filter((b: any) => b.attended === false && b.status === "active").length;
-    const total   = allBookings.length;
+    const absent = allBookings.filter((b: any) => b.status === "missed").length;
+    const pending = allBookings.filter((b: any) => b.attended === false && ["active", "pending"].includes(b.status)).length;
+    const total = allBookings.length;
 
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const weeklyData = [];
@@ -312,7 +304,7 @@ export const getBookingStats = async (req: Request, res: Response) => {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const start = new Date(d); start.setHours(0, 0, 0, 0);
-      const end   = new Date(d); end.setHours(23, 59, 59, 999);
+      const end = new Date(d); end.setHours(23, 59, 59, 999);
       const count = await Booking.countDocuments({ createdAt: { $gte: start, $lte: end } });
       weeklyData.push({ day: days[d.getDay()], val: count, accent: i === 0 });
     }
@@ -322,10 +314,10 @@ export const getBookingStats = async (req: Request, res: Response) => {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const start = new Date(d); start.setHours(0, 0, 0, 0);
-      const end   = new Date(d); end.setHours(23, 59, 59, 999);
+      const end = new Date(d); end.setHours(23, 59, 59, 999);
 
       const tripsOfDay = await Trip.find({ date: { $gte: start, $lte: end } });
-      const totalSeats  = tripsOfDay.reduce((sum, t: any) => sum + (t.total_seats  || 0), 0);
+      const totalSeats = tripsOfDay.reduce((sum, t: any) => sum + (t.total_seats || 0), 0);
       const bookedSeats = tripsOfDay.reduce((sum, t: any) => sum + (t.booked_seats || 0), 0);
       const pct = totalSeats > 0 ? Math.round((bookedSeats / totalSeats) * 100) : 0;
 
@@ -338,7 +330,7 @@ export const getBookingStats = async (req: Request, res: Response) => {
         attendance: {
           present, absent, pending, total,
           presentPct: total > 0 ? Math.round((present / total) * 100) : 0,
-          absentPct:  total > 0 ? Math.round((absent  / total) * 100) : 0,
+          absentPct: total > 0 ? Math.round((absent / total) * 100) : 0,
           pendingPct: total > 0 ? Math.round((pending / total) * 100) : 0,
         },
         weeklyRegistrations: weeklyData,
@@ -356,16 +348,177 @@ export const getTodayBookings = async (req: Request, res: Response) => {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
 
-    const todayTrips = await Trip.find({ date: { $gte: todayStart, $lte: todayEnd } });
-    const tripIds = todayTrips.map(t => t._id);
-
-    const bookings = await Booking.find({ trip: { $in: tripIds } })
+    const bookings = await Booking.find({ date: { $gte: todayStart, $lte: todayEnd } })
       .populate("user", "name email")
-      .populate({ path: "trip", populate: { path: "route", select: "name" } })
-      .sort("seat_number");
+      .populate("route", "name")
+      .sort("createdAt");
 
     res.status(200).json({ status: "success", data: { bookings } });
   } catch (err: any) {
     res.status(500).json({ status: "error", error: err.message });
   }
 };
+
+export const getDemandAggregation = async (req: Request, res: Response) => {
+  try {
+    const targetDate = req.query.date
+      ? new Date(req.query.date as string)
+      : (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d; })();
+
+    const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
+
+    const pipeline: any[] = [
+      {
+        $match: {
+          date: { $gte: dayStart, $lte: dayEnd },
+          status: "pending"
+        }
+      },
+      {
+        $group: {
+          _id: {
+            routeId: "$route",
+            timeSlot: "$timeSlot",
+            specificReturnTime: { $ifNull: ["$specificReturnTime", null] }
+          },
+          totalStudents: { $sum: 1 },
+          bookingIds: { $push: "$_id" }
+        }
+      },
+      {
+        $lookup: {
+          from: "routes",
+          localField: "_id.routeId",
+          foreignField: "_id",
+          as: "routeInfo"
+        }
+      },
+      { $unwind: { path: "$routeInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          routeId: "$_id.routeId",
+          routeName: { $ifNull: ["$routeInfo.name", "Unknown Route"] },
+          timeSlot: "$_id.timeSlot",
+          specificReturnTime: "$_id.specificReturnTime",
+          totalStudents: 1,
+          bookingIds: 1
+        }
+      },
+      {
+        $sort: { timeSlot: 1, totalStudents: -1 }
+      }
+    ];
+
+    const demands = await Booking.aggregate(pipeline);
+
+    res.status(200).json({
+      status: "success",
+      date: dayStart.toISOString().split("T")[0],
+      data: { demands }
+    });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", error: err.message });
+  }
+};
+
+export const dispatchBus = async (req: Request, res: Response) => {
+  try {
+    const { busId, date, timeSlot, routeIds, specificReturnTime } = req.body;
+
+    if (!busId || !date || !timeSlot || !routeIds || routeIds.length === 0) {
+      return res.status(400).json({ status: "error", message: "Missing required fields for dispatch" });
+    }
+
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(targetDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const bus = await Bus.findById(busId);
+    if (!bus) return res.status(404).json({ status: "error", message: "Bus not found" });
+
+    // Build the dynamic query
+    const query: any = {
+      route: { $in: routeIds },
+      date: { $gte: targetDate, $lte: dayEnd },
+      timeSlot: timeSlot,
+      status: "pending"
+    };
+
+    if (timeSlot === "Return" && specificReturnTime) {
+      query.specificReturnTime = specificReturnTime;
+    }
+
+    // Find all matching pending bookings
+    const bookingsToUpdate = await Booking.find(query);
+
+    if (bookingsToUpdate.length === 0) {
+      return res.status(404).json({ status: "error", message: "No pending bookings found for the selected routes and time slot" });
+    }
+
+    const bookingIds = bookingsToUpdate.map(b => b._id);
+    const userIds = [...new Set(bookingsToUpdate.map(b => b.user.toString()))];
+
+    // Update to assigned
+    await Booking.updateMany(
+      { _id: { $in: bookingIds } },
+      { $set: { status: "assigned", busId: busId } }
+    );
+
+    // Create notifications for students
+    const message = `Your bus has been assigned! Bus No: ${bus.busCode} is now covering your route.`;
+    const notifications = userIds.map(userId => ({
+      user: userId,
+      title: "Bus Assigned",
+      message: message,
+      type: "trip",
+      read: false
+    }));
+    await Notification.insertMany(notifications);
+
+    // Emit real-time events
+    const socketPayload = {
+      title: "Bus Assigned",
+      message,
+      busDetails: { _id: bus._id, busCode: bus.busCode },
+      bookingIds: bookingIds.map(id => id.toString()),
+      timeSlot,
+      specificReturnTime: specificReturnTime || null,
+      routeIds
+    };
+
+    try {
+      const io = getIO();
+      userIds.forEach(userId => {
+        io.to(`user:${userId}`).emit("newNotification", socketPayload);
+        io.to(`user:${userId}`).emit("bookingAssigned", socketPayload);
+      });
+      io.to("admins").emit("demandDispatched");
+    } catch (socketErr) {
+      console.warn("Socket.io not initialized, skipping realtime emission", socketErr);
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: `Successfully assigned bus to ${bookingIds.length} bookings. Students notified.`
+    });
+  } catch (err: any) {
+    console.error("[DispatchBus Error]:", err);
+    res.status(500).json({ status: "error", error: err.message || "Internal Server Error" });
+  }
+};
+
+export const recoverCancelledBookings = async (req: Request, res: Response) => {
+  try {
+    const result = await Booking.updateMany(
+      { timeSlot: "Return", status: "cancelled" },
+      { $set: { status: "pending" }, $unset: { specificReturnTime: "" } }
+    );
+    res.status(200).json({ message: `Successfully recovered ${result.modifiedCount} cancelled return bookings back to pending.` });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+

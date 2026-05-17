@@ -16,7 +16,7 @@ router.post("/", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("adm
 router.put("/:id", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), tripController_1.updateTrip);
 router.delete("/:id", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), tripController_1.deleteTrip);
 // tracking
-router.put("/:id/start", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), tripController_1.startTrip);
+router.patch("/:id/start", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), tripController_1.startTrip);
 router.put("/:id/location", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), tripController_1.updateLocation);
 router.put("/:id/end", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), tripController_1.endTrip);
 exports.default = router;

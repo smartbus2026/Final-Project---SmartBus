@@ -1,6 +1,7 @@
 import mongoose from "mongoose"; // 🟢 لازم نستورد mongoose للتحقق من الـ ID
 import Message from "../models/chat";
 import Booking from "../models/Booking.model";
+import Trip from "../models/Trip";
 import { getIO } from "../socket"; 
 
 export const sendMessage = async (req: any, res: any) => {
@@ -13,10 +14,27 @@ export const sendMessage = async (req: any, res: any) => {
       return res.status(400).json({ message: "Invalid Trip ID format. Received: " + tripId });
     }
     
-    // Validate if user has booked this trip[cite: 6]
-    const userBooking = await Booking.findOne({ trip: tripId, user: req.user.id, status: "active" }); //[cite: 6]
-    if (!userBooking && req.user.role !== "admin") { //[cite: 6]
-        return res.status(403).json({ message: "You are not registered for this trip." }); //[cite: 6]
+    const trip: any = await Trip.findById(tripId);
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found." });
+    }
+
+    const timeSlotMap: any = {
+      "morning": "Morning",
+      "return_1530": "Return",
+      "return_1900": "Return"
+    };
+
+    // Validate if user has booked this trip
+    const userBooking = await Booking.findOne({ 
+      route: trip.route,
+      date: trip.date,
+      timeSlot: timeSlotMap[trip.time_slot],
+      user: req.user.id, 
+      status: { $in: ["active", "pending", "completed"] }
+    }); 
+    if (!userBooking && req.user.role !== "admin") { 
+        return res.status(403).json({ message: "You are not registered for this route on this date." }); 
     }
 
     let newMessage = await Message.create({ //[cite: 6]
@@ -46,10 +64,27 @@ export const getMessages = async (req: any, res: any) => {
       return res.status(400).json({ message: "Invalid Trip ID format." });
     }
 
-    // Validate if user has booked this trip[cite: 6]
-    const userBooking = await Booking.findOne({ trip: tripId, user: req.user.id, status: "active" }); //[cite: 6]
-    if (!userBooking && req.user.role !== "admin") { //[cite: 6]
-        return res.status(403).json({ message: "You are not registered for this trip." }); //[cite: 6]
+    const trip: any = await Trip.findById(tripId);
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found." });
+    }
+
+    const timeSlotMap: any = {
+      "morning": "Morning",
+      "return_1530": "Return",
+      "return_1900": "Return"
+    };
+
+    // Validate if user has booked this trip
+    const userBooking = await Booking.findOne({ 
+      route: trip.route,
+      date: trip.date,
+      timeSlot: timeSlotMap[trip.time_slot],
+      user: req.user.id, 
+      status: { $in: ["active", "pending", "completed"] }
+    }); 
+    if (!userBooking && req.user.role !== "admin") { 
+        return res.status(403).json({ message: "You are not registered for this route on this date." }); 
     }
 
     const messages = await Message.find({ trip: tripId }).sort({ createdAt: 1 }).populate("sender", "name"); //[cite: 1, 6]

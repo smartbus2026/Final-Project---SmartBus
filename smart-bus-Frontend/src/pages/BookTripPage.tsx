@@ -14,29 +14,21 @@ interface Route {
   stops: Stop[];
 }
 
-interface Trip {
-  _id: string;
-  date: string;
-  time_slot: string;
-  route?: Route;
-  booked_seats: number;
-  total_seats: number;
-  bus_number?: string;
-}
-
 interface BookingSettings {
   booking_open_hour: number;
   booking_open_minute: number;
   booking_close_hour: number;
   booking_close_minute: number;
+  returnTimeOptions?: string[];
 }
 
 export default function BookTripPage() {
   const navigate = useNavigate();
-  const [allTrips, setAllTrips] = useState<Trip[]>([]);
-  const [selectedTripId, setSelectedTripId] = useState("");
-  const [selectedPickupId, setSelectedPickupId] = useState("");
-  const [selectedReturn, setSelectedReturn] = useState("");
+  const [allRoutes, setAllRoutes] = useState<Route[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState("");
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+  const [selectedSpecificReturn, setSelectedSpecificReturn] = useState("");
+  const [returnTimeOptions, setReturnTimeOptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
   const [bookingSettings, setBookingSettings] = useState<BookingSettings>({
@@ -81,16 +73,16 @@ export default function BookTripPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [tripsRes, settingsRes] = await Promise.all([
-          Api.get('/trips'),
+        const [routesRes, settingsRes] = await Promise.all([
+          Api.get('/routes'),
           Api.get('/settings')
         ]);
-        console.log("Raw Trips Data:", tripsRes.data);
-        const fetchedTrips: Trip[] = tripsRes?.data?.data || tripsRes?.data || [];
-        setAllTrips(fetchedTrips);
+        const fetchedRoutes: Route[] = routesRes?.data?.data || routesRes?.data || [];
+        setAllRoutes(fetchedRoutes);
         if (settingsRes.data?.data?.settings) {
           const s = settingsRes.data.data.settings;
           setBookingSettings(s);
+          setReturnTimeOptions(s.returnTimeOptions || ["3:30 PM", "7:00 PM"]);
           setWindowState(calcWindow(s));
         }
       } catch (err) {
@@ -110,26 +102,27 @@ export default function BookTripPage() {
     return () => clearInterval(timer);
   }, [bookingSettings]);
 
-  const currentTrip = allTrips.find(t => t?._id === selectedTripId);
-  const pickupPoints = currentTrip?.route?.stops || [];
-
   const handleConfirm = async () => {
     setIsBooking(true);
     try {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dateString = tomorrow.toISOString().split("T")[0];
+
       const payload = {
-        trip_id: selectedTripId,
-        pickup_point: selectedPickupId,
-        return_time: selectedReturn
+        routeId: selectedRouteId,
+        date: dateString,
+        timeSlot: selectedTimeSlot,
+        specificReturnTime: selectedTimeSlot === "Return" ? selectedSpecificReturn : undefined
       };
-      const res = await Api.post('/bookings', payload);
-      setModal({ isOpen: true, type: "success", message: res?.data?.message || "Your seat has been reserved successfully!" });
-      setSelectedTripId("");
-      setSelectedPickupId("");
-      setSelectedReturn("");
-      navigate('/my-trips');
+      await Api.post('/bookings', payload);
+      setModal({ isOpen: true, type: "success", message: "Your booking demand is registered. You will be notified of your bus assignment once the booking window closes." });
+      setSelectedRouteId("");
+      setSelectedTimeSlot("");
+      setSelectedSpecificReturn("");
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      setModal({ isOpen: true, type: "error", message: error?.response?.data?.message || "Failed to book trip. Please try again." });
+      setModal({ isOpen: true, type: "error", message: error?.response?.data?.message || "Failed to submit booking demand. Please try again." });
     } finally {
       setIsBooking(false);
     }
@@ -140,9 +133,9 @@ export default function BookTripPage() {
 
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-black font-syne text-app-tx uppercase tracking-tighter">
-          Book <span className="text-app-am">Trip</span>
+          Book <span className="text-app-am">Route</span>
         </h1>
-        <p className="text-xs text-app-mu font-medium">Reserve your seat for tomorrow's trips</p>
+        <p className="text-xs text-app-mu font-medium">Register your demand for tomorrow's buses</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -152,21 +145,65 @@ export default function BookTripPage() {
               <Ic.Route /> Select Route
             </div>
             <select
-              value={selectedTripId}
-              onChange={(e) => { setSelectedTripId(e.target.value); setSelectedPickupId(""); setSelectedReturn(""); }}
+              value={selectedRouteId}
+              onChange={(e) => setSelectedRouteId(e.target.value)}
               className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer"
             >
-              <option value="">{isLoading ? "Loading..." : "-- Choose a Line --"}</option>
-              {allTrips.map(trip => (
-                <option key={trip._id} value={trip._id} className="bg-app-card text-app-tx">
-                  {trip?.route?.name || "Unknown Route"} {trip?.bus_number ? `- ${trip.bus_number}` : ''} - {trip?.date ? new Date(trip.date).toLocaleDateString() : ""} - {trip?.time_slot}
+              <option value="">{isLoading ? "Loading..." : "-- Choose a Route --"}</option>
+              {allRoutes.map(route => (
+                <option key={route._id} value={route._id} className="bg-app-card text-app-tx">
+                  {route.name}
                 </option>
               ))}
             </select>
           </div>
 
+          <div className="bg-app-card rounded-[24px] p-6 border border-app-bd shadow-xl">
+            <div className="flex items-center gap-2 text-app-tx text-[11px] font-black uppercase tracking-widest mb-6">
+              <Ic.Calendar /> Select Time Slot
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => { setSelectedTimeSlot("Morning"); setSelectedSpecificReturn(""); }}
+                className={`py-4 rounded-xl font-bold text-sm border transition-all duration-300 flex justify-center items-center gap-2
+                  ${selectedTimeSlot === "Morning" ? "bg-app-am/10 border-app-am text-app-am shadow-lg" : "bg-app-card2 border-app-bd text-app-mu hover:border-app-am/50 hover:text-app-tx"}`}
+              >
+                Morning
+              </button>
+              <button
+                onClick={() => setSelectedTimeSlot("Return")}
+                className={`py-4 rounded-xl font-bold text-sm border transition-all duration-300 flex justify-center items-center gap-2
+                  ${selectedTimeSlot === "Return" ? "bg-app-am/10 border-app-am text-app-am shadow-lg" : "bg-app-card2 border-app-bd text-app-mu hover:border-app-am/50 hover:text-app-tx"}`}
+              >
+                Return
+              </button>
+            </div>
+            
+            {selectedTimeSlot === "Return" && (
+              <div className="mt-6 pt-6 border-t border-app-bd animate-in slide-in-from-top-4 duration-300">
+                <div className="flex items-center gap-2 text-app-tx text-[11px] font-black uppercase tracking-widest mb-4">
+                  <Ic.Calendar /> Select Return Time
+                </div>
+                <select
+                  value={selectedSpecificReturn}
+                  onChange={(e) => setSelectedSpecificReturn(e.target.value)}
+                  className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer"
+                >
+                  <option value="">-- Choose Return Time --</option>
+                  {returnTimeOptions.map(rt => (
+                    <option key={rt} value={rt} className="bg-app-card text-app-tx">
+                      {rt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-6">
           {/* Booking Window Card */}
-          <div className="bg-app-card rounded-[24px] p-6 border border-app-bd shadow-xl relative overflow-hidden">
+          <div className="bg-app-card rounded-[24px] p-6 border border-app-bd shadow-xl relative overflow-hidden h-full flex flex-col justify-center">
             <div className="absolute -right-10 -top-10 w-32 h-32 bg-app-am/5 rounded-full blur-3xl"></div>
             <div className="flex justify-between items-center mb-6 relative z-10">
               <div className="flex items-center gap-2 text-app-am text-[11px] font-black uppercase tracking-widest">
@@ -189,72 +226,23 @@ export default function BookTripPage() {
               </div>
               <span className="text-app-am font-syne font-black text-3xl tracking-tighter">{windowState.timeLeft}</span>
             </div>
-            <div className="w-full bg-app-card2 h-2 rounded-full overflow-hidden shadow-inner">
+            <div className="w-full bg-app-card2 h-2 rounded-full overflow-hidden shadow-inner mt-4">
               <div className="bg-app-am h-full rounded-full transition-all duration-1000" style={{ width: `${windowState.progress}%` }}></div>
             </div>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="bg-app-card rounded-[24px] p-6 border border-app-bd shadow-xl">
-            <div className="flex items-center gap-2 text-app-am text-[11px] font-black uppercase tracking-widest mb-6">
-              <Ic.Pin /> Select Pickup Point
-            </div>
-            <div className="grid gap-3">
-              {!selectedTripId ? (
-                <p className="text-app-mu2 text-[10px] uppercase font-bold text-center py-4 border border-dashed border-app-bd rounded-xl">Please select a route first</p>
-              ) : pickupPoints.length === 0 ? (
-                <p className="text-app-err text-[10px] uppercase font-bold text-center py-4">No pickup points found</p>
-              ) : (
-                pickupPoints.map((point: Stop) => (
-                  <button
-                    key={point?._id}
-                    onClick={() => setSelectedPickupId(point?._id)}
-                    className={`w-full text-left px-5 py-4 rounded-xl border transition-all duration-300 font-bold text-sm flex justify-between items-center
-                      ${selectedPickupId === point?._id
-                        ? "bg-app-am/10 border-app-am text-app-am shadow-lg"
-                        : "bg-app-card2 border-app-bd text-app-mu hover:border-app-am/50 hover:text-app-tx"}`}
-                  >
-                    {point?.name || "Unknown Stop"}
-                    {selectedPickupId === point?._id && <Ic.Check />}
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-app-card rounded-[24px] p-6 border border-app-bd shadow-xl">
-            <div className="flex items-center gap-2 text-app-tx text-[11px] font-black uppercase tracking-widest mb-6">
-              <Ic.Calendar /> Select Return Time
-            </div>
-            <select
-              value={selectedReturn}
-              onChange={(e) => setSelectedReturn(e.target.value)}
-              disabled={!selectedTripId}
-              className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer disabled:opacity-50"
-            >
-              <option value="">-- Choose Return Time --</option>
-              {selectedTripId && (
-                <>
-                  <option value="return_1530" className="bg-app-card text-app-tx">3:30 PM</option>
-                  <option value="return_1900" className="bg-app-card text-app-tx">7:00 PM</option>
-                </>
-              )}
-            </select>
           </div>
         </div>
       </div>
 
       <button
         onClick={handleConfirm}
-        disabled={!selectedPickupId || !selectedReturn || isBooking || !windowState.isOpen}
+        disabled={!selectedRouteId || !selectedTimeSlot || (selectedTimeSlot === "Return" && !selectedSpecificReturn) || isBooking || !windowState.isOpen}
         className={`w-full py-5 rounded-[24px] font-syne font-black text-sm uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all duration-500
-          ${(selectedPickupId && selectedReturn && !isBooking && windowState.isOpen)
+          ${(selectedRouteId && selectedTimeSlot && (selectedTimeSlot === "Morning" || selectedSpecificReturn) && !isBooking && windowState.isOpen)
             ? "bg-app-am text-black cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
             : "bg-app-card2 border border-app-bd text-app-mu2 cursor-not-allowed opacity-50"}`}
       >
         <Ic.Bus />
-        {isBooking ? "Confirming..." : "Confirm Booking"}
+        {isBooking ? "Registering Demand..." : "Register Booking Demand"}
       </button>
 
       {modal.isOpen && (
@@ -265,7 +253,7 @@ export default function BookTripPage() {
                 {modal.type === 'success' ? <Ic.Check /> : <span className="font-bold text-3xl">!</span>}
               </div>
               <h3 className="font-syne text-xl font-black text-app-tx uppercase tracking-wider mt-2">
-                {modal.type === 'success' ? 'Booking Confirmed!' : 'Action Failed'}
+                {modal.type === 'success' ? 'Demand Registered!' : 'Action Failed'}
               </h3>
               <p className="text-sm text-app-mu font-medium px-2">{modal.message}</p>
               <button

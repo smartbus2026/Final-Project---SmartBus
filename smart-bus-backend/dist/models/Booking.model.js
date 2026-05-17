@@ -36,14 +36,22 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const bookingSchema = new mongoose_1.Schema({
     user: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
-    trip: { type: mongoose_1.Schema.Types.ObjectId, ref: "Trip", required: true },
-    pickup_point: { type: mongoose_1.Schema.Types.ObjectId, ref: "Stop", required: true },
-    seat_number: { type: Number, required: true },
+    route: { type: mongoose_1.Schema.Types.ObjectId, ref: "Route", required: true },
+    date: { type: Date, required: true },
+    timeSlot: { type: String, enum: ["Morning", "Return"], required: true },
+    specificReturnTime: { type: String },
+    busId: { type: mongoose_1.Schema.Types.ObjectId, ref: "Bus" },
     status: {
         type: String,
-        enum: ["active", "cancelled"],
-        default: "active"
-    }
+        enum: ["pending", "assigned", "active", "cancelled", "completed", "missed"],
+        default: "pending"
+    },
+    attendanceStatus: {
+        type: String,
+        enum: ["pending", "completed", "missed"],
+        default: "pending"
+    },
+    attended: { type: Boolean, default: false }
 }, { timestamps: true });
-bookingSchema.index({ user: 1, trip: 1 }, { unique: true });
+bookingSchema.index({ user: 1, route: 1, date: 1, timeSlot: 1 }, { unique: true });
 exports.default = mongoose_1.default.model("Booking", bookingSchema);

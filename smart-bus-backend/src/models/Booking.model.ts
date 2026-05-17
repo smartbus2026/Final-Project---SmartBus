@@ -2,26 +2,36 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IBooking extends Document {
   user: mongoose.Types.ObjectId;
-  trip: mongoose.Types.ObjectId;
-  pickup_point: mongoose.Types.ObjectId;
-  seat_number: number;
-  status: "active" | "cancelled" | "completed" | "missed";
+  route: mongoose.Types.ObjectId;
+  date: Date;
+  timeSlot: "Morning" | "Return";
+  specificReturnTime?: string;
+  status: "pending" | "assigned" | "active" | "cancelled" | "completed" | "missed";
+  busId?: mongoose.Types.ObjectId;
+  attendanceStatus: "pending" | "completed" | "missed";
   attended: boolean;
 }
 
 const bookingSchema = new Schema<IBooking>({
   user: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  trip: { type: Schema.Types.ObjectId, ref: "Trip", required: true },
-  pickup_point: { type: Schema.Types.ObjectId, ref: "Stop", required: true },
-  seat_number: { type: Number, required: true },
+  route: { type: Schema.Types.ObjectId, ref: "Route", required: true },
+  date: { type: Date, required: true },
+  timeSlot: { type: String, enum: ["Morning", "Return"], required: true },
+  specificReturnTime: { type: String },
+  busId: { type: Schema.Types.ObjectId, ref: "Bus" },
   status: {
     type: String,
-    enum: ["active", "cancelled", "completed", "missed"],
-    default: "active"
+    enum: ["pending", "assigned", "active", "cancelled", "completed", "missed"],
+    default: "pending"
+  },
+  attendanceStatus: {
+    type: String,
+    enum: ["pending", "completed", "missed"],
+    default: "pending"
   },
   attended: { type: Boolean, default: false }
 }, { timestamps: true });
 
-bookingSchema.index({ user: 1, trip: 1 }, { unique: true });
+bookingSchema.index({ user: 1, route: 1, date: 1, timeSlot: 1 }, { unique: true });
 
 export default mongoose.model<IBooking>("Booking", bookingSchema);

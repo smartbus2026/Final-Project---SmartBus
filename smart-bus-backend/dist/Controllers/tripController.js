@@ -6,10 +6,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.endTrip = exports.updateLocation = exports.startTrip = exports.deleteTrip = exports.updateTrip = exports.getTripById = exports.getTrips = exports.createTrip = void 0;
 const Trip_1 = __importDefault(require("../models/Trip"));
 const Route_1 = __importDefault(require("../models/Route"));
+const notification_1 = __importDefault(require("../models/notification"));
+const User_1 = __importDefault(require("../models/User"));
 // Create Trip (Admin)
 const createTrip = async (req, res) => {
     try {
-        const { route_id, time_slot, departure_time, total_seats } = req.body;
+        const { route_id, time_slot, departure_time, total_seats, bus_number } = req.body;
         const route = await Route_1.default.findById(route_id);
         if (!route)
             return res.status(404).json({ message: "Route not found" });
@@ -17,8 +19,19 @@ const createTrip = async (req, res) => {
             route: route_id,
             date: departure_time,
             time_slot,
+            bus_number,
             total_seats
         });
+        // ← هنا جوه الـ try وقبل الـ res
+        const students = await User_1.default.find({ role: "student" }).select("_id");
+        const notifications = students.map((s) => ({
+            user: s._id,
+            title: "New Trip Added",
+            message: `A new bus trip has been scheduled for ${new Date(trip.date).toDateString()} - ${trip.time_slot}`,
+            type: "trip",
+            read: false
+        }));
+        await notification_1.default.insertMany(notifications);
         res.status(201).json(trip);
     }
     catch (err) {
@@ -26,10 +39,21 @@ const createTrip = async (req, res) => {
     }
 };
 exports.createTrip = createTrip;
-//  Get All Trips
+//  Get All Trips — supports optional ?date=tomorrow&?status=scheduled
 const getTrips = async (req, res) => {
     try {
-        const trips = await Trip_1.default.find().populate({
+        const filter = {};
+        // Allow filtering by status
+        if (req.query.status) {
+            filter.status = req.query.status;
+        }
+        // Allow filtering to only show upcoming/today's trips for the booking page
+        if (req.query.date === "tomorrow" || req.query.date === "upcoming") {
+            const start = new Date();
+            start.setHours(0, 0, 0, 0);
+            filter.date = { $gte: start };
+        }
+        const trips = await Trip_1.default.find(filter).populate({
             path: "route",
             populate: {
                 path: "stops",
@@ -102,6 +126,7 @@ const startTrip = async (req, res) => {
             return res.status(404).json({ message: "Trip not found" });
         }
         trip.status = "active";
+        trip.start_time = new Date();
         await trip.save();
         res.json({ message: "Trip started", trip });
     }

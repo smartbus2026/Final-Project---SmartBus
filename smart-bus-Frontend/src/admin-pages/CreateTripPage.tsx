@@ -15,19 +15,15 @@ interface BookingSettings {
   booking_close_minute: number;
 }
 
-const CreateTripPage: React.FC = () => {
+const CreateBusPage: React.FC = () => {
   const navigate = useNavigate();
-  const [routes, setRoutes] = useState<RouteOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const [formData, setFormData] = useState({
-    route_id: '',
-    departure_time: '',
-    time_slot: 'morning',
-    bus_number: '',
-    total_seats: 40
+    busCode: '',
+    driverName: '',
+    capacity: 45
   });
 
   const [settings, setSettings] = useState<BookingSettings>({
@@ -44,17 +40,6 @@ const CreateTripPage: React.FC = () => {
   });
 
   useEffect(() => {
-    const fetchRoutes = async () => {
-      try {
-        const res = await Api.get('/routes');
-        setRoutes(res.data.data || res.data || []);
-      } catch (err) {
-        console.error("Failed to fetch routes", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     const fetchSettings = async () => {
       try {
         const res = await Api.get('/settings');
@@ -64,7 +49,6 @@ const CreateTripPage: React.FC = () => {
       }
     };
 
-    fetchRoutes();
     fetchSettings();
   }, []);
 
@@ -72,11 +56,13 @@ const CreateTripPage: React.FC = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await Api.post('/trips', formData);
-      setModal({ isOpen: true, type: "success", message: "Trip created successfully!" });
-      setFormData({ route_id: '', departure_time: '', time_slot: 'morning', bus_number: '', total_seats: 40 });
+      await Api.post('/buses', formData);
+      setModal({ isOpen: true, type: "success", message: "Bus created successfully!" });
+      setFormData({ busCode: '', driverName: '', capacity: 45 });
+      // If we are sharing state, it's generally best to refetch.
+      // But we handled this in ADashboard with setInterval(fetchBuses, 5000), so it will auto-update!
     } catch (err: any) {
-      setModal({ isOpen: true, type: "error", message: err.response?.data?.message || "Failed to create trip" });
+      setModal({ isOpen: true, type: "error", message: err.response?.data?.message || "Failed to create bus" });
     } finally {
       setIsSubmitting(false);
     }
@@ -103,78 +89,46 @@ const CreateTripPage: React.FC = () => {
           <Ic.Plus size={24} />
         </div>
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-widest text-app-tx">Create Trip</h1>
-          <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">Deploy new fleet schedules</p>
+          <h1 className="text-2xl font-black uppercase tracking-widest text-app-tx">Create Bus</h1>
+          <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">Add new vehicles to your fleet</p>
         </div>
       </div>
 
-      {/* ── Create Trip Form ── */}
+      {/* ── Create Bus Form ── */}
       <div className="bg-app-card border border-app-bd rounded-[2.5rem] p-10 max-w-3xl shadow-xl">
         <form onSubmit={handleSubmit} className="space-y-8">
           
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
-              <Ic.Route size={14} /> Select Route
-            </label>
-            <select 
-              required
-              value={formData.route_id}
-              onChange={e => setFormData({ ...formData, route_id: e.target.value })}
-              className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors appearance-none cursor-pointer"
-            >
-              <option value="">{isLoading ? "Loading Routes..." : "-- Choose Route --"}</option>
-              {routes.map(r => (
-                <option key={r._id} value={r._id}>{r.name}</option>
-              ))}
-            </select>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
-                <Ic.Calendar size={14} /> Trip Date
+                <Ic.Bus size={14} /> Bus Number / Plate
               </label>
               <input 
-                type="date" 
+                type="text" 
                 required
-                value={formData.departure_time}
-                onChange={e => setFormData({ ...formData, departure_time: e.target.value })}
-                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors cursor-pointer"
-                style={{ colorScheme: 'dark' }}
+                placeholder="e.g. Bus 101 or 123-ABC"
+                value={formData.busCode}
+                onChange={e => setFormData({ ...formData, busCode: e.target.value })}
+                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors"
               />
             </div>
             
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
-                <Ic.Time size={14} /> Time Slot
+                <Ic.Users size={14} /> Driver Name
               </label>
-              <select 
-                value={formData.time_slot}
-                onChange={e => setFormData({ ...formData, time_slot: e.target.value })}
-                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors appearance-none cursor-pointer"
-              >
-                <option value="morning">Morning Outbound</option>
-                <option value="return_1530">Return (3:30 PM)</option>
-                <option value="return_1900">Return (7:00 PM)</option>
-              </select>
+              <input 
+                type="text"
+                required
+                placeholder="e.g. John Doe"
+                value={formData.driverName}
+                onChange={e => setFormData({ ...formData, driverName: e.target.value })}
+                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors"
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
-                <Ic.Bus size={14} /> Bus Number
-              </label>
-              <input 
-                type="text" 
-                required
-                placeholder="e.g. Bus 101 or Plate #123"
-                value={formData.bus_number}
-                onChange={e => setFormData({ ...formData, bus_number: e.target.value })}
-                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors"
-              />
-            </div>
-
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
                 <Ic.Users size={14} /> Total Seats Capacity
@@ -183,8 +137,8 @@ const CreateTripPage: React.FC = () => {
                 type="number" 
                 required
                 min="1"
-                value={formData.total_seats}
-                onChange={e => setFormData({ ...formData, total_seats: parseInt(e.target.value) || 0 })}
+                value={formData.capacity}
+                onChange={e => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
                 className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors"
               />
             </div>
@@ -197,7 +151,7 @@ const CreateTripPage: React.FC = () => {
               className={`bg-app-am text-black px-10 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center gap-3
                 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'}`}
             >
-              {isSubmitting ? "Creating..." : <><Ic.Plus size={16} /> Create Schedule</>}
+              {isSubmitting ? "Creating..." : <><Ic.Plus size={16} /> Create Bus</>}
             </button>
           </div>
         </form>
@@ -345,10 +299,10 @@ const CreateTripPage: React.FC = () => {
                 </button>
                 {modal.type === 'success' && (
                   <button
-                    onClick={() => navigate('/admin/trips')}
+                    onClick={() => navigate('/admin/dashboard')}
                     className="flex-1 py-4 rounded-xl font-syne font-black text-[13px] uppercase tracking-widest bg-app-am text-black hover:brightness-110 transition-all"
                   >
-                    View Trips
+                    Go to Dashboard
                   </button>
                 )}
               </div>
@@ -361,4 +315,4 @@ const CreateTripPage: React.FC = () => {
   );
 };
 
-export default CreateTripPage;
+export default CreateBusPage;

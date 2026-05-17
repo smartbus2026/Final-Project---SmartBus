@@ -32,7 +32,9 @@ export const getActiveBuses = async (req: Request, res: Response) => {
   try {
     const routeId =
       typeof req.query.routeId === "string" ? req.query.routeId : undefined;
-    const query = routeId ? { route: routeId, isActive: true } : { isActive: true };
+    
+    // Remove strict isActive filter for admins so newly created buses appear instantly
+    const query: any = routeId ? { route: routeId } : {};
 
     const buses = await Bus.find(query).populate(BUS_POPULATE);
     res.status(200).json({ results: buses.length, data: buses });

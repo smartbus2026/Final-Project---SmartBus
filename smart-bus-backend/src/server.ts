@@ -17,6 +17,8 @@ import authRoutes from "./Routes/auth.routes";
 import notificationRoutes from "./Routes/notificationsRoutes";
 import settingsRoutes from "./Routes/settingsRoutes";
 import aiRoutes from "./Routes/aiRoutes";
+import trackingRoutes from "./Routes/trackingRoutes";
+import busRoutes from "./Routes/busRoutes";
 
 // Socket Integration
 import { initSocket } from "./socket";
@@ -56,6 +58,8 @@ app.use("/api/support", supportRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/tracking", trackingRoutes);
+app.use("/api/buses", busRoutes);
 
 app.get("/", (_req: Request, res: Response) => {
   res.json({ status: "ok", message: "SmartBus API is running" });

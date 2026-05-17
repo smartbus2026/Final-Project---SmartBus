@@ -1,15 +1,19 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware";
 import { allowRoles } from "../middleware/roleMiddleware";
-import { 
-  createBooking, 
-  getMyBookings, 
-  getAllBookings, 
+import {
+  createBooking,
+  getMyBookings,
+  getAllBookings,
   cancelBooking,
-  markAttendance,
+  updateBooking,
+  markAttendanceStatus,
   closeTrip,
   getBookingStats,
-  getTodayBookings
+  getTodayBookings,
+  getDemandAggregation,
+  dispatchBus,
+  recoverCancelledBookings
 } from "../Controllers/bookingController";
 
 const router = express.Router();
@@ -19,14 +23,17 @@ router.post("/", protect, allowRoles("student"), createBooking);
 router.get("/my", protect, allowRoles("student"), getMyBookings);
 router.get("/stats", protect, allowRoles("admin"), getBookingStats);
 router.get("/today", protect, allowRoles("admin"), getTodayBookings);
+router.get("/admin/demand", protect, allowRoles("admin"), getDemandAggregation);
+router.post("/admin/dispatch", protect, allowRoles("admin"), dispatchBus);
+router.post("/admin/recover", protect, allowRoles("admin"), recoverCancelledBookings);
 router.get("/", protect, allowRoles("admin"), getAllBookings);
 
-// ── Semi-static (فيها /trip/ prefix) ──
-router.patch("/trip/:id/close", protect, allowRoles("admin"), closeTrip); // ← اتنقلت لفوق
+// ── Semi-static ──
+router.patch("/trip/:id/close", protect, allowRoles("admin"), closeTrip);
 
 // ── Dynamic/ID Routes ──
 router.put("/:id/cancel", protect, allowRoles("student", "admin"), cancelBooking);
-router.patch("/:id/attend", protect, allowRoles("student", "admin"), markAttendance);
+router.patch("/:id", protect, allowRoles("student"), updateBooking);
+router.patch("/:id/attendance", protect, allowRoles("student", "admin"), markAttendanceStatus);
 
 export default router;
-

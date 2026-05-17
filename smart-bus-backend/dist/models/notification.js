@@ -35,19 +35,14 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const notificationSchema = new mongoose_1.Schema({
-    userId: { type: mongoose_1.Schema.Types.Mixed, required: true, index: true },
-    busId: { type: mongoose_1.Schema.Types.Mixed, index: true },
-    routeId: { type: mongoose_1.Schema.Types.Mixed, index: true },
-    stopId: { type: mongoose_1.Schema.Types.Mixed, index: true },
+    user: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
     title: { type: String, required: true },
     message: { type: String, required: true },
     type: {
         type: String,
-        enum: ["BUS_ARRIVAL", "ETA_UPDATE", "ROUTE_CHANGE", "ALERT"],
-        required: true,
+        enum: ["booking", "trip", "general"],
+        default: "general"
     },
-    isRead: { type: Boolean, default: false },
-    eventKey: { type: String, index: true },
+    read: { type: Boolean, default: false }
 }, { timestamps: true });
-notificationSchema.index({ userId: 1, eventKey: 1 }, { unique: true, sparse: true });
 exports.default = mongoose_1.default.model("Notification", notificationSchema);

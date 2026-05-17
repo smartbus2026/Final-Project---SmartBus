@@ -24,13 +24,12 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
     fetchDashboardData();
   }, []);
 
-  const nextBooking = bookings.find(b => b.status === "active" || b.status === "scheduled") || bookings[0] || null;
-  const nextTrip = nextBooking?.trip;
+  const nextBooking = bookings.find(b => b.status === "active" || b.status === "pending") || bookings[0] || null;
 
   const stats = [
-    { l: "Total Trips",  v: bookings.length.toString(),                                              icon: <Ic.Route size={18} />,    c: "text-app-am", bg: "bg-app-am/10" },
-    { l: "Active Now",   v: bookings.filter(b => b.status === "active").length.toString(),           icon: <Ic.Check size={18} />,    c: "text-app-ok", bg: "bg-app-ok/10" },
-    { l: "Upcoming",     v: bookings.filter(b => b.status === "scheduled").length.toString(),        icon: <Ic.Calendar size={18} />, c: "text-blue-400", bg: "bg-blue-500/10" },
+    { l: "Total Demands",v: bookings.length.toString(),                                              icon: <Ic.Route size={18} />,    c: "text-app-am", bg: "bg-app-am/10" },
+    { l: "Assigned",     v: bookings.filter(b => b.status === "active").length.toString(),           icon: <Ic.Check size={18} />,    c: "text-app-ok", bg: "bg-app-ok/10" },
+    { l: "Pending",      v: bookings.filter(b => b.status === "pending").length.toString(),          icon: <Ic.Calendar size={18} />, c: "text-blue-400", bg: "bg-blue-500/10" },
     { l: "Cancelled",    v: bookings.filter(b => b.status === "cancelled").length.toString(),        icon: <Ic.X size={18} />,        c: "text-red-400", bg: "bg-red-500/10" },
   ];
 
@@ -105,7 +104,7 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
                     {nextBooking.status}
                   </span>
                   <h2 className="text-[13px] font-black uppercase tracking-tight">
-                    {nextTrip?.route?.name || "Selected Route"}
+                    {nextBooking?.route?.name || "Selected Route"}
                   </h2>
                 </div>
                 <button
@@ -118,10 +117,10 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
 
               <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
-                  { label: "Date",        value: nextTrip?.date ? new Date(nextTrip.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "TBA" },
-                  { label: "Time Slot",   value: nextTrip?.time_slot?.replace('_', ' ') || "TBA", highlight: true },
-                  { label: "Seat Number", value: `#${nextBooking.seat_number || "0"}` },
-                  { label: "Bus Type",    value: "Standard" },
+                  { label: "Date",        value: nextBooking?.date ? new Date(nextBooking.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "TBA" },
+                  { label: "Time Slot",   value: (nextBooking?.timeSlot === "Return" && nextBooking?.specificReturnTime) ? `${nextBooking.specificReturnTime} (Return)` : (nextBooking?.timeSlot || "TBA"), highlight: true },
+                  { label: "Status",      value: nextBooking?.status || "pending" },
+                  { label: "Route",       value: nextBooking?.route?.name || "TBA" },
                 ].map((item) => (
                   <div key={item.label} className="space-y-1">
                     <label className="block text-[9px] text-app-mu font-black uppercase tracking-widest">{item.label}</label>
@@ -180,20 +179,20 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
                         <td className="px-6 py-4">
                           <span className="flex items-center gap-2 text-[12px] font-bold text-app-tx">
                             <span className="text-app-am"><Ic.Route size={14} /></span>
-                            {b.trip?.route?.name || "Unknown Route"}
+                            {b.route?.name || "Unknown Route"}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-[11px] text-app-mu font-medium uppercase">
-                          {b.trip?.time_slot?.replace('_', ' ')}
-                          {b.trip?.date ? ` • ${new Date(b.trip.date).toLocaleDateString("en-GB")}` : ""}
+                          {b.timeSlot === "Return" && b.specificReturnTime ? `${b.specificReturnTime} (Return)` : b.timeSlot}
+                          {b.date ? ` • ${new Date(b.date).toLocaleDateString("en-GB")}` : ""}
                         </td>
                         <td className="px-6 py-4 text-[12px] font-black text-app-tx">
-                          #{b.seat_number || "—"}
+                          —
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
                             b.status === "active"     ? "bg-app-ok/10 text-app-ok border-app-ok/20" :
-                            b.status === "scheduled"  ? "bg-app-am/10 text-app-am border-app-am/20" :
+                            b.status === "pending"    ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
                             b.status === "cancelled"  ? "bg-red-500/10 text-red-400 border-red-500/20" :
                                                         "bg-app-bd text-app-mu border-app-bd"
                           }`}>

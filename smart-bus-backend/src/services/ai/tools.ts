@@ -3,6 +3,7 @@ import { z } from "zod";
 import mongoose from "mongoose";
 import Booking from "../../models/Booking.model";
 import Trip from "../../models/Trip";
+import Route from "../../models/Route";
 import User from "../../models/User";
 import Stop from "../../models/stop";
 import Settings from "../../models/Settings.model";
@@ -58,15 +59,9 @@ export const getBookingStatusTool = tool(
         dateFilter = { createdAt: { $gte: start, $lte: end } };
       }
 
-      // ── Fetch bookings with populated trip details ─────────────────────────
+      // ── Fetch bookings with populated route details ─────────────────────────
       const bookings = await Booking.find({ user: userId, ...dateFilter })
-        .populate({
-          path: "trip",
-          select: "date time_slot bus_number status booked_seats total_seats",
-          model: Trip,
-        })
-        .populate("pickup_point", "name")
-        .select("seat_number status attended createdAt trip pickup_point")
+        .populate("route", "name")
         .sort({ createdAt: -1 })
         .limit(10)
         .lean();
@@ -84,19 +79,9 @@ export const getBookingStatusTool = tool(
         bookingId: b._id.toString(),
         status: b.status,
         attended: b.attended,
-        seatNumber: b.seat_number,
-        pickupPoint: b.pickup_point?.name ?? "N/A",
-        trip: b.trip
-          ? {
-              date: b.trip.date
-                ? new Date(b.trip.date).toLocaleDateString("en-EG")
-                : "N/A",
-              timeSlot: b.trip.time_slot,
-              busNumber: b.trip.bus_number,
-              tripStatus: b.trip.status,
-              availableSeats: b.trip.total_seats - b.trip.booked_seats,
-            }
-          : null,
+        route: b.route?.name ?? "N/A",
+        date: b.date ? new Date(b.date).toLocaleDateString("en-EG") : "N/A",
+        timeSlot: b.timeSlot,
         bookedAt: new Date(b.createdAt).toLocaleString("en-EG"),
       }));
 
@@ -174,54 +159,38 @@ export const getAvailableTripsTool = tool(
       const endOfTomorrow = new Date(targetDate);
       endOfTomorrow.setHours(23, 59, 59, 999);
 
-      // ── Query active trips ─────────────────────────────────────────────────
-      const trips = await Trip.find({
-        date: { $gte: startOfTomorrow, $lte: endOfTomorrow },
-        status: { $in: ['scheduled', 'upcoming', 'active', 'pending'] }
-      })
-        .populate("route", "name")
-        .select("date time_slot bus_number total_seats booked_seats status route")
-        .sort({ time_slot: 1 })
+      // ── Query active routes ─────────────────────────────────────────────────
+      const routes = await Route.find()
+        .select("name distance duration")
         .lean();
 
-      const dateLabel = startOfTomorrow.toLocaleDateString("en-EG");
-
-      if (!trips.length) {
+      if (!routes.length) {
         return JSON.stringify({
-          date: dateLabel,
-          message: "No active trips are scheduled for this date.",
-          trips: [],
+          message: "No routes are available at the moment.",
+          routes: [],
         });
       }
 
-      const formatted = trips.map((t: any) => ({
-        tripId: t._id.toString(),
-        date: new Date(t.date).toLocaleDateString("en-EG"),
-        timeSlot: t.time_slot,
-        routeName: t.route?.name ?? "N/A",
-        busNumber: t.bus_number,
-        availableSeats: t.total_seats - t.booked_seats,
-        totalSeats: t.total_seats,
-        status: t.status,
+      const formatted = routes.map((r: any) => ({
+        routeId: r._id.toString(),
+        name: r.name,
+        distance: r.distance || "N/A",
+        duration: r.duration || "N/A",
       }));
 
       return JSON.stringify({
-        date: dateLabel,
-        totalActiveTrips: formatted.length,
-        trips: formatted,
+        totalRoutes: formatted.length,
+        routes: formatted,
       });
     } catch (err: any) {
-      console.error("[getAvailableTrips tool error]", err.message);
+      console.error("[getAvailableRoutes tool error]", err.message);
       return JSON.stringify({ error: `Tool failed: ${err.message}. Do not retry.` });
     }
   },
   {
     name: "getAvailableTrips",
     description:
-      "Fetches the list of active trips (time slots) available for a specific date from the database. " +
-      "Defaults to tomorrow (Cairo time) if no date is provided. " +
-      "Use this to answer questions about available trips or schedules. " +
-      "Do NOT call this before bookTrip — bookTrip resolves the trip internally.",
+      "Fetches the list of active routes available. You can use this to answer questions about available routes. Do NOT call this before bookTrip unless asked.",
     schema: z.object({
       date: z
         .string()
@@ -247,14 +216,14 @@ export const bookTripTool = tool(
     userId,
     date,
     timeSlot,
-    pickupPointName,
+    routeName,
   }: {
     userId: string;
     date: string;
     timeSlot: string;
-    pickupPointName: string;
+    routeName: string;
   }) => {
-    const args = { userId, date, timeSlot, pickupPointName };
+    const args = { userId, date, timeSlot, routeName };
     console.log(`[Tool Called]: bookTrip with args:`, args);
 
     try {
@@ -283,87 +252,51 @@ export const bookTripTool = tool(
         }
       }
 
-      const dayStart = new Date(parsedDate);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(parsedDate);
-      dayEnd.setHours(23, 59, 59, 999);
-
       // ── 1. Verify user exists ──────────────────────────────────────────────
       const user = await User.findById(userId).select("name student_id");
       if (!user) {
         return JSON.stringify({ error: "Student account not found. Booking cancelled." });
       }
 
-      // ── 2. Look up the active trip by date + timeSlot (no tripId needed) ──
-      const trip = await Trip.findOne({
-        date: { $gte: dayStart, $lte: dayEnd },
-        time_slot: timeSlot,
-        status: { $in: ['scheduled', 'upcoming', 'active', 'pending'] }
-      });
-
-      if (!trip) {
-        return "Booking failed: No active trip found for this date and time. Please check available trips.";
-      }
-
-      // ── 3. Check seat availability ────────────────────────────────────────
-      const availableSeats = trip.total_seats - trip.booked_seats;
-      if (availableSeats <= 0) {
-        return JSON.stringify({
-          error: `No seats available on the ${timeSlot} trip for ${date}. Please choose a different trip.`,
-        });
-      }
-
-      // ── 4. Check if student already has ANY booking for this date ─────────
-      // Covers one-return-per-day rule and duplicate prevention in one query.
-      // No status filter — any prior booking on this day blocks a new one.
-      const allTripsOnDay = await Trip.find({
-        date: { $gte: dayStart, $lte: dayEnd },
-      }).select("_id");
-
-      const allTripIds = allTripsOnDay.map((t) => t._id);
-
+      // ── 2. Check if student already has a booking for this date ─────────
       const existingBooking = await Booking.findOne({
         user: userId,
-        trip: { $in: allTripIds },
+        date: parsedDate,
+        timeSlot: timeSlot,
+        status: { $ne: "cancelled" }
       });
 
       if (existingBooking) {
-        return "Booking failed: You already have a booking for this date.";
+        return "Booking failed: You already have a booking for this time slot on this date.";
       }
 
-      // ── 5. Resolve pickup stop by name (case-insensitive) ─────────────────
-      const stop = await Stop.findOne({
-        name: { $regex: new RegExp(`^${pickupPointName}$`, "i") },
+      // ── 3. Resolve route by name (case-insensitive) ─────────────────
+      const route = await Route.findOne({
+        name: { $regex: new RegExp(`^${routeName}$`, "i") },
       });
-      if (!stop) {
+      if (!route) {
         return JSON.stringify({
-          error: `Pickup point "${pickupPointName}" was not found in the system. Please provide a valid stop name and try again.`,
+          error: `Route "${routeName}" was not found in the system. Please provide a valid route name and try again.`,
         });
       }
 
-      // ── 6. Auto-assign next seat number ───────────────────────────────────
-      const nextSeat = trip.booked_seats + 1;
-
-      // ── 7. Create booking record ──────────────────────────────────────────
+      // ── 4. Create booking demand record ──────────────────────────────────────────
       const newBooking = await Booking.create({
         user: userId,
-        trip: trip._id,
-        pickup_point: stop._id,
-        seat_number: nextSeat,
-        status: "active",
+        route: route._id,
+        date: parsedDate,
+        timeSlot: timeSlot,
+        status: "pending",
         attended: false,
       });
 
-      // ── 8. Increment booked_seats on the trip atomically ──────────────────
-      await Trip.findByIdAndUpdate(trip._id, { $inc: { booked_seats: 1 } });
-
-      return "Booking successful! " + JSON.stringify({
+      return "Booking demand successfully saved! " + JSON.stringify({
         student: `${user.name} (ID: ${user.student_id ?? "N/A"})`,
-        trip: `${trip.time_slot} on ${new Date(trip.date).toLocaleDateString("en-EG")}`,
-        pickup: stop.name,
-        seat: nextSeat,
+        route: route.name,
+        date: parsedDate.toLocaleDateString("en-EG"),
+        timeSlot: timeSlot,
         bookingId: newBooking._id.toString(),
-        status: "active",
+        status: "pending",
       });
     } catch (err: any) {
       console.error("[bookTrip tool error]", err.message);
@@ -373,11 +306,9 @@ export const bookTripTool = tool(
   {
     name: "bookTrip",
     description:
-      "Books a bus trip for the authenticated student. " +
-      "Use this tool ONLY when the student explicitly asks to book or reserve a trip. " +
-      "Pass: date (YYYY-MM-DD), timeSlot ('morning', 'return_1530', or 'return_1900'), and pickupPointName. " +
-      "The tool looks up the trip internally — do NOT call getAvailableTrips before this. " +
-      "Enforces seat availability and one-booking-per-day automatically.",
+      "Books a route demand for the authenticated student. " +
+      "Use this tool ONLY when the student explicitly asks to book or reserve a route. " +
+      "Pass: date (YYYY-MM-DD), timeSlot ('Morning', 'Return'), and routeName. ",
     schema: z.object({
       userId: z
         .string()
@@ -391,12 +322,11 @@ export const bookTripTool = tool(
       timeSlot: z
         .string()
         .describe(
-          "The time slot to book. Must be exactly one of: 'morning', 'return_1530', 'return_1900'. " +
-          "Map user phrases: morning/before noon → 'morning'; 1:30 PM/afternoon → 'return_1530'; 7 PM/evening → 'return_1900'."
+          "The time slot to book. Must be exactly one of: 'Morning', 'Return'."
         ),
-      pickupPointName: z
+      routeName: z
         .string()
-        .describe("The name of the student's pickup stop (e.g. 'Cairo University Gate')."),
+        .describe("The name of the route the student wants to book (e.g. 'Stadium')."),
     }),
   }
 );

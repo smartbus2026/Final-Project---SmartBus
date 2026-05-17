@@ -34,27 +34,12 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const tripSchema = new mongoose_1.Schema({
-    route: { type: mongoose_1.Schema.Types.ObjectId, ref: "Route", required: true },
-    date: { type: Date, required: true },
-    time_slot: {
-        type: String,
-        enum: ["morning", "return_1530", "return_1900"],
-        required: true
-    },
-    bus_number: { type: String, required: true },
-    total_seats: { type: Number, required: true },
-    booked_seats: { type: Number, default: 0 },
-    status: {
-        type: String,
-        enum: ["scheduled", "active", "completed", "cancelled"],
-        default: "scheduled"
-    },
-    current_location: {
-        lat: Number,
-        lng: Number,
-        last_updated: Date
-    }
-}, { timestamps: true });
-tripSchema.index({ route: 1, date: 1, time_slot: 1 }, { unique: true });
-exports.default = mongoose_1.default.model("Trip", tripSchema);
+const settingsSchema = new mongoose_1.Schema({
+    booking_open_hour: { type: Number, default: 20 },
+    booking_open_minute: { type: Number, default: 0 },
+    booking_close_hour: { type: Number, default: 23 },
+    booking_close_minute: { type: Number, default: 0 },
+    returnTimeOptions: { type: [String], default: ["3:30 PM", "7:00 PM"] },
+    morningStartTime: { type: String, default: "08:30 AM" },
+});
+exports.default = mongoose_1.default.model("Settings", settingsSchema);

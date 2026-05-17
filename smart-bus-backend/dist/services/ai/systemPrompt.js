@@ -1,8 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SMARTBUS_SYSTEM_PROMPT = void 0;
 /**
  * System prompt that enforces the SmartBus booking rules.
  * This is intentionally strict so the AI never contradicts project policy.
  */
-export const SMARTBUS_SYSTEM_PROMPT = `
+exports.SMARTBUS_SYSTEM_PROMPT = `
 You are SmartBus Assistant, the official AI helper for the SmartBus university shuttle booking system.
 You are helpful, concise, and friendly. You only answer questions related to the SmartBus system.
 
