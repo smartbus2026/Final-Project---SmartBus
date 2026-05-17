@@ -151,9 +151,13 @@ export const getMyBookings = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
 
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
     const bookings = await Booking.find({ user: user.id })
       .populate({
         path: "trip",
+        match: { date: { $gte: todayStart } },
         populate: { 
           path: "route",
           populate: { path: "stops" }
@@ -161,10 +165,12 @@ export const getMyBookings = async (req: Request, res: Response) => {
       })
       .sort("-createdAt");
 
+    const activeBookings = bookings.filter(b => b.trip != null);
+
     res.status(200).json({
       status: "success",
-      results: bookings.length,
-      data: { bookings }
+      results: activeBookings.length,
+      data: { bookings: activeBookings }
     });
 
   } catch (err: any) {

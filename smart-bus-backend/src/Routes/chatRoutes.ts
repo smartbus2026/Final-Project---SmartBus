@@ -4,7 +4,7 @@ import { sendMessage, getMessages } from "../controllers/chatController";
 
 const router = express.Router();
 
-// 🟢 المسارات بقت بسيطة ومفيهاش Parameters
+
 router.get("/", protect, getMessages); 
 router.post("/", protect, sendMessage); 
 

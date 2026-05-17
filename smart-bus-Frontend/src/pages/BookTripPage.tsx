@@ -82,9 +82,10 @@ export default function BookTripPage() {
     const fetchData = async () => {
       try {
         const [tripsRes, settingsRes] = await Promise.all([
-          Api.get('/trips?date=tomorrow&status=scheduled'),
+          Api.get('/trips'),
           Api.get('/settings')
         ]);
+        console.log("Raw Trips Data:", tripsRes.data);
         const fetchedTrips: Trip[] = tripsRes?.data?.data || tripsRes?.data || [];
         setAllTrips(fetchedTrips);
         if (settingsRes.data?.data?.settings) {
@@ -109,17 +110,8 @@ export default function BookTripPage() {
     return () => clearInterval(timer);
   }, [bookingSettings]);
 
-  const morningTrips = allTrips.filter(t => t?.time_slot === "morning");
-  const currentTrip = morningTrips.find(t => t?._id === selectedTripId);
+  const currentTrip = allTrips.find(t => t?._id === selectedTripId);
   const pickupPoints = currentTrip?.route?.stops || [];
-  const returnTrips = currentTrip?.route?._id
-    ? allTrips.filter(t => t?.route?._id === currentTrip.route?._id && t?.time_slot !== "morning")
-    : [];
-
-  const timeSlotMap: Record<string, string> = {
-    'return_1530': '3:30 PM',
-    'return_1900': '7:00 PM'
-  };
 
   const handleConfirm = async () => {
     setIsBooking(true);
@@ -134,7 +126,7 @@ export default function BookTripPage() {
       setSelectedTripId("");
       setSelectedPickupId("");
       setSelectedReturn("");
-      setTimeout(() => navigate('/my-trips'), 2000);
+      navigate('/my-trips');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       setModal({ isOpen: true, type: "error", message: error?.response?.data?.message || "Failed to book trip. Please try again." });
@@ -165,9 +157,9 @@ export default function BookTripPage() {
               className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer"
             >
               <option value="">{isLoading ? "Loading..." : "-- Choose a Line --"}</option>
-              {morningTrips.map(trip => (
+              {allTrips.map(trip => (
                 <option key={trip._id} value={trip._id} className="bg-app-card text-app-tx">
-                  {trip?.route?.name || "Unknown Route"} {trip?.bus_number ? `- ${trip.bus_number}` : ''} - {trip?.date ? new Date(trip.date).toLocaleDateString() : ""}
+                  {trip?.route?.name || "Unknown Route"} {trip?.bus_number ? `- ${trip.bus_number}` : ''} - {trip?.date ? new Date(trip.date).toLocaleDateString() : ""} - {trip?.time_slot}
                 </option>
               ))}
             </select>
@@ -238,14 +230,16 @@ export default function BookTripPage() {
             <select
               value={selectedReturn}
               onChange={(e) => setSelectedReturn(e.target.value)}
-              className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer"
+              disabled={!selectedTripId}
+              className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer disabled:opacity-50"
             >
-              <option value="">{returnTrips.length === 0 && selectedTripId ? "No returns available" : "-- Choose Return Time --"}</option>
-              {selectedTripId && returnTrips.map((rt) => (
-                <option key={rt?._id} value={rt?.time_slot} className="bg-app-card text-app-tx">
-                  {timeSlotMap[rt?.time_slot] || rt?.time_slot || "Unknown Time"}
-                </option>
-              ))}
+              <option value="">-- Choose Return Time --</option>
+              {selectedTripId && (
+                <>
+                  <option value="return_1530" className="bg-app-card text-app-tx">3:30 PM</option>
+                  <option value="return_1900" className="bg-app-card text-app-tx">7:00 PM</option>
+                </>
+              )}
             </select>
           </div>
         </div>

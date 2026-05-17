@@ -1,7 +1,21 @@
+//socket/index.ts
 import { Server as HttpServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 
 let ioInstance: SocketIOServer | null = null;
+
+// Store active simulation intervals to prevent duplicates
+const activeSimulations = new Map<string, NodeJS.Timeout>();
+
+const aswanRoute = [
+  { lat: 24.0889, lng: 32.8998 },
+  { lat: 24.0900, lng: 32.9000 },
+  { lat: 24.0920, lng: 32.9010 },
+  { lat: 24.0940, lng: 32.9030 },
+  { lat: 24.0960, lng: 32.9050 },
+  { lat: 24.0980, lng: 32.9070 },
+  { lat: 24.1000, lng: 32.9090 }
+];
 
 export const initSocket = (httpServer: HttpServer): SocketIOServer => {
   ioInstance = new SocketIOServer(httpServer, {
@@ -12,8 +26,6 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
   });
 
   ioInstance.on("connection", (socket) => {
-    
-    // --- User Rooms ---
     socket.on("join-user-room", (userId: string) => {
       if (userId) {
         socket.join(`user:${userId}`);
@@ -26,7 +38,6 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
       }
     });
 
-    // --- Route Rooms ---
     socket.on("join-route-room", (routeId: string) => {
       if (routeId) {
         socket.join(`route:${routeId}`);
@@ -39,10 +50,11 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
       }
     });
 
-    // --- Trip Rooms ---
     socket.on("join-trip-room", (tripId: string) => {
       if (tripId) {
         socket.join(`trip:${tripId}`);
+        // Auto-start simulation if it's not already running
+        startTripSimulation(tripId);
       }
     });
 
@@ -52,33 +64,47 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
       }
     });
 
-    // ==========================================
-    // 🔴 جزء الـ Live Tracking والتتبع 🔴
-    // ==========================================
-
-    // 1. الأدمن بيدخل الغرفة دي عشان يراقب كل الأتوبيسات النشطة في السيستم
-    socket.on("join-admin-room", () => {
-      socket.join("admin-room");
+    socket.on("join-admin-tracking", () => {
+      socket.join("admin_tracking");
     });
-
-    socket.on("leave-admin-room", () => {
-      socket.leave("admin-room");
+    
+    socket.on("join-admins", () => {
+      socket.join("admins");
     });
-
-    // 2. استقبال الإحداثيات من جهاز الطالب/السواق
-    socket.on("send-live-location", (data: { tripId: string; lat: number; lng: number }) => {
-      if (data.tripId) {
-        // أ. إرسال الإحداثيات للطلاب اللي بيراقبوا الرحلة دي تحديداً
-        socket.to(`trip:${data.tripId}`).emit("bus-location-update", data);
-        
-        // ب. إرسال الإحداثيات لغرفة الأدمنز عشان تظهر في لوحة التحكم الرئيسية (Dashboard)
-        socket.to("admin-room").emit("admin-bus-update", data);
-      }
+    
+    socket.on("leave-admin-tracking", () => {
+      socket.leave("admin_tracking");
     });
-
   });
 
   return ioInstance;
+};
+
+export const startTripSimulation = (tripId: string) => {
+  if (!ioInstance) return;
+  if (activeSimulations.has(tripId)) return; // Already simulating
+
+  let currentIndex = 0;
+  let direction = 1;
+
+  const interval = setInterval(() => {
+    const coords = aswanRoute[currentIndex];
+    
+    // Broadcast to the specific trip room and the admin room
+    const eventData = { tripId, location: coords };
+    ioInstance?.to(`trip:${tripId}`).emit("bus_location_update", eventData);
+    ioInstance?.to("admin_tracking").emit("bus_location_update", eventData);
+
+    // Move back and forth along the route
+    currentIndex += direction;
+    if (currentIndex >= aswanRoute.length - 1) {
+      direction = -1;
+    } else if (currentIndex <= 0) {
+      direction = 1;
+    }
+  }, 3000);
+
+  activeSimulations.set(tripId, interval);
 };
 
 export const getIO = (): SocketIOServer => {

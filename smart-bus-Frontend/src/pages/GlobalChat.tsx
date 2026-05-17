@@ -21,7 +21,7 @@ const GlobalChat: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
   };
 
   useEffect(() => {
-    // 1. جلب الرسائل القديمة من الـ الباك إند
+   
     const fetchHistory = async () => {
       try {
         const res = await Api.get(`/chat`);
@@ -33,7 +33,7 @@ const GlobalChat: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
     };
     fetchHistory();
 
-    // 2. تفعيل الـ Socket للاستماع العام (Global Broadcast)
+   
     socketRef.current = io("http://localhost:5001", {
       transports: ["websocket", "polling"]
     }); 
@@ -102,22 +102,22 @@ const GlobalChat: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
               <div key={msg._id || index} className={`flex ${isMe ? 'justify-end' : 'justify-start'} relative z-10`}>
                 <div className={`max-w-[75%] md:max-w-[60%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                   
-                  {/* اسم الراسل (يظهر لغير رسايلي بس عشان يبقى زي الواتساب) */}
+                 
                   {!isMe && (
                     <span className="text-[9px] font-black text-app-mu mb-1 ml-2 uppercase tracking-widest">
                       {msg.sender.name}
                     </span>
                   )}
                   
-                  {/* بابل الرسالة */}
+              
                   <div className={`px-5 py-3 shadow-sm ${
                     isMe 
-                      ? 'bg-app-am text-white dark:text-black rounded-[22px] rounded-br-none' // رسايلي على اليمين باللون الأصفر/البرتقالي
-                      : 'bg-app-card border border-app-bd/50 text-app-tx rounded-[22px] rounded-bl-none' // رسايلهم على الشمال غامقة
+                      ? 'bg-app-am text-white dark:text-black rounded-[22px] rounded-br-none' 
+                      : 'bg-app-card border border-app-bd/50 text-app-tx rounded-[22px] rounded-bl-none' 
                   }`}>
                     <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
                     
-                    {/* الوقت وعلامة الصح */}
+                   
                     <div className={`flex items-center gap-1.5 mt-1 justify-end ${isMe ? 'text-white/60 dark:text-black/60' : 'text-app-mu'}`}>
                       <span className="text-[8px] font-black">
                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -134,7 +134,7 @@ const GlobalChat: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ── Chat Input Area ── */}
+   
       <div className="bg-app-card border-t border-app-bd/50 p-5 z-10">
         <form onSubmit={handleSend} className="flex items-center gap-3">
           <input

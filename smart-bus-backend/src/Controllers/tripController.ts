@@ -47,13 +47,11 @@ export const getTrips = async (req: Request, res: Response) => {
       filter.status = req.query.status;
     }
 
-    // Allow filtering to only show tomorrow's trips for the booking page
-    if (req.query.date === "tomorrow") {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const start = new Date(tomorrow.setHours(0, 0, 0, 0));
-      const end   = new Date(tomorrow.setHours(23, 59, 59, 999));
-      filter.date = { $gte: start, $lte: end };
+    // Allow filtering to only show upcoming/today's trips for the booking page
+    if (req.query.date === "tomorrow" || req.query.date === "upcoming") {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      filter.date = { $gte: start };
     }
 
     const trips = await Trip.find(filter).populate({
@@ -150,6 +148,7 @@ export const startTrip = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Trip not found" });
     }
     trip.status = "active";
+    (trip as any).start_time = new Date();
     await trip.save();
     res.json({ message: "Trip started", trip });
   } catch (err: any) {

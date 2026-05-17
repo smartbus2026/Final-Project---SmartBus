@@ -417,6 +417,15 @@ const ManageTripsPage: React.FC = () => {
     }
   };
 
+  const handleStartTrip = async (id: string) => {
+    try {
+      await Api.patch(`/trips/${id}/start`);
+      setTrips(prev => prev.map(t => t.id === id ? { ...t, status: 'active' } : t));
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to start trip");
+    }
+  };
+
   return (
     <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen">
       
@@ -514,6 +523,14 @@ const ManageTripsPage: React.FC = () => {
                 
                 {/* Actions */}
                 <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-app-bd/30">
+                   {trip.status === 'scheduled' && (
+                     <button 
+                       onClick={() => handleStartTrip(trip.id)}
+                       className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-app-ok bg-app-ok/10 hover:bg-app-ok/20 transition-colors"
+                     >
+                       Start Trip
+                     </button>
+                   )}
                    <button 
                      onClick={() => setEditingTrip(trip)}
                      className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-colors"

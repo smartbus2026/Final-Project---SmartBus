@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import SupportTicket from "../models/SupportTicket";
 import Notification from "../models/notification";
 import User from "../models/User";
+import { getIO } from "../socket";
 
 // ── Student: Submit a new support ticket ─────────────────────────────────────
 export const createTicket = async (req: Request, res: Response) => {
@@ -29,7 +30,20 @@ export const createTicket = async (req: Request, res: Response) => {
         type: "general",
         read: false,
       }));
-      await Notification.insertMany(notifications);
+      const savedNotifs = await Notification.insertMany(notifications);
+      try {
+        const io = getIO();
+        savedNotifs.forEach((notif, i) => {
+          io.to(`user:${admins[i]._id}`).emit("new_notification", {
+            _id: notif._id.toString(),
+            title: notif.title,
+            message: notif.message,
+            type: notif.type,
+            read: false,
+            createdAt: notif.createdAt ?? new Date(),
+          });
+        });
+      } catch (err) { console.error("Socket emit error:", err); }
     }
 
     res.status(201).json({
@@ -86,12 +100,24 @@ export const updateTicketStatus = async (req: Request, res: Response) => {
     }
 
     // Notify the student about the status change
-    await Notification.create({
+    const savedNotif = await Notification.create({
       user: ticket.user._id,
       title: "Support Ticket Updated",
       message: `Your ticket "${ticket.subject}" has been marked as ${status}.`,
       type: "general",
     });
+
+    try {
+      const io = getIO();
+      io.to(`user:${ticket.user._id}`).emit("new_notification", {
+        _id: savedNotif._id.toString(),
+        title: savedNotif.title,
+        message: savedNotif.message,
+        type: savedNotif.type,
+        read: false,
+        createdAt: savedNotif.createdAt ?? new Date(),
+      });
+    } catch (err) { console.error("Socket emit error:", err); }
 
     res.status(200).json({
       status: "success",

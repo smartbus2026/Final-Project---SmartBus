@@ -9,7 +9,7 @@ const router = express.Router();
 router.get("/", protect, getNotifications);
 
 // مسار عشان يخلي الإشعار مقروء
-router.patch("/:id/read", protect, markAsRead);
+router.put("/:id/read", protect, markAsRead);
 
 // مسار الأدمن عشان يبعت اشعارات للكل (حطينا حماية الأدمن هنا)
 router.post("/broadcast", protect, allowRoles("admin"), broadcastNotification);

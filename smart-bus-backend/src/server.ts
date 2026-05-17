@@ -1,25 +1,27 @@
 import express, { Request, Response, NextFunction } from "express";
 import http from "http";
 import dotenv from "dotenv";
+dotenv.config();
 import cors from "cors";
 import connectDB from "./config/db";
 
 // Route Imports
-import userRoutes from "./Routes/userRoutes";
-import routeRoutes from "./Routes/routeRoutes";
-import tripRoutes from "./Routes/tripRoutes";
-import bookingRoutes from "./Routes/bookingRoutes";
-import chatRoutes from "./Routes/chatRoutes";
-import supportRoutes from "./Routes/supportRoutes";
-import reportRoutes from "./Routes/reportRoutes";
-import authRoutes from "./Routes/auth.routes";
-import notificationRoutes from "./Routes/notificationsRoutes";
-import settingsRoutes from "./Routes/settingsRoutes";
+import userRoutes from "./routes/userRoutes";
+import routeRoutes from "./routes/routeRoutes";
+import tripRoutes from "./routes/tripRoutes";
+import bookingRoutes from "./routes/bookingRoutes";
+import chatRoutes from "./routes/chatRoutes";
+import supportRoutes from "./routes/supportRoutes";
+import reportRoutes from "./routes/reportRoutes";
+import authRoutes from "./routes/auth.routes";
+import notificationRoutes from "./routes/notificationsRoutes";
+import settingsRoutes from "./routes/settingsRoutes";
+import aiRoutes from "./routes/aiRoutes";
 
 // Socket Integration
 import { initSocket } from "./socket";
 
-dotenv.config();
+
 connectDB();
 
 // Start cron jobs after DB connection
@@ -43,16 +45,17 @@ app.use(cors({
 app.use(express.json());
 
 // API Routes
-app.use("/api/auth",          authRoutes);
-app.use("/api/users",         userRoutes);
-app.use("/api/routes",        routeRoutes);
-app.use("/api/trips",         tripRoutes);
-app.use("/api/bookings",      bookingRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/routes", routeRoutes);
+app.use("/api/trips", tripRoutes);
+app.use("/api/bookings", bookingRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/chat",          chatRoutes);
-app.use("/api/support",       supportRoutes);
-app.use("/api/reports",       reportRoutes);
-app.use("/api/settings",      settingsRoutes); // ← هنا قبل الـ 404
+app.use("/api/chat", chatRoutes);
+app.use("/api/support", supportRoutes);
+app.use("/api/reports", reportRoutes);
+app.use("/api/settings", settingsRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.get("/", (_req: Request, res: Response) => {
   res.json({ status: "ok", message: "SmartBus API is running" });
@@ -75,3 +78,4 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 server.listen(PORT, () => {
   console.log(`✅ Server & Socket.io running on port ${PORT}`);
 });
+
