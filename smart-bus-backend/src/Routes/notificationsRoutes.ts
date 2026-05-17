@@ -1,7 +1,7 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware";
 import { allowRoles } from "../middleware/roleMiddleware"; // ضفنا دي عشان نحمي مسار الأدمن
-import { getNotifications, markAsRead, broadcastNotification } from "../Controllers/notificationController";
+import { getNotifications, markAsRead, broadcastNotification } from "../controllers/notificationController";
 
 const router = express.Router();
 

@@ -10,7 +10,7 @@ import {
   closeTrip,
   getBookingStats,
   getTodayBookings
-} from "../Controllers/bookingController";
+} from "../controllers/bookingController";
 
 const router = express.Router();
 

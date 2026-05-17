@@ -1,4 +1,3 @@
-//socket/index.ts
 import { Server as HttpServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 
@@ -13,6 +12,8 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
   });
 
   ioInstance.on("connection", (socket) => {
+    
+    // --- User Rooms ---
     socket.on("join-user-room", (userId: string) => {
       if (userId) {
         socket.join(`user:${userId}`);
@@ -25,6 +26,7 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
       }
     });
 
+    // --- Route Rooms ---
     socket.on("join-route-room", (routeId: string) => {
       if (routeId) {
         socket.join(`route:${routeId}`);
@@ -37,7 +39,7 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
       }
     });
 
- 
+    // --- Trip Rooms ---
     socket.on("join-trip-room", (tripId: string) => {
       if (tripId) {
         socket.join(`trip:${tripId}`);
@@ -49,6 +51,31 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
         socket.leave(`trip:${tripId}`);
       }
     });
+
+    // ==========================================
+    // 🔴 جزء الـ Live Tracking والتتبع 🔴
+    // ==========================================
+
+    // 1. الأدمن بيدخل الغرفة دي عشان يراقب كل الأتوبيسات النشطة في السيستم
+    socket.on("join-admin-room", () => {
+      socket.join("admin-room");
+    });
+
+    socket.on("leave-admin-room", () => {
+      socket.leave("admin-room");
+    });
+
+    // 2. استقبال الإحداثيات من جهاز الطالب/السواق
+    socket.on("send-live-location", (data: { tripId: string; lat: number; lng: number }) => {
+      if (data.tripId) {
+        // أ. إرسال الإحداثيات للطلاب اللي بيراقبوا الرحلة دي تحديداً
+        socket.to(`trip:${data.tripId}`).emit("bus-location-update", data);
+        
+        // ب. إرسال الإحداثيات لغرفة الأدمنز عشان تظهر في لوحة التحكم الرئيسية (Dashboard)
+        socket.to("admin-room").emit("admin-bus-update", data);
+      }
+    });
+
   });
 
   return ioInstance;

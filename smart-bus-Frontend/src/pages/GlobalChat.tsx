@@ -10,10 +10,9 @@ interface ChatMessage {
   createdAt: string;
 }
 
-const TripChat: React.FC<{ tripId: string; currentUserId: string }> = ({ tripId, currentUserId }) => {
+const GlobalChat: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [error, setError] = useState<string | null>(null); // لحالة الأخطاء
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -22,36 +21,22 @@ const TripChat: React.FC<{ tripId: string; currentUserId: string }> = ({ tripId,
   };
 
   useEffect(() => {
-    // 1. منع تنفيذ أي كود إذا كان tripId غير صالح (لتجنب خطأ 500)
-    if (!tripId || tripId === "default" || tripId.length < 24) {
-      setError("Please select a valid trip to start chatting.");
-      return;
-    }
-    
-    setError(null);
-
-    // 2. جلب الرسائل القديمة
+    // 1. جلب الرسائل القديمة من الـ الباك إند
     const fetchHistory = async () => {
       try {
-        const res = await Api.get(`/chat/${tripId}`);
+        const res = await Api.get(`/chat`);
         setMessages(res.data);
         setTimeout(scrollToBottom, 100);
       } catch (error: any) {
         console.error("Failed to load chat history", error);
-        // إذا كان الخطأ 403 (غير مسجل في الرحلة)
-        if (error.response?.status === 403) {
-          setError("Access denied. You are not registered for this trip.");
-        }
       }
     };
     fetchHistory();
 
-    // 3. تفعيل الـ Socket
+    // 2. تفعيل الـ Socket للاستماع العام (Global Broadcast)
     socketRef.current = io("http://localhost:5001", {
-      transports: ["websocket", "polling"] // لضمان أفضل اتصال
+      transports: ["websocket", "polling"]
     }); 
-
-    socketRef.current.emit("join-trip-room", tripId);
 
     socketRef.current.on("new-message", (message: ChatMessage) => {
       setMessages((prev) => [...prev, message]);
@@ -59,36 +44,23 @@ const TripChat: React.FC<{ tripId: string; currentUserId: string }> = ({ tripId,
     });
 
     return () => {
-      socketRef.current?.emit("leave-trip-room", tripId);
       socketRef.current?.disconnect();
     };
-  }, [tripId]);
+  }, []);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !tripId || tripId === "default") return;
+    if (!newMessage.trim()) return;
 
     const messageText = newMessage;
     setNewMessage(""); 
 
     try {
-      await Api.post(`/chat/${tripId}`, { message: messageText });
+      await Api.post(`/chat`, { message: messageText });
     } catch (error) {
       console.error("Failed to send message", error);
     }
   };
-
-  // عرض رسالة خطأ إذا كان الـ ID غير صالح
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[85vh] bg-app-bg text-app-mu p-10 text-center">
-        <div className="bg-app-card p-8 rounded-3xl border border-app-bd/50 shadow-sm">
-          <Ic.Help size={48} className="mb-4 mx-auto text-app-am opacity-50" />
-          <p className="text-sm font-bold uppercase tracking-widest">{error}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-[85vh] bg-app-bg text-app-tx border border-app-bd/50 rounded-3xl overflow-hidden shadow-sm relative transition-colors duration-500 font-sans">
@@ -97,13 +69,13 @@ const TripChat: React.FC<{ tripId: string; currentUserId: string }> = ({ tripId,
       <div className="bg-app-card border-b border-app-bd/50 px-8 py-5 flex items-center justify-between z-10 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-app-am/10 flex items-center justify-center text-app-am border border-app-am/20">
-            <Ic.Bus size={20} />
+            <Ic.Chat size={20} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-app-tx">Trip Live Chat</h2>
+            <h2 className="text-base font-bold text-app-tx">Global System Chat</h2>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="w-2 h-2 rounded-full bg-app-ok animate-pulse"></span>
-              <p className="text-[10px] font-black text-app-ok uppercase tracking-widest">Connected Live</p>
+              <p className="text-[10px] font-black text-app-ok uppercase tracking-widest">Public Channel</p>
             </div>
           </div>
         </div>
@@ -123,21 +95,29 @@ const TripChat: React.FC<{ tripId: string; currentUserId: string }> = ({ tripId,
           </div>
         ) : (
           messages.map((msg, index) => {
+   
             const isMe = msg.sender._id === currentUserId;
+            
             return (
               <div key={msg._id || index} className={`flex ${isMe ? 'justify-end' : 'justify-start'} relative z-10`}>
                 <div className={`max-w-[75%] md:max-w-[60%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                  
+                  {/* اسم الراسل (يظهر لغير رسايلي بس عشان يبقى زي الواتساب) */}
                   {!isMe && (
                     <span className="text-[9px] font-black text-app-mu mb-1 ml-2 uppercase tracking-widest">
                       {msg.sender.name}
                     </span>
                   )}
+                  
+                  {/* بابل الرسالة */}
                   <div className={`px-5 py-3 shadow-sm ${
                     isMe 
-                      ? 'bg-app-am text-white dark:text-black rounded-[22px] rounded-br-none' 
-                      : 'bg-app-card border border-app-bd/50 text-app-tx rounded-[22px] rounded-bl-none'
+                      ? 'bg-app-am text-white dark:text-black rounded-[22px] rounded-br-none' // رسايلي على اليمين باللون الأصفر/البرتقالي
+                      : 'bg-app-card border border-app-bd/50 text-app-tx rounded-[22px] rounded-bl-none' // رسايلهم على الشمال غامقة
                   }`}>
                     <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
+                    
+                    {/* الوقت وعلامة الصح */}
                     <div className={`flex items-center gap-1.5 mt-1 justify-end ${isMe ? 'text-white/60 dark:text-black/60' : 'text-app-mu'}`}>
                       <span className="text-[8px] font-black">
                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -145,6 +125,7 @@ const TripChat: React.FC<{ tripId: string; currentUserId: string }> = ({ tripId,
                       {isMe && <Ic.Check size={10} />}
                     </div>
                   </div>
+
                 </div>
               </div>
             );
@@ -160,7 +141,7 @@ const TripChat: React.FC<{ tripId: string; currentUserId: string }> = ({ tripId,
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your message..."
+            placeholder="Type a public message..."
             className="flex-1 bg-app-bg2 border border-app-bd/50 rounded-2xl px-6 py-4 text-sm font-medium text-app-tx outline-none focus:border-app-am transition-all"
           />
           <button
@@ -172,8 +153,9 @@ const TripChat: React.FC<{ tripId: string; currentUserId: string }> = ({ tripId,
           </button>
         </form>
       </div>
+
     </div>
   );
 };
 
-export default TripChat;
+export default GlobalChat;

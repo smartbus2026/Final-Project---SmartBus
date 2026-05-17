@@ -10,7 +10,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import SupportPage from "./pages/SupportPage";
 import ProfilePage from "./pages/ProfilePage";
 import AttendancePage from "./pages/AttendancePage";
-import TripChat from "./pages/TripChat";
+import GlobalChat from "./pages/GlobalChat"; // 🟢 تم التأكد من الـ Import الصحيح للشات العام
 import PlaceholderPage from "./pages/PlaceholderPage";
 import WelcomePage from "./pages/WelcomePage";
 import Login from "./pages/Login";
@@ -88,7 +88,7 @@ export default function App() {
           element={
             role === "admin" ? <Navigate to="/admin/dashboard" replace /> :
               role === "student" ? <Navigate to="/dashboard" replace /> :
-                <Navigate to="/signup" replace />
+                <Navigate to="/welcome" replace /> // 🟢 تعديل بسيط ليوجه لصفحة الـ welcome بدل الـ signup المفقودة
           }
         />
 
@@ -103,7 +103,10 @@ export default function App() {
           <Route path="/support"       element={<Guard role={role} allowed={["student"]} redirectTo="/login"><SupportPage /></Guard>} />
           <Route path="/settings"      element={<Guard role={role} allowed={["student"]} redirectTo="/login"><ProfilePage /></Guard>} />
           <Route path="/attendance"    element={<Guard role={role} allowed={["student"]} redirectTo="/login"><AttendancePage /></Guard>} />
-          <Route path="/route-chat"    element={<Guard role={role} allowed={["student"]} redirectTo="/login"><TripChat tripId="default" currentUserId="user-id" /></Guard>} />
+          
+          {/* 🟢 تم التعديل هنا: شيلنا TripChat وحطينا الـ GlobalChat العام وفكينا الارتباط بالـ tripId وباصينا الـ User ID الحالي */}
+          <Route path="/route-chat"    element={<Guard role={role} allowed={["student", "admin"]} redirectTo="/login"><GlobalChat currentUserId={localStorage.getItem("userId") || "current-user-id"} /></Guard>} />
+          
           <Route path="/book-trip"     element={<Guard role={role} allowed={["student"]} redirectTo="/login"><BookTripPage /></Guard>} />
           <Route path="/track-bus"     element={<Guard role={role} allowed={["student"]} redirectTo="/login"><TrackBusPage /></Guard>} />
 
