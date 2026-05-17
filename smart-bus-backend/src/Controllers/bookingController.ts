@@ -522,3 +522,49 @@ export const recoverCancelledBookings = async (req: Request, res: Response) => {
   }
 };
 
+export const getAssignedTrips = async (req: Request, res: Response) => {
+  try {
+    const assignedBookings = await Booking.find({ status: "assigned" })
+      .populate("route", "name")
+      .populate("busId", "busCode driver");
+
+    const groupedTrips: any = {};
+
+    assignedBookings.forEach((booking: any) => {
+      const routeId = booking.route?._id?.toString() || 'unknown-route';
+      const busId = booking.busId?._id?.toString() || 'unknown-bus';
+      const timeSlot = booking.timeSlot;
+      const specificReturnTime = booking.specificReturnTime || 'none';
+
+      const groupKey = `${busId}-${routeId}-${timeSlot}-${specificReturnTime}`;
+
+      if (!groupedTrips[groupKey]) {
+        groupedTrips[groupKey] = {
+          id: groupKey,
+          routeId: routeId,
+          routeName: booking.route?.name || "Unknown Route",
+          busId: busId,
+          busNumber: booking.busId?.busCode || "Unknown Bus",
+          timeSlot: timeSlot,
+          specificReturnTime: booking.specificReturnTime,
+          passengerCount: 0,
+          date: booking.date,
+          status: booking.status
+        };
+      }
+
+      groupedTrips[groupKey].passengerCount += 1;
+    });
+
+    const tripsArray = Object.values(groupedTrips);
+
+    res.status(200).json({
+      status: "success",
+      data: { trips: tripsArray }
+    });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", error: err.message });
+  }
+};
+
+

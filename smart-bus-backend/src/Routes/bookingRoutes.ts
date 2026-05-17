@@ -13,7 +13,8 @@ import {
   getTodayBookings,
   getDemandAggregation,
   dispatchBus,
-  recoverCancelledBookings
+  recoverCancelledBookings,
+  getAssignedTrips
 } from "../Controllers/bookingController";
 
 const router = express.Router();
@@ -24,6 +25,7 @@ router.get("/my", protect, allowRoles("student"), getMyBookings);
 router.get("/stats", protect, allowRoles("admin"), getBookingStats);
 router.get("/today", protect, allowRoles("admin"), getTodayBookings);
 router.get("/admin/demand", protect, allowRoles("admin"), getDemandAggregation);
+router.get("/admin/assigned-trips", protect, allowRoles("admin"), getAssignedTrips);
 router.post("/admin/dispatch", protect, allowRoles("admin"), dispatchBus);
 router.post("/admin/recover", protect, allowRoles("admin"), recoverCancelledBookings);
 router.get("/", protect, allowRoles("admin"), getAllBookings);

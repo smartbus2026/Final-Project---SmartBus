@@ -108,7 +108,7 @@ export default function App() {
           <Route path="/profile"       element={<Guard role={role} allowed={["student"]} redirectTo="/login"><ProfilePage /></Guard>} />
           <Route path="/settings"      element={<Guard role={role} allowed={["student"]} redirectTo="/login"><StudentSettingsPage /></Guard>} />
           <Route path="/attendance"    element={<Guard role={role} allowed={["student"]} redirectTo="/login"><AttendancePage /></Guard>} />
-          <Route path="/route-chat"    element={<Guard role={role} allowed={["student"]} redirectTo="/login"><TripChat tripId="default" currentUserId="user-id" /></Guard>} />
+          <Route path="/route-chat"    element={<Guard role={role} allowed={["student"]} redirectTo="/login"><TripChat /></Guard>} />
           <Route path="/book-trip"     element={<Guard role={role} allowed={["student"]} redirectTo="/login"><BookTripPage /></Guard>} />
           <Route path="/track-bus"     element={<Guard role={role} allowed={["student"]} redirectTo="/login"><TrackBusPage /></Guard>} />
 

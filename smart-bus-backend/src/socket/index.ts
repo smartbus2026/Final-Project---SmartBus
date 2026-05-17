@@ -64,6 +64,14 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
       }
     });
 
+    socket.on("joinRoom", (roomId: string) => {
+      if (roomId) socket.join(roomId);
+    });
+
+    socket.on("leaveRoom", (roomId: string) => {
+      if (roomId) socket.leave(roomId);
+    });
+
     socket.on("join-admin-tracking", () => {
       socket.join("admin_tracking");
     });

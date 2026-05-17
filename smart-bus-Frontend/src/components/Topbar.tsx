@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import type { Theme } from "../types";
 import { Ic } from "../icons";
 import Api from "../services/Api";
-import { io } from "socket.io-client";
+import socket from "../services/socket";
 
 
 const META: Record<string, { title: string; sub: string }> = {
@@ -126,21 +126,30 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
   }, [fetchNotifs]);
 
   useEffect(() => {
-    if (!user._id && !isAdmin) return;
-    const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5001");
-    
+    // Re-join the correct room whenever user._id or role is resolved
     if (isAdmin) {
       socket.emit("join-admins");
-    } else {
+    } else if (user._id) {
       socket.emit("join-user-room", user._id);
     }
 
-    socket.on("new_notification", (notif) => {
-      setNotifs(prev => [{ ...notif, _id: Date.now().toString(), read: false }, ...prev]);
-    });
+    const handleNewNotif = (notif: any) => {
+      setNotifs(prev => [{
+        _id: notif._id || Date.now().toString(),
+        title: notif.title || "New Alert",
+        message: notif.message || "",
+        read: false,
+        createdAt: notif.createdAt || new Date().toISOString(),
+      }, ...prev]);
+    };
+
+    // Listen to both naming conventions for safety
+    socket.on("newNotification", handleNewNotif);
+    socket.on("new_notification", handleNewNotif);
 
     return () => {
-      socket.disconnect();
+      socket.off("newNotification", handleNewNotif);
+      socket.off("new_notification", handleNewNotif);
     };
   }, [user._id, isAdmin]);
 

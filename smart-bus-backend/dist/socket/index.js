@@ -54,6 +54,14 @@ const initSocket = (httpServer) => {
                 socket.leave(`trip:${tripId}`);
             }
         });
+        socket.on("joinRoom", (roomId) => {
+            if (roomId)
+                socket.join(roomId);
+        });
+        socket.on("leaveRoom", (roomId) => {
+            if (roomId)
+                socket.leave(roomId);
+        });
         socket.on("join-admin-tracking", () => {
             socket.join("admin_tracking");
         });

@@ -1,96 +1,113 @@
-import mongoose from "mongoose"; // 🟢 لازم نستورد mongoose للتحقق من الـ ID
+import { Request, Response } from "express";
 import Message from "../models/chat";
 import Booking from "../models/Booking.model";
-import Trip from "../models/Trip";
+import Settings from "../models/Settings.model";
 import { getIO } from "../socket"; 
+
+export const getActiveGroupChat = async (req: any, res: any) => {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Get closest upcoming booking for today
+    const booking = await Booking.findOne({
+      user: req.user.id,
+      date: { $gte: todayStart, $lte: todayEnd },
+      status: { $in: ["pending", "assigned", "active"] }
+    }).populate("route", "name").sort({ createdAt: 1 });
+
+    if (!booking) {
+      return res.json({ isOpen: false, message: "You don't have any active bookings for today." });
+    }
+
+    const settings: any = await Settings.findOne();
+    if (!settings) {
+      return res.status(500).json({ error: "System settings not configured." });
+    }
+
+    let tripTimeStr = "";
+    if (booking.timeSlot === "Morning") {
+      tripTimeStr = settings.morningStartTime || "08:30 AM";
+    } else {
+      tripTimeStr = booking.specificReturnTime || "03:30 PM"; 
+    }
+
+    const parseTimeToMinutes = (t: string) => {
+      if (!t) return 0;
+      const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (!m) return 0;
+      let h = parseInt(m[1]);
+      const min = parseInt(m[2]);
+      if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
+      if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
+      return h * 60 + min;
+    };
+
+    const tripStartMin = parseTimeToMinutes(tripTimeStr);
+    const now = new Date();
+    const curMin = now.getHours() * 60 + now.getMinutes();
+
+    const windowStart = tripStartMin - 30; // opens 30 min before
+
+    if (curMin < windowStart && req.user.role !== "admin") {
+      return res.json({ isOpen: false, message: `Chat will open 30 minutes before your ${tripTimeStr} trip.` });
+    }
+
+    const dateStr = todayStart.toISOString().split("T")[0];
+    const routeObj: any = booking.route;
+    const roomId = `${routeObj._id}_${dateStr}_${booking.timeSlot}`;
+
+    const messages = await Message.find({ roomId }).sort({ createdAt: 1 }).populate("sender", "name");
+
+    return res.json({
+      isOpen: true,
+      roomId,
+      routeName: routeObj.name,
+      timeSlot: booking.timeSlot,
+      messages
+    });
+
+  } catch (err: any) {
+    console.error("[Chat Controller Error]:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
 
 export const sendMessage = async (req: any, res: any) => {
   try {
-    const { tripId } = req.params;
+    const { roomId } = req.params;
     const { message } = req.body;
 
-    // 🟢 1. التحقق إن الـ tripId مبعوث صح ومش كلمة "default"
-    if (!mongoose.Types.ObjectId.isValid(tripId)) {
-      return res.status(400).json({ message: "Invalid Trip ID format. Received: " + tripId });
-    }
-    
-    const trip: any = await Trip.findById(tripId);
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found." });
-    }
+    if (!roomId) return res.status(400).json({ message: "Room ID is required." });
 
-    const timeSlotMap: any = {
-      "morning": "Morning",
-      "return_1530": "Return",
-      "return_1900": "Return"
-    };
-
-    // Validate if user has booked this trip
-    const userBooking = await Booking.findOne({ 
-      route: trip.route,
-      date: trip.date,
-      timeSlot: timeSlotMap[trip.time_slot],
-      user: req.user.id, 
-      status: { $in: ["active", "pending", "completed"] }
-    }); 
-    if (!userBooking && req.user.role !== "admin") { 
-        return res.status(403).json({ message: "You are not registered for this route on this date." }); 
-    }
-
-    let newMessage = await Message.create({ //[cite: 6]
-      sender: req.user.id, //[cite: 6]
-      trip: tripId, //[cite: 6]
-      message //[cite: 6]
+    let newMessage = await Message.create({
+      sender: req.user.id,
+      roomId,
+      message
     });
 
-    newMessage = await newMessage.populate("sender", "name"); //[cite: 1, 6]
+    newMessage = await newMessage.populate("sender", "name");
 
-    // إرسال الرسالة عبر السوكيت[cite: 4, 6]
-    getIO().to(`trip:${tripId}`).emit("new-message", newMessage); //[cite: 4, 6]
+    // Broadcast to students inside this specific route/time group
+    getIO().to(roomId).emit("newMessage", newMessage);
 
-    res.status(201).json(newMessage); //[cite: 6]
+    res.status(201).json(newMessage);
   } catch (err: any) {
-    console.error("[Chat Controller Error]:", err.message); // عشان تشوفي الخطأ في الـ Terminal
-    res.status(500).json({ error: err.message }); //[cite: 6]
+    console.error("[Chat Controller Send Error]:", err.message);
+    res.status(500).json({ error: err.message });
   }
 };
 
 export const getMessages = async (req: any, res: any) => {
   try {
-    const { tripId } = req.params; 
+    const { roomId } = req.params; 
+    if (!roomId) return res.status(400).json({ message: "Room ID is required." });
 
-    // 🟢 2. نفس التحقق هنا لمنع الـ 500 Error
-    if (!mongoose.Types.ObjectId.isValid(tripId)) {
-      return res.status(400).json({ message: "Invalid Trip ID format." });
-    }
-
-    const trip: any = await Trip.findById(tripId);
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found." });
-    }
-
-    const timeSlotMap: any = {
-      "morning": "Morning",
-      "return_1530": "Return",
-      "return_1900": "Return"
-    };
-
-    // Validate if user has booked this trip
-    const userBooking = await Booking.findOne({ 
-      route: trip.route,
-      date: trip.date,
-      timeSlot: timeSlotMap[trip.time_slot],
-      user: req.user.id, 
-      status: { $in: ["active", "pending", "completed"] }
-    }); 
-    if (!userBooking && req.user.role !== "admin") { 
-        return res.status(403).json({ message: "You are not registered for this route on this date." }); 
-    }
-
-    const messages = await Message.find({ trip: tripId }).sort({ createdAt: 1 }).populate("sender", "name"); //[cite: 1, 6]
-    res.json(messages); //[cite: 6]
+    const messages = await Message.find({ roomId }).sort({ createdAt: 1 }).populate("sender", "name");
+    res.json(messages);
   } catch (err: any) {
-    console.error("[Chat Controller Error]:", err.message);
-    res.status(500).json({ error: err.message }); //[cite: 6]
+    res.status(500).json({ error: err.message });
   }
 };

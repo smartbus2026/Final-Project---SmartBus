@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { io } from "socket.io-client";
 import { Ic } from "../icons";
 import Api from "../services/Api";
+import socket from "../services/socket";
 
 interface Notification {
   _id: string;
@@ -32,22 +32,25 @@ export default function NotificationsPage() {
 
   // Real-time socket: prepend incoming notifications to state immediately
   useEffect(() => {
-    const userId = localStorage.getItem("userId");
-    const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5001");
-    if (userId) socket.emit("join-user-room", userId);
-
-    socket.on("new_notification", (notif: Partial<Notification>) => {
+    const handleNewNotif = (notif: any) => {
       setNotifications(prev => [{
-        _id: (notif as any)._id || Date.now().toString(),
-        title: (notif as any).title || "New Alert",
-        message: (notif as any).message || "",
-        type: (notif as any).type || "general",
+        _id: notif._id || Date.now().toString(),
+        title: notif.title || "New Alert",
+        message: notif.message || "",
+        type: notif.type || "general",
         read: false,
-        createdAt: (notif as any).createdAt || new Date().toISOString(),
+        createdAt: notif.createdAt || new Date().toISOString(),
       }, ...prev]);
-    });
+    };
 
-    return () => { socket.disconnect(); };
+    // Listen to both event naming conventions for full compatibility
+    socket.on("newNotification", handleNewNotif);
+    socket.on("new_notification", handleNewNotif);
+
+    return () => {
+      socket.off("newNotification", handleNewNotif);
+      socket.off("new_notification", handleNewNotif);
+    };
   }, []);
 
   const handleMarkRead = async (id: string) => {

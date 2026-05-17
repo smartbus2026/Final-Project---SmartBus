@@ -60,16 +60,20 @@ const broadcastNotification = async (req, res) => {
         await notification_1.default.insertMany(notifications);
         try {
             const io = (0, socket_1.getIO)();
+            const payload = { title, message, type: "general", createdAt: new Date() };
             if (target === "Students Only" || target === "student") {
                 users.forEach(u => {
-                    io.to(`user:${u._id}`).emit("new_notification", { title, message, createdAt: new Date() });
+                    io.to(`user:${u._id}`).emit("newNotification", payload);
+                    io.to(`user:${u._id}`).emit("new_notification", payload);
                 });
             }
             else if (target === "Admins Only" || target === "admin") {
-                io.to("admins").emit("new_notification", { title, message, createdAt: new Date() });
+                io.to("admins").emit("newNotification", payload);
+                io.to("admins").emit("new_notification", payload);
             }
             else {
-                io.emit("new_notification", { title, message, createdAt: new Date() });
+                io.emit("newNotification", payload);
+                io.emit("new_notification", payload);
             }
         }
         catch (err) {

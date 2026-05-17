@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
 import { Ic } from '../icons';
 import { useAdminNotifications } from '../hooks/useAdminNotifications';
 import Api from '../services/Api';
+import socket from '../services/socket';
 
 interface NotifItem {
   _id: string;
@@ -42,10 +42,9 @@ const AdminNotifications: React.FC = () => {
 
   // Real-time socket listener
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001');
     socket.emit('join-admins');
 
-    socket.on('new_notification', (notif: Partial<NotifItem>) => {
+    const handleNewNotif = (notif: Partial<NotifItem>) => {
       setInbox(prev => [{
         _id: notif._id || Date.now().toString(),
         title: notif.title || 'New Alert',
@@ -54,9 +53,16 @@ const AdminNotifications: React.FC = () => {
         read: false,
         createdAt: notif.createdAt || new Date().toISOString(),
       }, ...prev]);
-    });
+    };
 
-    return () => { socket.disconnect(); };
+    // Listen to both event naming conventions for full compatibility
+    socket.on('newNotification', handleNewNotif);
+    socket.on('new_notification', handleNewNotif);
+
+    return () => {
+      socket.off('newNotification', handleNewNotif);
+      socket.off('new_notification', handleNewNotif);
+    };
   }, []);
 
   const handleMarkRead = async (id: string) => {

@@ -369,17 +369,24 @@ const AdminDashboard: React.FC = () => {
             
             {dispatchForm.timeSlot === "Return" && (
               <div className="flex-1">
-                <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">Time</label>
+                <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">
+                  Return Time <span className="text-red-400">*</span>
+                </label>
                 <select 
+                  required
                   value={dispatchForm.specificReturnTime}
                   onChange={(e) => setDispatchForm(prev => ({ ...prev, specificReturnTime: e.target.value }))}
-                  className="w-full bg-app-bg text-app-tx text-sm border border-app-bd rounded-xl p-3 focus:outline-none focus:border-app-am"
+                  className={`w-full bg-app-bg text-app-tx text-sm border rounded-xl p-3 focus:outline-none focus:border-app-am ${
+                    !dispatchForm.specificReturnTime ? 'border-red-500/40' : 'border-app-bd'
+                  }`}
                 >
-                  <option value="">All Times</option>
-                  {returnTimes.map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
+                  <option value="" disabled>-- Select Return Time --</option>
+                  <option value="3:30 PM">3:30 PM</option>
+                  <option value="7:00 PM">7:00 PM</option>
                 </select>
+                {!dispatchForm.specificReturnTime && (
+                  <p className="text-[9px] text-red-400 font-bold mt-1 uppercase tracking-widest">Required for Return trips</p>
+                )}
               </div>
             )}
           </div>
