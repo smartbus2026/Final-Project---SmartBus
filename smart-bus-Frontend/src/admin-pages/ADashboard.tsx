@@ -31,6 +31,40 @@ const AdminDashboard: React.FC = () => {
   const [dispatchLoading, setDispatchLoading] = useState(false);
   const [dispatchMessage, setDispatchMessage] = useState({ type: "", text: "" });
 
+  // ── Today's Trips State ──
+  const [assignedTrips, setAssignedTrips] = useState<any[]>([]);
+  const [tripsLoading, setTripsLoading] = useState(true);
+  const [tripFilter, setTripFilter] = useState({
+    routeId: "",
+    timeSlot: "",
+    specificReturnTime: ""
+  });
+
+  const fetchAssignedTrips = async () => {
+    setTripsLoading(true);
+    try {
+      const res = await Api.get('/bookings/admin/assigned-trips');
+      let data = res.data?.data?.assignedTrips || res.data?.assignedTrips || res.data?.data || [];
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      data = data.filter((t: any) => {
+        const d = new Date(t.date);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime() === today.getTime();
+      });
+      setAssignedTrips(data);
+    } catch (err) {
+      console.error("Failed to fetch assigned trips", err);
+    } finally {
+      setTripsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignedTrips();
+  }, []);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -57,16 +91,6 @@ const AdminDashboard: React.FC = () => {
         const studentCount = Array.isArray(users) ? users.filter((u: any) => u.role === 'student').length : 0;
         const activeTripsList = Array.isArray(trips) ? trips.filter((t: any) => t.status === 'active') : [];
 
-        // Filter for today's trips for the table
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todaysTrips = Array.isArray(trips) ? trips.filter((t: any) => {
-          if (!t.date) return false;
-          const d = new Date(t.date);
-          d.setHours(0, 0, 0, 0);
-          return d.getTime() === today.getTime();
-        }) : [];
-
         const pendingTickets = supportTickets.filter((t: any) => t.status === 'open' || t.status === 'pending');
 
         setData({
@@ -74,7 +98,7 @@ const AdminDashboard: React.FC = () => {
           activeTripsCount: activeTripsList.length,
           totalRoutes: Array.isArray(routes) ? routes.length : 0,
           totalBookings: Array.isArray(bookings) ? bookings.length : 0,
-          trips: todaysTrips.slice(0, 5),
+          trips: [], // Migrated to assignedTrips state
           tickets: pendingTickets.slice(0, 5),
           routesList: Array.isArray(routes) ? routes : []
         });
@@ -170,8 +194,9 @@ const AdminDashboard: React.FC = () => {
       setDispatchMessage({ type: "success", text: "Bus assigned successfully and students notified!" });
       setDispatchForm(prev => ({ ...prev, routeIds: [], busId: "", specificReturnTime: "" }));
       
-      // Refresh demands instantly
+      // Refresh demands and trips instantly
       setDemandDate(prev => prev);
+      fetchAssignedTrips();
     } catch (err: any) {
       setDispatchMessage({ type: "error", text: err.response?.data?.message || "Failed to dispatch bus." });
     } finally {
@@ -472,62 +497,98 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* ── Today's Trips ── */}
-        <div className="bg-app-card rounded-2xl border border-app-bd shadow-sm overflow-hidden lg:col-span-2">
-          <div className="flex justify-between items-center px-6 py-4 border-b border-app-bd">
-            <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest">Today's Trips</h3>
-            <div className="flex gap-2">
-              <button className="text-[10px] font-black text-app-mu border border-app-bd px-4 py-1.5 rounded-lg hover:border-app-am hover:text-app-tx transition-all">
-                Filter
-              </button>
-              <button className="text-[10px] font-black text-app-mu border border-app-bd px-4 py-1.5 rounded-lg hover:border-app-am hover:text-app-tx transition-all flex items-center gap-1.5">
-                <Ic.Download size={12} /> Export
-              </button>
+        <div className="bg-app-card rounded-2xl border border-app-bd shadow-sm overflow-hidden lg:col-span-2 flex flex-col">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center px-6 py-4 border-b border-app-bd gap-4">
+            <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest whitespace-nowrap">Today's Trips</h3>
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={tripFilter.routeId}
+                onChange={(e) => setTripFilter(prev => ({ ...prev, routeId: e.target.value }))}
+                className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 py-1.5 focus:outline-none focus:border-app-am min-w-[120px]"
+              >
+                <option value="">All Routes</option>
+                {data.routesList.map(r => (
+                  <option key={r._id} value={r._id}>{r.name}</option>
+                ))}
+              </select>
+
+              <select
+                value={tripFilter.timeSlot}
+                onChange={(e) => setTripFilter(prev => ({ ...prev, timeSlot: e.target.value, specificReturnTime: "" }))}
+                className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 py-1.5 focus:outline-none focus:border-app-am min-w-[120px]"
+              >
+                <option value="">All Times</option>
+                <option value="Morning">Morning</option>
+                <option value="Return">Return</option>
+              </select>
+
+              {tripFilter.timeSlot === "Return" && (
+                <select
+                  value={tripFilter.specificReturnTime}
+                  onChange={(e) => setTripFilter(prev => ({ ...prev, specificReturnTime: e.target.value }))}
+                  className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 py-1.5 focus:outline-none focus:border-app-am min-w-[120px]"
+                >
+                  <option value="">Any Return</option>
+                  <option value="3:30 PM">3:30 PM</option>
+                  <option value="7:00 PM">7:00 PM</option>
+                </select>
+              )}
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto flex-1">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-app-bd bg-app-bg/50">
-                  {["Trip ID", "Route", "Driver", "Time", "Seats", "Status"].map(h => (
+                  {["Route", "Bus", "Time", "Students", "Status"].map(h => (
                     <th key={h} className="px-6 py-3 text-left text-[10px] font-black text-app-mu uppercase tracking-widest">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-app-bd">
-                {loading ? (
+                {tripsLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-xs text-app-mu">Loading trips...</td>
+                    <td colSpan={5} className="px-6 py-8 text-center text-xs text-app-mu">Loading trips...</td>
                   </tr>
-                ) : data.trips.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-xs text-app-mu">No trips scheduled for today</td>
-                  </tr>
-                ) : (
-                  data.trips.map((trip: any) => (
-                    <tr key={trip._id} className="hover:bg-app-card2/40 transition-colors group">
-                      <td className="px-6 py-4 text-[12px] font-black text-app-tx font-mono">{trip._id.slice(-6).toUpperCase()}</td>
+                ) : (() => {
+                  const filteredTrips = assignedTrips.filter(t => {
+                    if (tripFilter.routeId && t.route?._id !== tripFilter.routeId) return false;
+                    if (tripFilter.timeSlot && t.timeSlot !== tripFilter.timeSlot) return false;
+                    if (tripFilter.timeSlot === "Return" && tripFilter.specificReturnTime && t.specificReturnTime !== tripFilter.specificReturnTime) return false;
+                    return true;
+                  });
+
+                  if (filteredTrips.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-xs text-app-mu">No assigned trips match your filters</td>
+                      </tr>
+                    );
+                  }
+
+                  return filteredTrips.map((trip: any, i: number) => (
+                    <tr key={i} className="hover:bg-app-card2/40 transition-colors group">
                       <td className="px-6 py-4">
-                        <span className="flex items-center gap-2 text-[12px] font-medium text-app-mu">
+                        <span className="flex items-center gap-2 text-[12px] font-bold text-app-tx">
                           <span className="text-app-am"><Ic.Pin size={14} /></span>
                           {trip.route?.name || "Unknown Route"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-[12px] font-medium text-app-tx">{trip.driver?.name || "Unassigned"}</td>
+                      <td className="px-6 py-4 text-[12px] font-medium text-app-tx">{trip.bus?.busCode || "Unassigned"}</td>
                       <td className="px-6 py-4">
                         <span className="flex items-center gap-1.5 text-[12px] text-app-mu">
-                          <Ic.Clock size={12} /> {trip.time_slot}
+                          <Ic.Clock size={12} /> {trip.timeSlot} {trip.specificReturnTime ? `(${trip.specificReturnTime})` : ""}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-[12px] font-bold text-app-tx">{trip.booked_seats || 0}/{trip.total_seats || 40}</td>
+                      <td className="px-6 py-4 text-[12px] font-bold text-app-tx">{trip.studentsCount || trip.students?.length || 0}</td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${statusStyle[trip.status] || statusStyle.pending}`}>
-                          {statusLabel[trip.status] || "Pending"}
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${statusStyle.active}`}>
+                          Assigned
                         </span>
                       </td>
                     </tr>
-                  ))
-                )}
+                  ));
+                })()}
               </tbody>
             </table>
           </div>

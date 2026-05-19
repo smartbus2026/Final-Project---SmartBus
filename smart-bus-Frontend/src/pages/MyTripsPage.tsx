@@ -19,6 +19,9 @@ export default function MyTripsPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
+  const [attendanceLoading, setAttendanceLoading] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
   const fetchAll = useCallback(async () => {
     try {
       const [bRes, rRes, sRes] = await Promise.all([
@@ -97,6 +100,7 @@ export default function MyTripsPage() {
   };
 
   const handleAttendance = async (id: string, status: "completed" | "missed") => {
+    setAttendanceLoading(id);
     try {
       await Api.patch(`/bookings/${id}/attendance`, { attendanceStatus: status });
       setBookings(prev =>
@@ -105,8 +109,14 @@ export default function MyTripsPage() {
           : b
         )
       );
+      setToast({ message: `Trip marked as ${status}!`, type: "success" });
+      setTimeout(() => setToast(null), 3000);
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to mark attendance");
+      const msg = err.response?.data?.message || "Failed to mark attendance";
+      setToast({ message: msg, type: "error" });
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setAttendanceLoading(null);
     }
   };
 
@@ -140,10 +150,9 @@ export default function MyTripsPage() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const isPast = bd ? bd < today : false;
     let currentStatus: TripStatus = "upcoming";
-    if (b.status === "completed" || b.attended) currentStatus = "completed";
-    else if (b.status === "missed") currentStatus = "missed";
-    else if (b.status === "cancelled") currentStatus = "missed";
-    else if (isPast) currentStatus = "missed";
+    if (b.status === "cancelled") currentStatus = "cancelled";
+    else if (b.attendanceStatus === "completed") currentStatus = "completed";
+    else if (b.attendanceStatus === "missed") currentStatus = "missed";
     return { raw: b, id: b._id, status: currentStatus, date: bd ? bd.toDateString() : "TBA",
       from: b.route?.name || "Route", timeSlot: b.timeSlot, returnTime: b.timeSlot === "Return" ? (b.specificReturnTime || "TBA") : "N/A",
       bookingStatus: b.status, attendanceStatus: b.attendanceStatus };
@@ -153,6 +162,7 @@ export default function MyTripsPage() {
     upcoming:  mappedTrips.filter(t => t.status === "upcoming").length,
     completed: mappedTrips.filter(t => t.status === "completed").length,
     missed:    mappedTrips.filter(t => t.status === "missed").length,
+    cancelled: mappedTrips.filter(t => t.status === "cancelled").length,
   };
   const list = mappedTrips.filter(t => t.status === tab);
 
@@ -173,11 +183,21 @@ export default function MyTripsPage() {
   );
 
   return (
-    <div className="p-6 animate-in fade-in duration-500">
+    <div className="p-6 animate-in fade-in duration-500 relative">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4 fade-in duration-300">
+          <div className={`px-5 py-3 rounded-2xl border shadow-2xl flex items-center gap-3 backdrop-blur-md
+            ${toast.type === "success" ? "bg-app-ok/20 border-app-ok/30 text-app-ok" : "bg-red-500/20 border-red-500/30 text-red-400"}`}>
+            {toast.type === "success" ? <Ic.Check size={18} /> : <Ic.X size={18} />}
+            <span className="text-[11px] font-black uppercase tracking-widest">{toast.message}</span>
+          </div>
+        </div>
+      )}
 
       {/* Tab Bar */}
       <div className="flex w-fit gap-0.5 rounded-xl border border-app-bd bg-app-card2 p-0.5 mb-8 shadow-inner">
-        {(["upcoming", "completed", "missed"] as TripStatus[]).map((t) => (
+        {(["upcoming", "completed", "missed", "cancelled"] as TripStatus[]).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`cursor-pointer rounded-lg px-5 py-2 text-xs font-bold transition-all
               ${tab === t ? "bg-app-card text-app-am border border-app-bd shadow-sm" : "text-app-mu hover:text-app-tx"}`}>
@@ -198,6 +218,7 @@ export default function MyTripsPage() {
             <div key={t.id} className={`group rounded-2xl border bg-app-card p-6 transition-all hover:shadow-xl
               ${t.status === "completed" ? "border-blue-500/20 hover:border-blue-500/40" :
                 t.status === "missed"    ? "border-red-500/20 hover:border-red-500/40" :
+                t.status === "cancelled" ? "border-neutral-500/20 hover:border-neutral-500/40 opacity-75" :
                 "border-app-bd hover:border-app-am/30"}`}>
 
               {/* Header */}
@@ -240,15 +261,15 @@ export default function MyTripsPage() {
                     </div>
                   ) : (
                     <div className="flex gap-2">
-                      <button onClick={() => handleAttendance(t.id, "completed")} disabled={!unlocked}
+                      <button onClick={() => handleAttendance(t.id, "completed")} disabled={!unlocked || attendanceLoading === t.id}
                         title={!unlocked ? "Unlocks once trip start time passes" : ""}
                         className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-green-500/20 bg-green-500/10 py-2.5 text-[10px] font-black text-app-ok transition-all hover:bg-green-500 hover:text-white uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">
-                        <Ic.Check size={12} /> Completed
+                        <Ic.Check size={12} /> {attendanceLoading === t.id ? "Saving..." : "Completed"}
                       </button>
-                      <button onClick={() => handleAttendance(t.id, "missed")} disabled={!unlocked}
+                      <button onClick={() => handleAttendance(t.id, "missed")} disabled={!unlocked || attendanceLoading === t.id}
                         title={!unlocked ? "Unlocks once trip start time passes" : ""}
                         className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-yellow-500/20 bg-yellow-500/10 py-2.5 text-[10px] font-black text-yellow-400 transition-all hover:bg-yellow-500 hover:text-white uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">
-                        <Ic.X size={12} /> Missed
+                        <Ic.X size={12} /> {attendanceLoading === t.id ? "Saving..." : "Missed"}
                       </button>
                     </div>
                   )}

@@ -1,12 +1,15 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware";
 import { allowRoles } from "../middleware/roleMiddleware"; // ضفنا دي عشان نحمي مسار الأدمن
-import { getNotifications, markAsRead, broadcastNotification } from "../Controllers/notificationController";
+import { getNotifications, markAsRead, markAllAsRead, broadcastNotification } from "../Controllers/notificationController";
 
 const router = express.Router();
 
 // مسار الطالب أو الأدمن عشان يجيب اشعاراته
 router.get("/", protect, getNotifications);
+
+// مسار عشان يخلي كل الاشعارات مقروءة
+router.put("/read-all", protect, markAllAsRead);
 
 // مسار عشان يخلي الإشعار مقروء
 router.put("/:id/read", protect, markAsRead);

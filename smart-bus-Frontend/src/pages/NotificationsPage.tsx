@@ -69,6 +69,18 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleReadAll = async () => {
+    const hasUnread = notifications.some(n => !n.read);
+    if (!hasUnread) return;
+
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      await Api.put('/notifications/read-all');
+    } catch (err) {
+      console.error("Failed to mark all as read", err);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 flex justify-center items-center h-64 text-app-mu font-syne font-bold animate-pulse">
@@ -80,8 +92,23 @@ export default function NotificationsPage() {
   return (
     <div className="p-6">
       
-      <div className="mx-auto max-w-[800px] space-y-3">
+      <div className="mx-auto max-w-[800px] space-y-4">
         
+        {/* Header & Read All */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-syne text-[15px] font-black uppercase tracking-wider text-app-tx">
+            Your Notifications
+          </h2>
+          {notifications.some(n => !n.read) && (
+            <button
+              onClick={handleReadAll}
+              className="px-4 py-2 bg-app-am/10 text-app-am text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-app-am hover:text-white transition-all shadow-sm"
+            >
+              Mark All Read
+            </button>
+          )}
+        </div>
+
         {notifications.map((n) => (
           <div 
             key={n._id} 

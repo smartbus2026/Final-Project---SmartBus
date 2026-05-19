@@ -24,20 +24,23 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
     fetchDashboardData();
   }, []);
 
-  const nextBooking = bookings.find(b => b.status === "active" || b.status === "pending") || bookings[0] || null;
+  const todayStr = new Date().toDateString();
+  const activeTrips = bookings
+    .filter(b => b.date && new Date(b.date).toDateString() === todayStr && (b.status === "pending" || b.status === "assigned"))
+    .slice(0, 2);
 
   const stats = [
     { l: "Total Demands",v: bookings.length.toString(),                                              icon: <Ic.Route size={18} />,    c: "text-app-am", bg: "bg-app-am/10" },
-    { l: "Assigned",     v: bookings.filter(b => b.status === "active").length.toString(),           icon: <Ic.Check size={18} />,    c: "text-app-ok", bg: "bg-app-ok/10" },
+    { l: "Assigned",     v: bookings.filter(b => b.status === "assigned" || b.status === "active").length.toString(), icon: <Ic.Check size={18} />,    c: "text-app-ok", bg: "bg-app-ok/10" },
     { l: "Pending",      v: bookings.filter(b => b.status === "pending").length.toString(),          icon: <Ic.Calendar size={18} />, c: "text-blue-400", bg: "bg-blue-500/10" },
     { l: "Cancelled",    v: bookings.filter(b => b.status === "cancelled").length.toString(),        icon: <Ic.X size={18} />,        c: "text-red-400", bg: "bg-red-500/10" },
   ];
 
   const quickActions = [
-    { l: "Book New Trip",  i: <Ic.Bus size={18} />,      c: "text-app-am",   bg: "bg-app-am/10",   border: "hover:border-app-am/40",   p: "bookTrip" },
-    { l: "Route Details",  i: <Ic.Map size={18} />,      c: "text-app-ok",   bg: "bg-app-ok/10",   border: "hover:border-app-ok/40",   p: "routeDetails" },
-    { l: "My Trips",       i: <Ic.Calendar size={18} />, c: "text-blue-400", bg: "bg-blue-500/10", border: "hover:border-blue-500/40", p: "myTrips" },
-    { l: "Notifications",  i: <Ic.Bell size={18} />,     c: "text-red-400",  bg: "bg-red-500/10",  border: "hover:border-red-500/40",  p: "notifications" },
+    { l: "Book New Trip",  i: <Ic.Bus size={18} />,      c: "text-app-am",   bg: "bg-app-am/10",   border: "hover:border-app-am/40",   p: "/book-trip" },
+    { l: "Route Details",  i: <Ic.Map size={18} />,      c: "text-app-ok",   bg: "bg-app-ok/10",   border: "hover:border-app-ok/40",   p: "/route-details" },
+    { l: "My Trips",       i: <Ic.Calendar size={18} />, c: "text-blue-400", bg: "bg-blue-500/10", border: "hover:border-blue-500/40", p: "/my-trips" },
+    { l: "Notifications",  i: <Ic.Bell size={18} />,     c: "text-red-400",  bg: "bg-red-500/10",  border: "hover:border-red-500/40",  p: "/notifications" },
   ];
 
   if (isLoading) {
@@ -91,45 +94,51 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
         {/* Left Column */}
         <div className="space-y-6">
 
-          {/* Next Trip Card */}
-          {nextBooking ? (
-            <div className="bg-app-card border border-app-bd rounded-2xl overflow-hidden shadow-sm hover:border-app-am/30 transition-all">
-              <div className="flex justify-between items-center px-6 py-4 border-b border-app-bd bg-app-am/5">
-                <div className="flex items-center gap-3">
-                  <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border ${
-                    nextBooking.status === "active"
-                      ? "bg-app-ok/10 text-app-ok border-app-ok/20"
-                      : "bg-app-am/10 text-app-am border-app-am/20"
-                  }`}>
-                    {nextBooking.status}
-                  </span>
-                  <h2 className="text-[13px] font-black uppercase tracking-tight">
-                    {nextBooking?.route?.name || "Selected Route"}
-                  </h2>
-                </div>
-                <button
-                  onClick={() => navigate("/track-bus")}
-                  className="hidden sm:flex items-center gap-2 bg-app-bg border border-app-bd px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-app-mu hover:text-app-tx hover:border-app-am transition-all"
-                >
-                  <Ic.Target size={12} /> Track Live
-                </button>
-              </div>
-
-              <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-                {[
-                  { label: "Date",        value: nextBooking?.date ? new Date(nextBooking.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "TBA" },
-                  { label: "Time Slot",   value: (nextBooking?.timeSlot === "Return" && nextBooking?.specificReturnTime) ? `${nextBooking.specificReturnTime} (Return)` : (nextBooking?.timeSlot || "TBA"), highlight: true },
-                  { label: "Status",      value: nextBooking?.status || "pending" },
-                  { label: "Route",       value: nextBooking?.route?.name || "TBA" },
-                ].map((item) => (
-                  <div key={item.label} className="space-y-1">
-                    <label className="block text-[9px] text-app-mu font-black uppercase tracking-widest">{item.label}</label>
-                    <p className={`text-[13px] font-black uppercase ${item.highlight ? "text-app-am" : "text-app-tx"}`}>
-                      {item.value}
-                    </p>
+          {/* Active Trips Widget */}
+          {activeTrips.length > 0 ? (
+            <div className="space-y-4">
+              {activeTrips.map((trip) => (
+                <div key={trip._id} className="bg-app-card border border-app-bd rounded-2xl overflow-hidden shadow-sm hover:border-app-am/30 transition-all">
+                  <div className="flex justify-between items-center px-6 py-4 border-b border-app-bd bg-app-am/5">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border ${
+                        trip.status === "assigned"
+                          ? "bg-app-am/10 text-app-am border-app-am/20"
+                          : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      }`}>
+                        {trip.status}
+                      </span>
+                      <h2 className="text-[13px] font-black uppercase tracking-tight">
+                        {trip.route?.name || "Selected Route"}
+                      </h2>
+                    </div>
+                    {trip.status === "assigned" && (
+                      <button
+                        onClick={() => navigate("/track-bus")}
+                        className="hidden sm:flex items-center gap-2 bg-app-bg border border-app-bd px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-app-mu hover:text-app-tx hover:border-app-am transition-all"
+                      >
+                        <Ic.Target size={12} /> Track Live
+                      </button>
+                    )}
                   </div>
-                ))}
-              </div>
+
+                  <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+                    {[
+                      { label: "Date",        value: trip.date ? new Date(trip.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "TBA" },
+                      { label: "Time Slot",   value: (trip.timeSlot === "Return" && trip.specificReturnTime) ? `${trip.specificReturnTime} (Return)` : (trip.timeSlot || "TBA"), highlight: true },
+                      { label: "Status",      value: trip.status || "pending" },
+                      { label: "Route",       value: trip.route?.name || "TBA" },
+                    ].map((item, idx) => (
+                      <div key={idx} className="space-y-1">
+                        <label className="block text-[9px] text-app-mu font-black uppercase tracking-widest">{item.label}</label>
+                        <p className={`text-[13px] font-black uppercase ${item.highlight ? "text-app-am" : "text-app-tx"}`}>
+                          {item.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="bg-app-card border border-dashed border-app-bd rounded-2xl p-10 text-center flex flex-col items-center">
@@ -138,7 +147,7 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
               </div>
               <h3 className="text-[12px] font-black uppercase tracking-widest text-app-tx mb-2">No Active Trips</h3>
               <p className="text-[10px] font-bold text-app-mu uppercase tracking-widest max-w-xs leading-relaxed">
-                You don't have any upcoming trips. Book a seat to see it here.
+                You don't have any active trips for today. Book a seat to see it here.
               </p>
             </div>
           )}
@@ -150,7 +159,7 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
                 <span className="text-app-am"><Ic.Calendar size={14} /></span> Recent Bookings
               </h3>
               <button
-                onClick={() => go?.("myTrips")}
+                onClick={() => navigate("/my-trips")}
                 className="text-[10px] text-app-am font-black uppercase tracking-widest hover:underline"
               >
                 View All →
@@ -220,7 +229,7 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
               {quickActions.map((act) => (
                 <button
                   key={act.l}
-                  onClick={() => go?.(act.p as Page)}
+                  onClick={() => navigate(act.p)}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border border-app-bd bg-app-bg transition-all group ${act.border}`}
                 >
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${act.bg} ${act.c}`}>
@@ -247,7 +256,7 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
               <span className="ml-auto w-2 h-2 rounded-full bg-app-ok animate-pulse shrink-0" />
             </div>
             <p className="text-[10px] text-app-mu font-medium leading-relaxed">
-              Ensure you book your return trip before the <span className="text-app-am font-black">2:00 PM</span> deadline daily.
+              Ensure you book your return trip before the <span className="text-app-am font-black">1:00 PM</span> deadline daily.
             </p>
           </div>
 

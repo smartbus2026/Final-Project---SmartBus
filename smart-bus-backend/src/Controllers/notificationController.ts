@@ -38,6 +38,26 @@ export const markAsRead = async (req: Request, res: Response) => {
   }
 };
 
+export const markAllAsRead = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    
+    const result = await Notification.updateMany(
+      { user: user.id, read: false },
+      { $set: { read: true } }
+    );
+
+    res.status(200).json({ 
+      status: "success", 
+      message: "All notifications marked as read",
+      updatedCount: result.modifiedCount
+    });
+
+  } catch (err: any) {
+    res.status(500).json({ status: "error", error: err.message });
+  }
+};
+
 export const broadcastNotification = async (req: Request, res: Response) => {
   try {
     const { title, message, target } = req.body;

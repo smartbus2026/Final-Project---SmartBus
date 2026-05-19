@@ -19,7 +19,7 @@ export type Page =
   | "settings";
 
 /** حالة الرحلة */
-export type TripStatus = "upcoming" | "completed" | "missed";
+export type TripStatus = "upcoming" | "completed" | "missed" | "cancelled";
 
 /** بيانات رحلة واحدة */
 export interface Trip {

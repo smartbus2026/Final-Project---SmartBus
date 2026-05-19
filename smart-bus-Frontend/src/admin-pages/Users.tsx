@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Ic } from '../icons';
 import Api from '../services/Api';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signupSchema, type SignupSchemaType } from '../schemas/authSchema';
@@ -254,6 +255,7 @@ const AddUserModal: React.FC<{
 
 // ─── Main UsersPage ───────────────────────────────────────────────────────────
 const UsersPage: React.FC = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -453,6 +455,15 @@ const UsersPage: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-10 py-7 text-right space-x-2">
+                    {user.role === 'student' && (
+                      <button
+                        onClick={() => navigate(`/admin/students/${user._id}`)}
+                        className="p-3 bg-app-am/10 text-app-am rounded-xl hover:bg-app-am hover:text-white dark:hover:text-black transition-all shadow-sm"
+                        title="View Attendance Profile"
+                      >
+                        <Ic.Users size={14} />
+                      </button>
+                    )}
                     <button onClick={() => setEditingUser(user)} className="p-3 bg-app-bg2 text-app-mu rounded-xl hover:bg-app-am hover:text-white dark:hover:text-black transition-all shadow-sm">
                       <Ic.Dots size={14} />
                     </button>

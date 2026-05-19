@@ -5,7 +5,8 @@ import {
     getAllUsers, 
     getProfile, 
     updateUser, 
-    deleteUser  
+    deleteUser,
+    getStudentAttendanceHistory
 } from "../Controllers/userController";
 
 const router = express.Router();
@@ -18,5 +19,8 @@ router.get("/profile", protect, getProfile);
 router.put("/:id", protect, updateUser);
 
 router.delete("/:id", protect, allowRoles("admin"), deleteUser);
+
+// Admin: Student attendance history
+router.get("/:studentId/attendance-history", protect, allowRoles("admin"), getStudentAttendanceHistory);
 
 export default router;

@@ -30,6 +30,7 @@ import ASupport from "./admin-pages/ASupport";
 import SettingsPage from "./admin-pages/SettingsPage";
 import StudentSettingsPage from "./pages/SettingsPage";
 import AdminProfilePage from "./admin-pages/AdminProfilePage";
+import StudentProfile from "./admin-pages/StudentProfile";
 
 import Chatbot from "./components/Chatbot";
 
@@ -125,6 +126,7 @@ export default function App() {
           <Route path="/admin/reports"       element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminReports /></Guard>} />
           <Route path="/admin/settings"      element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><SettingsPage /></Guard>} />
           <Route path="/admin/profile"       element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminProfilePage /></Guard>} />
+          <Route path="/admin/students/:studentId" element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><StudentProfile /></Guard>} />
 
         </Route>
 

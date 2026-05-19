@@ -52,3 +52,51 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ── Attendance Report with optional filters ─────────────────────────────────
+export const getAttendanceReport = async (req: Request, res: Response) => {
+  try {
+    const { date, routeId, busId, timeSlot, specificReturnTime } = req.query;
+
+    const query: any = {
+      attendanceStatus: { $in: ["completed", "missed"] }
+    };
+
+    // Date filter: match full day range
+    if (date) {
+      const dayStart = new Date(date as string);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(date as string);
+      dayEnd.setHours(23, 59, 59, 999);
+      query.date = { $gte: dayStart, $lte: dayEnd };
+    }
+
+    if (routeId)  query.route  = routeId;
+    if (busId)    query.busId  = busId;
+    if (timeSlot) query.timeSlot = timeSlot;
+    if (timeSlot === "Return" && specificReturnTime) {
+      query.specificReturnTime = specificReturnTime;
+    }
+
+    const bookings = await Booking.find(query)
+      .populate("user", "name email")
+      .populate("route", "name")
+      .populate("busId", "busCode")
+      .sort({ date: -1 });
+
+    const completed = bookings.filter((b: any) => b.attendanceStatus === "completed").length;
+    const missed    = bookings.filter((b: any) => b.attendanceStatus === "missed").length;
+    const total     = bookings.length;
+    const rate      = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    return res.status(200).json({
+      status: "success",
+      data: {
+        bookings,
+        stats: { completed, missed, total, rate }
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};

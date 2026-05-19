@@ -524,9 +524,22 @@ export const recoverCancelledBookings = async (req: Request, res: Response) => {
 
 export const getAssignedTrips = async (req: Request, res: Response) => {
   try {
-    const assignedBookings = await Booking.find({ status: "assigned" })
+    const query: any = { status: "assigned" };
+
+    // Optional date filter: if provided, match bookings on that exact date
+    if (req.query.date) {
+      const dateStr = req.query.date as string;
+      const dayStart = new Date(dateStr);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dateStr);
+      dayEnd.setHours(23, 59, 59, 999);
+      query.date = { $gte: dayStart, $lte: dayEnd };
+    }
+
+    const assignedBookings = await Booking.find(query)
       .populate("route", "name")
-      .populate("busId", "busCode driver");
+      .populate("busId", "busCode driver capacity")
+      .populate("user", "name email");
 
     const groupedTrips: any = {};
 
@@ -543,17 +556,29 @@ export const getAssignedTrips = async (req: Request, res: Response) => {
           id: groupKey,
           routeId: routeId,
           routeName: booking.route?.name || "Unknown Route",
+          route: booking.route || null,
           busId: busId,
           busNumber: booking.busId?.busCode || "Unknown Bus",
+          bus: booking.busId || null,
+          driverName: booking.busId?.driver || "Unassigned",
           timeSlot: timeSlot,
-          specificReturnTime: booking.specificReturnTime,
+          specificReturnTime: booking.specificReturnTime || null,
           passengerCount: 0,
+          students: [],
           date: booking.date,
           status: booking.status
         };
       }
 
       groupedTrips[groupKey].passengerCount += 1;
+      if (booking.user) {
+        groupedTrips[groupKey].students.push({
+          _id: booking.user._id,
+          name: booking.user.name,
+          email: booking.user.email,
+          bookingId: booking._id,
+        });
+      }
     });
 
     const tripsArray = Object.values(groupedTrips);

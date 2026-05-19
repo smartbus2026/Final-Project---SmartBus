@@ -4,25 +4,48 @@ import Api from "../services/Api";
 interface BookingRecord {
   _id: string;
   attended: boolean;
+  attendanceStatus: string;
   status: string;
-  trip: {
-    date: string;
-    time_slot: string;
-    route?: { name: string };
-  };
+  date: string;
+  timeSlot: string;
+  route?: { name: string };
+  specificReturnTime?: string;
 }
 
 export default function AttendancePage() {
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
+  const [settings, setSettings] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  const handleAttendance = async (id: string, newStatus: "completed" | "missed") => {
+    setLoadingId(id);
+    try {
+      await Api.patch(`/bookings/${id}/attendance`, { attendanceStatus: newStatus });
+      setBookings(prev =>
+        prev.map(b => b._id === id
+          ? { ...b, attendanceStatus: newStatus, status: newStatus, attended: newStatus === "completed" }
+          : b
+        )
+      );
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to update attendance");
+    } finally {
+      setLoadingId(null);
+    }
+  };
 
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await Api.get("/bookings/my");
+        const [res, sRes] = await Promise.all([
+          Api.get("/bookings/my"),
+          Api.get("/settings")
+        ]);
         setBookings(res.data?.data?.bookings || []);
+        setSettings(sRes.data?.data?.settings || null);
       } catch (err) {
-        console.error("Failed to fetch bookings", err);
+        console.error("Failed to fetch data", err);
       } finally {
         setIsLoading(false);
       }
@@ -30,37 +53,59 @@ export default function AttendancePage() {
     fetch();
   }, []);
 
+  const checkTripTiming = (b: BookingRecord) => {
+    if (!settings) return { isStarted: false, isExpired: false };
+    
+    let timeStr = "";
+    if (b.timeSlot === "Morning") {
+      timeStr = settings.morningStartTime || "08:30 AM";
+    } else {
+      timeStr = b.specificReturnTime || "03:30 PM";
+    }
+
+    const parseTimeToMinutes = (t: string) => {
+      if (!t) return 0;
+      const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (!m) return 0;
+      let h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
+      if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
+      return h * 60 + min;
+    };
+
+    const tripMin = parseTimeToMinutes(timeStr);
+    const tripStartTime = new Date(b.date);
+    tripStartTime.setHours(Math.floor(tripMin / 60), tripMin % 60, 0, 0);
+
+    const now = new Date();
+    
+    // Trip hasn't started yet
+    if (now < tripStartTime) return { isStarted: false, isExpired: false };
+
+    // More than 2 hours after trip start time
+    const expiredTime = new Date(tripStartTime.getTime() + 120 * 60000);
+    if (now > expiredTime) return { isStarted: true, isExpired: true };
+
+    return { isStarted: true, isExpired: false };
+  };
+
   const timeSlotMap: Record<string, string> = {
     morning: "Morning",
     return_1530: "3:30 PM",
     return_1900: "7:00 PM",
   };
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   const allBookings = bookings.filter(b => b.status !== "cancelled");
 
-  const todayBookings = allBookings.filter(b => {
-    const d = new Date(b.trip?.date);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime() === today.getTime() && b.status !== "completed" && b.status !== "missed";
-  });
-
-  const pastBookings = allBookings.filter(b => {
-    const d = new Date(b.trip?.date);
-    d.setHours(0, 0, 0, 0);
-    return d < today || b.status === "completed" || b.status === "missed";
-  });
-
-  const present = pastBookings.filter(b => b.attended).length;
-  const missed = pastBookings.filter(b => !b.attended).length;
-  const total = pastBookings.length;
+  const present = allBookings.filter(b => b.attendanceStatus === "completed").length;
+  const missed = allBookings.filter(b => b.attendanceStatus === "missed").length;
+  const total = present + missed;
   const pct = total > 0 ? Math.round((present / total) * 100) : 0;
 
   const groupedByDate: Record<string, BookingRecord[]> = {};
-  pastBookings.forEach(b => {
-    const dateKey = new Date(b.trip?.date).toDateString();
+  allBookings.forEach(b => {
+    const dateKey = new Date(b.date).toDateString();
     if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
     groupedByDate[dateKey].push(b);
   });
@@ -117,33 +162,10 @@ export default function AttendancePage() {
         </p>
       </div>
 
-      {todayBookings.length > 0 && (
-        <div className="rounded-2xl border border-app-am/30 bg-app-card p-6">
-          <h3 className="mb-4 font-syne text-[13px] font-bold uppercase tracking-wider text-app-am">
-            Today's Trips
-          </h3>
-          <div className="space-y-3">
-            {todayBookings.map(b => (
-              <div key={b._id} className="flex items-center justify-between p-3 rounded-xl border border-app-bd bg-app-card2/50">
-                <div>
-                  <div className="text-[12px] font-bold text-app-tx">{b.trip?.route?.name || "—"}</div>
-                  <div className="text-[10px] text-app-mu uppercase">{timeSlotMap[b.trip?.time_slot] || b.trip?.time_slot}</div>
-                </div>
-                {b.attended ? (
-                  <span className="px-2 py-1 rounded-md text-[10px] font-black uppercase bg-green-500/10 text-app-ok border border-green-500/20">✓ Present</span>
-                ) : (
-                  <span className="px-2 py-1 rounded-md text-[10px] font-black uppercase bg-app-am/10 text-app-am border border-app-am/20">Pending</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="rounded-2xl border border-app-bd bg-app-card p-6">
-        <h3 className="mb-6 font-syne text-[13px] font-bold uppercase tracking-wider text-app-tx">Trip History</h3>
+        <h3 className="mb-6 font-syne text-[13px] font-bold uppercase tracking-wider text-app-tx">Trip Log</h3>
         {sortedDates.length === 0 ? (
-          <p className="text-center text-app-mu text-xs py-8 font-bold uppercase">No past trips yet</p>
+          <p className="text-center text-app-mu text-xs py-8 font-bold uppercase">No trip history found</p>
         ) : (
           <div className="space-y-6">
             {sortedDates.map(dateKey => (
@@ -152,26 +174,65 @@ export default function AttendancePage() {
                   <span className="text-[11px] font-black uppercase tracking-wider text-app-am">{dateKey}</span>
                   <div className="flex-1 h-px bg-app-bd" />
                   <span className="text-[9px] font-bold text-app-mu">
-                    {groupedByDate[dateKey].filter(b => b.attended).length}/{groupedByDate[dateKey].length} present
+                    {groupedByDate[dateKey].filter(b => b.attendanceStatus === "completed").length}/{groupedByDate[dateKey].length} present
                   </span>
                 </div>
                 <div className="space-y-2">
-                  {groupedByDate[dateKey].map(b => (
-                    <div key={b._id} className="flex items-center justify-between p-3 rounded-xl border border-app-bd bg-app-card2/30 hover:bg-app-card2/50 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${b.attended ? "bg-app-ok" : "bg-app-err"}`} />
-                        <div>
-                          <div className="text-[12px] font-bold text-app-tx">{b.trip?.route?.name || "—"}</div>
-                          <div className="text-[10px] text-app-mu uppercase">{timeSlotMap[b.trip?.time_slot] || b.trip?.time_slot}</div>
+                  {groupedByDate[dateKey].map(b => {
+                    const { isStarted, isExpired } = checkTripTiming(b);
+                    return (
+                      <div key={b._id} className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between p-3 rounded-xl border border-app-bd bg-app-card2/30 hover:bg-app-card2/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${
+                            b.attendanceStatus === "completed" ? "bg-app-ok" : 
+                            b.attendanceStatus === "missed" ? "bg-app-err" : 
+                            "bg-app-am"
+                          }`} />
+                          <div>
+                            <div className="text-[12px] font-bold text-app-tx">{b.route?.name || "—"}</div>
+                            <div className="text-[10px] text-app-mu uppercase">{b.timeSlot} {b.specificReturnTime ? `(${b.specificReturnTime})` : ""}</div>
+                          </div>
                         </div>
+                        
+                        {b.status === "assigned" && b.attendanceStatus !== "completed" && b.attendanceStatus !== "missed" ? (
+                          isExpired ? (
+                            <span className="px-3 py-1.5 rounded-md text-[10px] font-black uppercase w-fit bg-red-500/10 text-app-err border border-red-500/20" title="Trip duration ended">
+                              Expired
+                            </span>
+                          ) : (
+                            <div className="flex gap-2 w-full sm:w-auto">
+                              <button
+                                disabled={loadingId === b._id || !isStarted}
+                                title={!isStarted ? "Trip hasn't started yet" : ""}
+                                onClick={() => handleAttendance(b._id, "completed")}
+                                className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 rounded-md text-[10px] font-black uppercase bg-green-500/10 text-app-ok border border-green-500/20 hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-500/10 disabled:hover:text-app-ok"
+                              >
+                                {loadingId === b._id ? "..." : "✓ Boarded"}
+                              </button>
+                              <button
+                                disabled={loadingId === b._id || !isStarted}
+                                title={!isStarted ? "Trip hasn't started yet" : ""}
+                                onClick={() => handleAttendance(b._id, "missed")}
+                                className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 rounded-md text-[10px] font-black uppercase bg-red-500/10 text-app-err border border-red-500/20 hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-500/10 disabled:hover:text-app-err"
+                              >
+                                {loadingId === b._id ? "..." : "✗ Missed"}
+                              </button>
+                            </div>
+                          )
+                        ) : (
+                          <span className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase w-fit border ${
+                            b.attendanceStatus === "completed" ? "bg-green-500/10 text-app-ok border-green-500/20" : 
+                            b.attendanceStatus === "missed" ? "bg-red-500/10 text-app-err border-red-500/20" : 
+                            "bg-app-am/10 text-app-am border-app-am/20"
+                          }`}>
+                            {b.attendanceStatus === "completed" ? "Present" : 
+                             b.attendanceStatus === "missed" ? "Missed" : 
+                             b.status}
+                          </span>
+                        )}
                       </div>
-                      {b.attended ? (
-                        <span className="px-2 py-1 rounded-md text-[10px] font-black uppercase bg-green-500/10 text-app-ok border border-green-500/20">Present</span>
-                      ) : (
-                        <span className="px-2 py-1 rounded-md text-[10px] font-black uppercase bg-red-500/10 text-app-err border border-red-500/20">Missed</span>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}

@@ -75,10 +75,12 @@ const AdminNotifications: React.FC = () => {
   };
 
   const handleMarkAllRead = async () => {
-    const unread = inbox.filter(n => !n.read);
+    const hasUnread = inbox.some(n => !n.read);
+    if (!hasUnread) return;
+
     setInbox(prev => prev.map(n => ({ ...n, read: true })));
     try {
-      await Promise.all(unread.map(n => Api.put(`/notifications/${n._id}/read`)));
+      await Api.put('/notifications/read-all');
     } catch (err) {
       console.error('Failed to mark all as read', err);
     }
