@@ -5,7 +5,7 @@ export const signupSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
-  role: z.enum(["student", "admin"]),
+  role: z.enum(["student", "admin", "driver"]),
   student_id: z.string().optional(),
   phone_number: z.string().min(10, "Invalid phone number"),
 }).refine((data) => data.password === data.confirmPassword, {

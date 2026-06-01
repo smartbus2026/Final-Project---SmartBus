@@ -16,6 +16,9 @@ import WelcomePage from "./pages/WelcomePage";
 import Login from "./pages/Login";
 import TrackBusPage from "./pages/TrackBusPage";
 import BookTripPage from "./pages/BookTripPage";
+import DriverLayout from "./pages/DriverLayout";
+import DriverTrips from "./pages/DriverTrips";
+import DriverLiveTracking from "./pages/DriverLiveTracking";
 
 // --- Admin Pages ---
 import AdminDashboard from "./admin-pages/ADashboard";
@@ -35,7 +38,7 @@ import StudentProfile from "./admin-pages/StudentProfile";
 import Chatbot from "./components/Chatbot";
 
 // --- Types ---
-type Role = "student" | "admin" | null;
+type Role = "student" | "admin" | "driver" | null;
 type Theme = "dark" | "light";
 
 // --- Route Guard ---
@@ -93,7 +96,8 @@ export default function App() {
           element={
             role === "admin" ? <Navigate to="/admin/dashboard" replace /> :
               role === "student" ? <Navigate to="/dashboard" replace /> :
-                <Navigate to="/signup" replace />
+                role === "driver" ? <Navigate to="/driver/dashboard" replace /> :
+                  <Navigate to="/signup" replace />
           }
         />
 
@@ -107,7 +111,7 @@ export default function App() {
           <Route path="/notifications" element={<Guard role={role} allowed={["student"]} redirectTo="/login"><NotificationsPage /></Guard>} />
           <Route path="/support"       element={<Guard role={role} allowed={["student"]} redirectTo="/login"><SupportPage /></Guard>} />
           <Route path="/profile"       element={<Guard role={role} allowed={["student"]} redirectTo="/login"><ProfilePage /></Guard>} />
-          <Route path="/settings"      element={<Guard role={role} allowed={["student"]} redirectTo="/login"><StudentSettingsPage /></Guard>} />
+          <Route path="/settings"      element={<Guard role={role} allowed={["student", "driver"]} redirectTo="/login"><StudentSettingsPage /></Guard>} />
           <Route path="/attendance"    element={<Guard role={role} allowed={["student"]} redirectTo="/login"><AttendancePage /></Guard>} />
           <Route path="/route-chat"    element={<Guard role={role} allowed={["student"]} redirectTo="/login"><TripChat /></Guard>} />
           <Route path="/book-trip"     element={<Guard role={role} allowed={["student"]} redirectTo="/login"><BookTripPage /></Guard>} />
@@ -127,6 +131,12 @@ export default function App() {
           <Route path="/admin/settings"      element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><SettingsPage /></Guard>} />
           <Route path="/admin/profile"       element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminProfilePage /></Guard>} />
           <Route path="/admin/students/:studentId" element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><StudentProfile /></Guard>} />
+
+          {/* Driver Routes */}
+          <Route element={<Guard role={role} allowed={["driver"]} redirectTo="/login"><DriverLayout /></Guard>}>
+            <Route path="/driver/dashboard" element={<DriverTrips />} />
+            <Route path="/driver/live-tracking" element={<DriverLiveTracking />} />
+          </Route>
 
         </Route>
 

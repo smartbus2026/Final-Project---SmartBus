@@ -4,7 +4,7 @@ import { Ic } from "../icons";
 interface Props {  
   open: boolean; 
   setOpen: (v: boolean) => void;
-  role: "student" | "admin" | null;
+  role: "student" | "admin" | "driver" | null;
   onLogout: () => void;
 }
 
@@ -35,6 +35,15 @@ const ADMIN_BOTTOM = [
   { id: "settings", path: "/admin/settings", label: "Settings",       icon: <Ic.Gear /> },
 ];
 
+const DRIVER_NAV = [
+  { id: "driverDashboard", path: "/driver/dashboard", label: "My Trips", icon: <Ic.Bus /> },
+  { id: "liveTracking", path: "/driver/live-tracking", label: "Live Tracking", icon: <Ic.Target /> },
+];
+
+const DRIVER_BOTTOM = [
+  { id: "settings", path: "/settings", label: "Profile Settings", icon: <Ic.Gear /> },
+];
+
 const STUDENT_BOTTOM = [
   { id: "support",  path: "/support",  label: "Support Center",  icon: <Ic.Help /> },
   { id: "settings", path: "/settings", label: "Profile Settings", icon: <Ic.Gear /> },
@@ -42,8 +51,8 @@ const STUDENT_BOTTOM = [
 
 export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
 
-  const NAV = role === "admin" ? ADMIN_NAV : STUDENT_NAV;
-  const BOTTOM_NAV = role === "admin" ? ADMIN_BOTTOM : STUDENT_BOTTOM;
+  const NAV        = role === "admin" ? ADMIN_NAV    : role === "driver" ? DRIVER_NAV    : STUDENT_NAV;
+  const BOTTOM_NAV  = role === "admin" ? ADMIN_BOTTOM : role === "driver" ? DRIVER_BOTTOM : STUDENT_BOTTOM;
 
   return (
     <>
@@ -72,6 +81,11 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
                   ADMIN
                 </span>
               )}
+              {role === "driver" && (
+                <span className="text-[8px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded-md ml-2 border border-blue-400/20 font-black">
+                  DRIVER
+                </span>
+              )}
             </h1>
           </div>
         </div>
@@ -83,6 +97,7 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
               <NavLink 
                 key={n.id} 
                 to={n.path}
+                end
                 className={({ isActive }) => `
                   flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
                   ${isActive 
@@ -108,6 +123,7 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
             <NavLink
               key={n.id}
               to={n.path}
+              end
               className={({ isActive }) => `
                 flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
                 ${isActive
@@ -125,7 +141,8 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
           ))}
 
           <button 
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setOpen(false);
               onLogout();
             }}

@@ -3,10 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Ic } from '../icons';
 import Api from '../services/Api'; 
 
-interface RouteOption {
-  _id: string;
-  name: string;
-}
 
 interface BookingSettings {
   booking_open_hour: number;
@@ -22,9 +18,11 @@ const CreateBusPage: React.FC = () => {
 
   const [formData, setFormData] = useState({
     busCode: '',
-    driverName: '',
+    driver: '',
     capacity: 45
   });
+
+  const [drivers, setDrivers] = useState<Array<{_id: string; name: string}>>([]);
 
   const [settings, setSettings] = useState<BookingSettings>({
     booking_open_hour: 20,
@@ -33,6 +31,9 @@ const CreateBusPage: React.FC = () => {
     booking_close_minute: 0,
   });
 
+  // Monthly Quota State
+  const [quota, setQuota] = useState({ used: 0, total: 308 });
+
   const [modal, setModal] = useState({ 
     isOpen: false, 
     type: "success",
@@ -40,29 +41,50 @@ const CreateBusPage: React.FC = () => {
   });
 
   useEffect(() => {
-    const fetchSettings = async () => {
+    const fetchAllData = async () => {
+      // 1. Fetch Critical Data (Drivers and Settings)
       try {
-        const res = await Api.get('/settings');
-        setSettings(res.data.data.settings);
+        const [settingsRes, usersRes] = await Promise.all([
+          Api.get('/settings'),
+          Api.get('/users')
+        ]);
+        setSettings(settingsRes.data.data.settings);
+        const allUsers = usersRes.data || [];
+        setDrivers(allUsers.filter((u: { role: string }) => u.role === 'driver'));
       } catch (err) {
-        console.error("Failed to fetch settings", err);
+        console.error("Failed to fetch critical settings and drivers", err);
+      }
+
+      // 2. Fetch Non-Critical Data (Fleet Quota — count of Bus documents)
+      try {
+        const quotaRes = await Api.get('/buses/quota');
+        if (quotaRes.data) {
+          setQuota({ used: quotaRes.data.usedCapacity || 0, total: quotaRes.data.totalCapacity || 308 });
+        }
+      } catch (err) {
+        console.error("Failed to fetch fleet quota", err);
       }
     };
 
-    fetchSettings();
+    fetchAllData();
   }, []);
+
+  const quotaPercentage = Math.min((quota.used / quota.total) * 100, 100);
+  const quotaColor = quotaPercentage < 70 ? 'bg-emerald-500' : quotaPercentage < 85 ? 'bg-amber-500' : 'bg-red-500';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    console.log("Submitting Trip Payload with Driver ID:", formData.driver);
     try {
       await Api.post('/buses', formData);
       setModal({ isOpen: true, type: "success", message: "Bus created successfully!" });
-      setFormData({ busCode: '', driverName: '', capacity: 45 });
+      setFormData({ busCode: '', driver: '', capacity: 45 });
       // If we are sharing state, it's generally best to refetch.
       // But we handled this in ADashboard with setInterval(fetchBuses, 5000), so it will auto-update!
-    } catch (err: any) {
-      setModal({ isOpen: true, type: "error", message: err.response?.data?.message || "Failed to create bus" });
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setModal({ isOpen: true, type: "error", message: error.response?.data?.message || "Failed to create bus" });
     } finally {
       setIsSubmitting(false);
     }
@@ -73,8 +95,9 @@ const CreateBusPage: React.FC = () => {
     try {
       await Api.put('/settings', settings);
       setModal({ isOpen: true, type: "success", message: "Booking window updated successfully!" });
-    } catch (err: any) {
-      setModal({ isOpen: true, type: "error", message: err.response?.data?.message || "Failed to save settings" });
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setModal({ isOpen: true, type: "error", message: error.response?.data?.message || "Failed to save settings" });
     } finally {
       setIsSavingSettings(false);
     }
@@ -91,6 +114,22 @@ const CreateBusPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-black uppercase tracking-widest text-app-tx">Create Bus</h1>
           <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">Add new vehicles to your fleet</p>
+        </div>
+      </div>
+
+      {/* ── Monthly Quota Progress Bar ── */}
+      <div className="bg-app-card border border-app-bd rounded-[2.5rem] p-8 shadow-xl">
+        <div className="flex justify-between items-end mb-4">
+          <h2 className="text-lg font-black uppercase tracking-widest text-app-tx">Monthly Fleet Quota</h2>
+          <span className="text-[12px] font-bold text-app-mu uppercase tracking-widest">
+            {quota.used} / {quota.total} Buses Used
+          </span>
+        </div>
+        <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden border border-app-bd">
+          <div 
+            className={`h-full ${quotaColor} transition-all duration-500 ease-out rounded-full`}
+            style={{ width: `${quotaPercentage}%` }}
+          />
         </div>
       </div>
 
@@ -115,16 +154,20 @@ const CreateBusPage: React.FC = () => {
             
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
-                <Ic.Users size={14} /> Driver Name
+                <Ic.Users size={14} /> Driver
               </label>
-              <input 
-                type="text"
+              <select 
                 required
-                placeholder="e.g. John Doe"
-                value={formData.driverName}
-                onChange={e => setFormData({ ...formData, driverName: e.target.value })}
-                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors"
-              />
+                name="driver"
+                value={formData.driver}
+                onChange={e => setFormData({ ...formData, driver: e.target.value })}
+                className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors appearance-none cursor-pointer"
+              >
+                <option value="" disabled>-- Select Driver --</option>
+                {drivers.map(driver => (
+                  <option key={driver._id} value={driver._id}>{driver.name}</option>
+                ))}
+              </select>
             </div>
           </div>
 

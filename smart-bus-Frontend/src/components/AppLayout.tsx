@@ -8,7 +8,7 @@ import { Outlet } from "react-router-dom";
 interface Props {
   theme: Theme;
   setTheme: () => void;
-  role: "student" | "admin" | null;
+  role: "student" | "admin" | "driver" | null;
   onLogout: () => void;
 }
 
@@ -17,7 +17,11 @@ export default function AppLayout({ theme, setTheme, role, onLogout }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const effectiveRole = location.pathname.startsWith("/admin") ? "admin" : (role ?? "student");
+  const effectiveRole = location.pathname.startsWith("/admin")
+    ? "admin"
+    : location.pathname.startsWith("/driver")
+      ? "driver"
+      : (role ?? "student");
 
   const handleLogout = () => {
     onLogout();

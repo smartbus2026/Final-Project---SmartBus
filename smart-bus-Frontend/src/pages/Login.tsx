@@ -8,7 +8,7 @@ import Api from '../services/Api';
 import { useAuth } from '../context/AuthContext';
 
 interface LoginProps { 
-  onSuccess?: (role: "student" | "admin") => void; 
+  onSuccess?: (role: "student" | "admin" | "driver") => void; 
 }
 
 const Login: React.FC<LoginProps> = ({ onSuccess }) => {
@@ -37,7 +37,9 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
       if (token) {
         login(token, user.role);
         if (onSuccess) onSuccess(user.role);
-        navigate(user.role === 'admin' ? '/admin/dashboard' : '/dashboard');
+        if (user.role === 'admin') navigate('/admin/dashboard');
+        else if (user.role === 'driver') navigate('/driver/dashboard');
+        else navigate('/dashboard');
       }
     } catch (error: any) {
       setServerError(error.response?.data?.message || 'Invalid email or password');

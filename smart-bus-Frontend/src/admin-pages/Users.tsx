@@ -11,7 +11,7 @@ interface UserType {
   _id: string;
   name: string;
   email: string;
-  role: 'student' | 'admin';
+  role: 'student' | 'admin' | 'driver';
   student_id?: string;
   phone_number?: string;
   createdAt: string;
@@ -76,19 +76,32 @@ const AddUserModal: React.FC<{
     setLoading(true);
     setServerError(null);
     try {
-      await Api.post('/auth/register', {
+      // Build payload — student_id field is shared for both Student ID and Driver ID
+      const payload: Record<string, any> = {
         name: data.fullName,
         email: data.email,
         password: data.password,
-...(data.role === 'student' && data.student_id ? { student_id: data.student_id } : {}),
         role: data.role,
         phone_number: data.phone_number,
-      });
+      };
+
+      // Only attach student_id when a role that uses an ID field is selected
+      if ((data.role === 'student' || data.role === 'driver') && data.student_id) {
+        payload.student_id = data.student_id;
+      }
+
+      await Api.post('/auth/register', payload);
       setToast({ msg: '✅ User added successfully', type: 'success' });
       onSuccess();
       onClose();
     } catch (error: any) {
-      setServerError(error.response?.data?.message || 'Registration failed.');
+      // Backend returns { message } on 400s and { error } on 500s — handle both
+      console.error('Registration Error Response:', error.response?.data);
+      const serverMsg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        'Registration failed. Check the console for details.';
+      setServerError(serverMsg);
     } finally {
       setLoading(false);
     }
@@ -131,8 +144,8 @@ const AddUserModal: React.FC<{
             )}
 
             {/* Role Switcher */}
-            <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-app-bg rounded-2xl border border-app-bd">
-              {(['student', 'admin'] as const).map((role) => (
+            <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-app-bg rounded-2xl border border-app-bd">
+              {(['student', 'admin', 'driver'] as const).map((role) => (
                 <label
                   key={role}
                   className={`
@@ -168,7 +181,7 @@ const AddUserModal: React.FC<{
               disabled={loading}
             />
 
-            <div className={`grid gap-4 ${selectedRole === 'student' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <div className={`grid gap-4 ${selectedRole === 'student' || selectedRole === 'driver' ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <InputGroup
                 label="Phone Number"
                 icon={<Phone size={15} />}
@@ -184,6 +197,16 @@ const AddUserModal: React.FC<{
                   error={errors.student_id?.message}
                   inputProps={register('student_id')}
                   placeholder="ID Number"
+                  disabled={loading}
+                />
+              )}
+              {selectedRole === 'driver' && (
+                <InputGroup
+                  label="Driver ID"
+                  icon={<Hash size={15} />}
+                  error={errors.student_id?.message}
+                  inputProps={register('student_id')}
+                  placeholder="Driver ID No."
                   disabled={loading}
                 />
               )}
@@ -368,6 +391,7 @@ const UsersPage: React.FC = () => {
                   <select className="w-full bg-app-bg border border-app-bd p-4 rounded-xl text-xs font-bold outline-none focus:border-app-am text-app-tx appearance-none" value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as any})}>
                     <option value="student">STUDENT</option>
                     <option value="admin">ADMIN</option>
+                    <option value="driver">DRIVER</option>
                   </select>
                 </div>
               </div>

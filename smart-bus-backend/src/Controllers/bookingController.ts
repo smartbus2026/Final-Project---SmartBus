@@ -5,7 +5,49 @@ import Trip from "../models/Trip";
 import Notification from "../models/notification";
 import Settings from "../models/Settings.model";
 import Bus from "../models/Bus";
+import User from "../models/User";
 import { getIO } from "../socket";
+import {
+  NotificationManager,
+  PushNotificationStrategy,
+  MultiChannelStrategy,
+  EmailNotificationStrategy
+} from "../services/notification";
+
+// ─── Booking-window guard ─────────────────────────────────────────────────────
+// Mirrors the calcWindow() logic in BookTripPage.tsx so backend and frontend
+// are always in perfect agreement about whether the window is open.
+//
+// The previous implementation used:
+//   currentMinutes < openMinutes || currentMinutes > closeMinutes
+//
+// This is permanently TRUE (always blocking) when the admin configures a
+// midnight-crossing window such as 23:00 → 02:30, because closeMinutes (150)
+// is less than openMinutes (1380) — so the condition fires at every single
+// minute of the day and every booking attempt gets a 400 response.
+//
+// This helper handles both cases:
+//   • Same-day window  (e.g. 20:00 → 23:00): close >= open
+//   • Midnight-crossing (e.g. 23:00 → 02:30): close <  open
+function isWindowOpen(settings: {
+  booking_open_hour: number;
+  booking_open_minute: number;
+  booking_close_hour: number;
+  booking_close_minute: number;
+}): boolean {
+  const now            = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const openMinutes    = settings.booking_open_hour  * 60 + settings.booking_open_minute;
+  const closeMinutes   = settings.booking_close_hour * 60 + settings.booking_close_minute;
+
+  if (closeMinutes >= openMinutes) {
+    // Same-day window
+    return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+  } else {
+    // Midnight-crossing window: open if past opening OR before closing
+    return currentMinutes >= openMinutes || currentMinutes < closeMinutes;
+  }
+}
 
 export const createBooking = async (req: Request, res: Response) => {
   try {
@@ -23,16 +65,12 @@ export const createBooking = async (req: Request, res: Response) => {
     }
 
     const settings = await Settings.findOne();
-    if (settings) {
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const openMinutes = settings.booking_open_hour * 60 + settings.booking_open_minute;
-      const closeMinutes = settings.booking_close_hour * 60 + settings.booking_close_minute;
-      if (currentMinutes < openMinutes || currentMinutes > closeMinutes) {
-        return res.status(400).json({
-          message: `Booking is only available between ${settings.booking_open_hour}:${String(settings.booking_open_minute).padStart(2, "0")} and ${settings.booking_close_hour}:${String(settings.booking_close_minute).padStart(2, "0")}`
-        });
-      }
+    if (settings && !isWindowOpen(settings)) {
+      const fmt = (h: number, m: number) =>
+        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      return res.status(400).json({
+        message: `Booking is only available between ${fmt(settings.booking_open_hour, settings.booking_open_minute)} and ${fmt(settings.booking_close_hour, settings.booking_close_minute)}`
+      });
     }
 
     const route = await Route.findById(routeId);
@@ -42,28 +80,35 @@ export const createBooking = async (req: Request, res: Response) => {
 
     const bookingDate = new Date(date);
 
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    if (bookingDate.toDateString() !== tomorrow.toDateString()) {
-      return res.status(400).json({ message: "You can only register for the next day's routes." });
-    }
+    // ── "Next-day only" restriction removed ─────────────────────────────────
+    // The original guard below was:
+    //   const tomorrow = new Date();
+    //   tomorrow.setDate(tomorrow.getDate() + 1);
+    //   if (bookingDate.toDateString() !== tomorrow.toDateString()) { return 400; }
+    //
+    // It blocked booking for today's active trips and prevented testing live
+    // tracking. Booking is now valid for any future date (today or later).
+    // The booking-window time check above (isWindowOpen) is still enforced.
 
     const dayStart = new Date(bookingDate); dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(bookingDate); dayEnd.setHours(23, 59, 59, 999);
 
+    // INJECT VALIDATION QUERIES: Find all existing bookings for this specific user_id on the EXACT SAME DATE
     const todaysBookings = await Booking.find({
       user: user.id,
       date: { $gte: dayStart, $lte: dayEnd },
       status: { $ne: "cancelled" }
     });
 
-    if (todaysBookings.length >= 2) {
-      return res.status(400).json({ message: "You can only have a maximum of 2 bookings per day." });
-    }
-
+    // Rule 1 (Shift Collision): If the user already has a booking for the SAME time_slot
     const duplicateSlot = todaysBookings.find((b: any) => b.timeSlot === timeSlot);
     if (duplicateSlot) {
-      return res.status(400).json({ message: `You already have a ${timeSlot} trip booked. Please edit your existing booking instead.` });
+      return res.status(400).json({ message: `You have already booked a ${timeSlot} trip for this date.` });
+    }
+
+    // Rule 2 (Max Daily Limit): If the total bookings for that day is already 2 (or more)
+    if (todaysBookings.length >= 2) {
+      return res.status(400).json({ message: "You have reached your maximum limit of 2 trips (1 Morning, 1 Return) for this date." });
     }
 
     const booking = await Booking.create({
@@ -82,6 +127,7 @@ export const createBooking = async (req: Request, res: Response) => {
       type: "booking",
     });
 
+    console.log("Booking created successfully without date restrictions");
     res.status(201).json({
       status: "success",
       message: "Booking demand saved successfully",
@@ -100,9 +146,35 @@ export const getMyBookings = async (req: Request, res: Response) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const bookings = await Booking.find({ user: user.id, date: { $gte: todayStart } })
+    const rawBookings = await Booking.find({ user: user.id, date: { $gte: todayStart } })
       .populate("route")
+      .lean()
       .sort("-createdAt");
+
+    // Manually attach the associated Trip to each booking so the frontend can track its status
+    const bookings = await Promise.all(rawBookings.map(async (b: any) => {
+      let time_slot = "morning";
+      if (b.timeSlot === "Return") {
+        time_slot = b.specificReturnTime === "19:00" ? "return_1900" : "return_1530";
+      }
+
+      // Match the Trip based on route, date, and timeslot.
+      // CRITICAL FIX: Ensure we include 'active' and 'in_progress' so the trip doesn't vanish when started!
+      const trip = await Trip.findOne({
+        route: b.route._id,
+        date: {
+          $gte: new Date(new Date(b.date).setHours(0, 0, 0, 0)),
+          $lt: new Date(new Date(b.date).setHours(23, 59, 59, 999))
+        },
+        time_slot: time_slot,
+        status: { $in: ['scheduled', 'active', 'in_progress'] }
+      }).populate({ path: "route", populate: { path: "stops", model: "Stop" } }).lean();
+
+      return { ...b, trip: trip || null };
+    }));
+
+    // VERIFICATION LOG REQUIRED BY USER
+    console.log("VERIFY: Fetched Bookings Data (with attached Trips):", bookings);
 
     res.status(200).json({
       status: "success",
@@ -187,14 +259,8 @@ export const updateBooking = async (req: Request, res: Response) => {
     if (booking.status === "cancelled") return res.status(400).json({ message: "Cannot edit a cancelled booking" });
 
     const settings = await Settings.findOne();
-    if (settings) {
-      const now = new Date();
-      const cur = now.getHours() * 60 + now.getMinutes();
-      const open = settings.booking_open_hour * 60 + settings.booking_open_minute;
-      const close = settings.booking_close_hour * 60 + settings.booking_close_minute;
-      if (cur < open || cur > close) {
-        return res.status(400).json({ message: "Booking edits are only allowed during the registration window." });
-      }
+    if (settings && !isWindowOpen(settings)) {
+      return res.status(400).json({ message: "Booking edits are only allowed during the registration window." });
     }
 
     if (timeSlot && timeSlot !== booking.timeSlot) {
@@ -439,6 +505,29 @@ export const dispatchBus = async (req: Request, res: Response) => {
     const bus = await Bus.findById(busId);
     if (!bus) return res.status(404).json({ status: "error", message: "Bus not found" });
 
+    // ── Driver Double-Booking Validation ──
+    const driverId = (bus as any).driver;
+    const slotMap: Record<string, "morning" | "return_1530" | "return_1900"> = {
+      Morning: "morning",
+      Return:  specificReturnTime === "7:00 PM" ? "return_1900" : "return_1530",
+    };
+    const tripTimeSlot = slotMap[timeSlot] ?? "morning";
+
+    const existingTripForDriver = await Trip.findOne({
+      driver: driverId,
+      time_slot: tripTimeSlot,
+      date: { $gte: targetDate, $lte: dayEnd },
+      status: { $ne: "cancelled" }
+    });
+
+    if (existingTripForDriver) {
+      return res.status(400).json({ 
+        status: "error", 
+        message: "This driver is already assigned to another trip in this time slot today. Cannot assign." 
+      });
+    }
+    // ────────────────────────────────────────
+
     // Build the dynamic query
     const query: any = {
       route: { $in: routeIds },
@@ -466,6 +555,57 @@ export const dispatchBus = async (req: Request, res: Response) => {
       { _id: { $in: bookingIds } },
       { $set: { status: "assigned", busId: busId } }
     );
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BRIDGE FIX: Create one Trip document per route so the Driver Dashboard
+    // can find it via Trip.find({ driver: req.user._id }).
+    // ─────────────────────────────────────────────────────────────────────────
+
+    console.log("[DISPATCH] Bus driver ObjectId:", driverId);
+    console.log("[DISPATCH] Creating Trip documents for routeIds:", routeIds);
+
+    const tripUpserts = await Promise.all(
+      routeIds.map(async (routeId: string) => {
+        // Count passengers on this specific route
+        const passengerCount = bookingsToUpdate.filter(
+          b => b.route?.toString() === routeId
+        ).length;
+
+        // Use findOneAndUpdate with upsert so re-dispatching the same
+        // route/date/slot updates the existing Trip rather than duplicating.
+        const result = await Trip.findOneAndUpdate(
+          {
+            route:     routeId,
+            driver:    driverId,
+            date:      targetDate,
+            time_slot: tripTimeSlot,
+          },
+          {
+            $set: {
+              bus_number:   bus.busCode,
+              total_seats:  bus.capacity ?? 45,
+              booked_seats: passengerCount,
+              status:       "scheduled",
+            },
+            $setOnInsert: {
+              route:     routeId,
+              driver:    driverId,
+              date:      targetDate,
+              time_slot: tripTimeSlot,
+            },
+          },
+          { upsert: true, new: true }
+        );
+
+        console.log(
+          `[DISPATCH] Trip upserted — _id: ${result?._id} | route: ${routeId} | driver: ${driverId} | date: ${targetDate.toISOString().split("T")[0]}`
+        );
+
+        return result;
+      })
+    );
+
+    console.log("[DISPATCH] Total Trip documents upserted:", tripUpserts.length);
 
     // Create notifications for students
     const message = `Your bus has been assigned! Bus No: ${bus.busCode} is now covering your route.`;
@@ -500,9 +640,81 @@ export const dispatchBus = async (req: Request, res: Response) => {
       console.warn("Socket.io not initialized, skipping realtime emission", socketErr);
     }
 
+    // ── Shift Quota Warning ────────────────────────────────────────────────────
+    // After a successful dispatch, count distinct bus assignments for this
+    // time slot on the dispatched date and fire a notification if the soft
+    // limit is exceeded.
+    try {
+      const SHIFT_LIMIT = 7;
+
+      const distinctShiftAssignments = await Booking.aggregate([
+        {
+          $match: {
+            status: { $in: ["assigned", "active", "completed"] },
+            busId: { $exists: true, $ne: null },
+            date: { $gte: targetDate, $lte: dayEnd },
+            timeSlot: timeSlot
+          }
+        },
+        {
+          $group: {
+            _id: "$busId"
+          }
+        },
+        { $count: "total" }
+      ]);
+
+      const currentShiftCount = distinctShiftAssignments[0]?.total || 0;
+
+      if (currentShiftCount >= SHIFT_LIMIT) {
+        // ── Idempotency Check ──
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        // Ensure we haven't already notified about this exact shift/date today
+        const existingWarning = await Notification.findOne({
+          title: "Shift Quota Exceeded",
+          message: { $regex: `${timeSlot}.*${targetDate.toDateString()}`, $options: "i" },
+          createdAt: { $gte: startOfDay }
+        });
+
+        if (!existingWarning) {
+          const admins = await User.find({ role: "admin" }).select("_id");
+          const pushStrategy = new PushNotificationStrategy();
+          const criticalStrategy = new MultiChannelStrategy([
+            new PushNotificationStrategy(),
+            new EmailNotificationStrategy()
+          ]);
+          const strategy = currentShiftCount > SHIFT_LIMIT ? criticalStrategy : pushStrategy;
+
+          for (const admin of admins) {
+            await NotificationManager.notify(
+              admin._id.toString(),
+              strategy,
+              "Shift Quota Exceeded",
+              `Warning: The capacity for the ${timeSlot} shift on ${targetDate.toDateString()} is exhausted. You have assigned ${currentShiftCount} buses, exceeding the limit of ${SHIFT_LIMIT}.`
+            );
+          }
+
+          try {
+            const io = getIO();
+            io.to("admins").emit("newNotification", {
+              title: "Shift Quota Exceeded",
+              message: `Warning: ${timeSlot} shift now has ${currentShiftCount}/${SHIFT_LIMIT} buses assigned.`,
+              type: "system",
+              createdAt: new Date()
+            });
+          } catch (_) { /* socket may not be available */ }
+        }
+      }
+    } catch (quotaErr) {
+      // Non-critical — do not fail the dispatch if the quota check errors
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     res.status(200).json({
       status: "success",
-      message: `Successfully assigned bus to ${bookingIds.length} bookings. Students notified.`
+      message: `Successfully assigned bus to ${bookingIds.length} bookings and created ${tripUpserts.length} Trip(s). Students notified.`
     });
   } catch (err: any) {
     console.error("[DispatchBus Error]:", err);
@@ -538,7 +750,11 @@ export const getAssignedTrips = async (req: Request, res: Response) => {
 
     const assignedBookings = await Booking.find(query)
       .populate("route", "name")
-      .populate("busId", "busCode driver capacity")
+      .populate({
+        path: "busId",
+        select: "busCode driver capacity",
+        populate: { path: "driver", select: "name email" }
+      })
       .populate("user", "name email");
 
     const groupedTrips: any = {};
@@ -560,13 +776,14 @@ export const getAssignedTrips = async (req: Request, res: Response) => {
           busId: busId,
           busNumber: booking.busId?.busCode || "Unknown Bus",
           bus: booking.busId || null,
-          driverName: booking.busId?.driver || "Unassigned",
+          driverName: booking.busId?.driver?.name || "Unassigned",
           timeSlot: timeSlot,
           specificReturnTime: booking.specificReturnTime || null,
           passengerCount: 0,
           students: [],
           date: booking.date,
-          status: booking.status
+          status: booking.status,
+          actualIds: []
         };
       }
 
@@ -582,6 +799,35 @@ export const getAssignedTrips = async (req: Request, res: Response) => {
     });
 
     const tripsArray = Object.values(groupedTrips);
+
+    // INJECT FIX: Resolve the true Trip _id for each grouped booking to prevent CastError
+    const Trip = (await import("../models/Trip")).default;
+    for (const group of tripsArray as any[]) {
+      let tripTimeSlot = "morning";
+      if (group.timeSlot === "Return") {
+        tripTimeSlot = group.specificReturnTime === "19:00" || group.specificReturnTime === "7:00 PM" ? "return_1900" : "return_1530";
+      }
+      
+      const dayStart = new Date(group.date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(group.date);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const realTrip = await Trip.findOne({
+        route: group.routeId,
+        time_slot: tripTimeSlot,
+        $or: [
+          { date: { $gte: dayStart, $lte: dayEnd } },
+          { departure_time: { $gte: dayStart, $lte: dayEnd } }
+        ]
+      });
+
+      if (realTrip) {
+        group.actualTripId = realTrip._id.toString();
+        group.actualIds = [realTrip._id.toString()];
+        group.id = realTrip._id.toString(); // Override composite string with real MongoDB ObjectId
+      }
+    }
 
     res.status(200).json({
       status: "success",

@@ -23,7 +23,7 @@ interface Props {
   theme: Theme;
   setTheme: () => void;
   onMenu: () => void;
-  role: "student" | "admin" | null;
+  role: "student" | "admin" | "driver" | null;
 }
 
 interface NotifItem {

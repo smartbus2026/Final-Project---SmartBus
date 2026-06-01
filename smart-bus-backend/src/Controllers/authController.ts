@@ -13,7 +13,7 @@ const generateToken = (id: any, role: string) => {
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, student_id, role, phone_number } = req.body;
+    const { name, email, password, student_id, driver_id, role, phone_number } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields required" });
@@ -26,11 +26,14 @@ export const register = async (req: Request, res: Response) => {
 
     const hashed = await bcrypt.hash(password, 10);
 
+    // Resolve the ID field: drivers send driver_id OR student_id (shared field in schema)
+    const resolvedId = student_id || driver_id || undefined;
+
     const newUser = await User.create({
       name,
       email,
       password: hashed,
-      student_id,
+      student_id: resolvedId,
       role: role || "student",
       phone_number
     });
@@ -46,7 +49,9 @@ export const register = async (req: Request, res: Response) => {
     });
 
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    console.error("[register error]", err.message);
+    // Mongoose validation / duplicate key errors produce a descriptive message
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -63,7 +68,8 @@ export const login = async (req: Request, res: Response) => {
     }
     return res.status(401).json({ message: "Invalid email or password" });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    console.error("[login error]", err.message);
+    return res.status(500).json({ message: err.message });
   }
 };
 

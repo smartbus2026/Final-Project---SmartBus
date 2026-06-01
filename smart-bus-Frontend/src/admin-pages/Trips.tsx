@@ -22,6 +22,7 @@ interface AssignedTripData {
   students: Student[];
   date: string;
   status: string;
+  actualIds?: string[];
 }
 
 const today = new Date().toISOString().split('T')[0];
@@ -30,6 +31,85 @@ const ManageTripsPage: React.FC = () => {
   const [trips, setTrips] = useState<AssignedTripData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // ── Delete Logic ──
+  const handleDelete = async (trip: AssignedTripData) => {
+    if (!window.confirm("Are you sure you want to delete this trip?")) return;
+    try {
+      const tripIds = trip.actualIds && trip.actualIds.length > 0 
+        ? trip.actualIds 
+        : [trip.id]; // fallback
+        
+      await Api.delete('/trips/bulk', { 
+        data: { tripIds } 
+      });
+      setTrips(prev => prev.filter(t => t.id !== trip.id));
+    } catch (err: any) {
+      console.error("Failed to delete trip", err);
+      alert(err.response?.data?.message || "Failed to delete trip.");
+    }
+  };
+
+  // ── Edit Logic ──
+  const [editingTrip, setEditingTrip] = useState<AssignedTripData | null>(null);
+  const [editForm, setEditForm] = useState({ bus_number: '', time_slot: '' });
+
+  const handleEditClick = (trip: AssignedTripData) => {
+    setEditingTrip(trip);
+    // Determine internal timeslot value mapping for the form based on presentation
+    let internalSlot = "morning";
+    if (trip.timeSlot === "Return") {
+      internalSlot = trip.specificReturnTime === "19:00" ? "return_1900" : "return_1530";
+    }
+    setEditForm({
+      bus_number: trip.busNumber || '',
+      time_slot: internalSlot
+    });
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTrip) return;
+    try {
+      const targetId = editingTrip.actualIds && editingTrip.actualIds.length > 0 
+        ? editingTrip.actualIds[0] 
+        : editingTrip.id;
+
+      if (targetId.includes("-")) {
+        alert("Cannot edit: No real Trip found for this assignment group.");
+        return;
+      }
+
+      const res = await Api.put(`/trips/${targetId}`, editForm);
+      const updatedTrip = res.data;
+
+      
+      // Compute presentation values
+      let presentSlot = "Morning";
+      let presentReturn = null;
+      if (updatedTrip.time_slot === "return_1530") {
+        presentSlot = "Return"; presentReturn = "15:30";
+      } else if (updatedTrip.time_slot === "return_1900") {
+        presentSlot = "Return"; presentReturn = "19:00";
+      }
+
+      setTrips(prev => prev.map(t => {
+        if (t.id === editingTrip.id) {
+          return {
+            ...t,
+            busNumber: updatedTrip.bus_number || t.busNumber,
+            timeSlot: presentSlot,
+            specificReturnTime: presentReturn
+          };
+        }
+        return t;
+      }));
+      setEditingTrip(null);
+    } catch (err: any) {
+      console.error("Failed to update trip", err);
+      alert(err.response?.data?.message || "Failed to update trip.");
+    }
+  };
 
   // ── Filters ──
   const [selectedDate, setSelectedDate] = useState(today);
@@ -207,9 +287,17 @@ const ManageTripsPage: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                    <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border ${colorClass}`}>
-                      {trip.status}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border ${colorClass}`}>
+                        {trip.status}
+                      </span>
+                      <button onClick={() => handleEditClick(trip)} className="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:bg-blue-500/10 px-2 py-1 rounded-lg transition-colors">
+                        Edit
+                      </button>
+                      <button onClick={() => handleDelete(trip)} className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 px-2 py-1 rounded-lg transition-colors">
+                        Delete
+                      </button>
+                    </div>
                   </div>
 
                   {/* Info Rows */}
@@ -278,6 +366,55 @@ const ManageTripsPage: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Edit Modal ── */}
+      {editingTrip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-app-card border border-app-bd rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl relative">
+            <h2 className="text-xl font-black uppercase tracking-widest text-app-tx mb-6">Edit Trip</h2>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-app-mu mb-2">Bus Number</label>
+                <input
+                  type="text"
+                  value={editForm.bus_number}
+                  onChange={e => setEditForm({ ...editForm, bus_number: e.target.value })}
+                  className="w-full bg-app-bg text-app-tx border border-app-bd rounded-xl px-4 py-3 focus:outline-none focus:border-app-am transition-colors"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-app-mu mb-2">Time Slot</label>
+                <select
+                  value={editForm.time_slot}
+                  onChange={e => setEditForm({ ...editForm, time_slot: e.target.value })}
+                  className="w-full bg-app-bg text-app-tx border border-app-bd rounded-xl px-4 py-3 focus:outline-none focus:border-app-am transition-colors"
+                  required
+                >
+                  <option value="morning">Morning</option>
+                  <option value="return_1530">Return 15:30</option>
+                  <option value="return_1900">Return 19:00</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 mt-8">
+                <button
+                  type="button"
+                  onClick={() => setEditingTrip(null)}
+                  className="px-6 py-3 rounded-xl border border-app-bd text-[10px] font-black uppercase tracking-widest text-app-mu hover:text-app-tx transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 rounded-xl bg-app-am text-black text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-colors shadow-lg shadow-app-am/20"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

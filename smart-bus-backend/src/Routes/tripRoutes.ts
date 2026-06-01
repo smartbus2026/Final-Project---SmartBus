@@ -2,22 +2,40 @@ import express from "express";
 import { protect } from "../middleware/authMiddleware";
 import { allowRoles } from "../middleware/roleMiddleware";
 
-import {createTrip,getTrips,getTripById,updateTrip, deleteTrip,startTrip,updateLocation,endTrip} from "../Controllers/tripController";
+import {
+  createTrip,
+  getTrips,
+  getTripById,
+  getDriverTrips,
+  updateTrip,
+  deleteTrip,
+  startTrip,
+  updateLocation,
+  endTrip,
+  getMonthlyQuota,
+  bulkDeleteTrips
+} from "../Controllers/tripController";
 
 const router = express.Router();
 
-// users
+// All authenticated users
 router.get("/", protect, getTrips);
-router.get("/:id", protect, getTripById);
+router.get("/driver-trips", protect, allowRoles("driver"), getDriverTrips);
 
-// admin only
+// Admin only
+router.get("/quota", protect, allowRoles("admin"), getMonthlyQuota);
+
+router.get("/:id", protect, getTripById);
 router.post("/", protect, allowRoles("admin"), createTrip);
 router.put("/:id", protect, allowRoles("admin"), updateTrip);
+router.delete("/bulk", protect, allowRoles("admin"), bulkDeleteTrips);
 router.delete("/:id", protect, allowRoles("admin"), deleteTrip);
 
-// tracking
-router.patch("/:id/start", protect, allowRoles("admin"), startTrip);
+// Driver or Admin can start/end a trip
+router.patch("/:id/start", protect, allowRoles("admin", "driver"), startTrip);
+router.patch("/:id/end", protect, allowRoles("admin", "driver"), endTrip);
+
+// HTTP fallback for location update (admin only)
 router.put("/:id/location", protect, allowRoles("admin"), updateLocation);
-router.put("/:id/end", protect, allowRoles("admin"), endTrip);
 
 export default router;

@@ -71,9 +71,19 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
         const res = await Api.get('/bookings/my');
         console.log("My Bookings Data:", res.data);
         const bookings = res.data?.data?.bookings || [];
+        
+        // VERIFICATION LOG REQUIRED BY USER
+        console.log("VERIFY: Fetched Bookings Data:", bookings);
 
-        // Pick the first non-cancelled booking to bypass strict date/status checks
-        const active = bookings.find((b: any) => b.status !== 'cancelled' && b.trip);
+        // Pick the first booking with an attached trip that is either scheduled or actively running
+        const active = bookings.find((b: any) => 
+          b.status !== 'cancelled' && 
+          b.trip && 
+          ['scheduled', 'active', 'in_progress'].includes(b.trip.status)
+        );
+
+        // VERIFICATION LOG REQUIRED BY USER
+        console.log("VERIFY: Evaluated Active Booking for Map:", active);
 
         setActiveBooking(active || null);
       } catch (err) {
@@ -92,11 +102,22 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
       transports: ["websocket", "polling"]
     });
 
-    socketRef.current.emit("join-trip-room", activeBooking.trip._id);
+    socketRef.current.emit("join_trip_room", activeBooking.trip._id);
 
-    socketRef.current.on("bus_location_update", (data: any) => {
-      if (data.tripId === activeBooking.trip._id && data.location) {
-        setBusPosition([data.location.lat, data.location.lng]);
+    socketRef.current.on("bus_location_updated", (data: any) => {
+      // Strict payload expectation: { lat, lng }
+      if (data.lat !== undefined && data.lng !== undefined) {
+        console.log("Received live location from driver. Updating map:", data.lat, data.lng);
+        setBusPosition([data.lat, data.lng]);
+        
+        // Step 2: Status Sync
+        setActiveBooking((prev: any) => {
+          if (prev?.trip?.status === 'scheduled') {
+            return { ...prev, trip: { ...prev.trip, status: 'active' } };
+          }
+          return prev;
+        });
+
         setEta(prev => (prev > 1 ? prev - 1 : 1)); // Mock ETA decrease
       }
     });
