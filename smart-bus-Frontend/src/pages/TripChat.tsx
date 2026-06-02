@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import socket from "../services/socket";
 import Api from "../services/Api";
 import { Ic } from "../icons";
@@ -15,8 +16,9 @@ interface Message {
 }
 
 export default function GroupChat() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  const [messageLabel, setMessageLabel] = useState("Loading chat status...");
+  const [messageLabel, setMessageLabel] = useState("");
   const [roomId, setRoomId] = useState("");
   const [routeName, setRouteName] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
@@ -39,15 +41,15 @@ export default function GroupChat() {
           setRouteName(data.routeName);
           setTimeSlot(data.timeSlot);
           setMessages(data.messages || []);
-          
+
           socket.emit("joinRoom", data.roomId);
         } else {
           setIsOpen(false);
-          setMessageLabel(data.message || "Chat is closed.");
+          setMessageLabel(data.message || t("chat_is_closed"));
         }
       } catch (err) {
         console.error("Failed to fetch chat status", err);
-        setMessageLabel("Failed to verify chat status.");
+        setMessageLabel(t("chat_failed_status"));
       } finally {
         setIsLoading(false);
       }
@@ -57,7 +59,7 @@ export default function GroupChat() {
     return () => {
       if (roomId) socket.emit("leaveRoom", roomId);
     };
-  }, []); // Only on mount
+  }, [t]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -99,8 +101,8 @@ export default function GroupChat() {
         <div className="w-24 h-24 bg-app-card border border-app-bd rounded-full flex items-center justify-center text-app-mu mb-6 shadow-inner">
           <Ic.Clock size={40} />
         </div>
-        <h2 className="font-syne text-2xl font-black text-app-tx tracking-tight mb-2 uppercase">Chat Window Closed</h2>
-        <p className="text-sm font-bold text-app-mu uppercase tracking-widest max-w-sm leading-relaxed">{messageLabel}</p>
+        <h2 className="font-syne text-2xl font-black text-app-tx tracking-tight mb-2 uppercase">{t("chat_window_closed")}</h2>
+        <p className="text-sm font-bold text-app-mu uppercase tracking-widest max-w-sm leading-relaxed">{messageLabel || t("chat_is_closed")}</p>
       </div>
     );
   }
@@ -110,16 +112,16 @@ export default function GroupChat() {
       {/* Chat Header */}
       <div className="bg-app-card border-b border-app-bd px-6 py-4 flex items-center justify-between shadow-sm shrink-0">
         <div>
-          <h2 className="font-syne text-lg font-black text-app-tx tracking-tight">Route Group Chat</h2>
+          <h2 className="font-syne text-lg font-black text-app-tx tracking-tight">{t("route_group_chat")}</h2>
           <div className="flex items-center gap-2 text-[10px] font-bold text-app-mu mt-1 uppercase tracking-widest">
             <span className="text-app-am flex items-center gap-1"><Ic.Pin size={10}/> {routeName}</span>
             <span>•</span>
-            <span>{timeSlot} Wave</span>
+            <span>{timeSlot} {t("chat_wave")}</span>
           </div>
         </div>
         <div className="flex items-center gap-2 bg-app-ok/10 border border-app-ok/20 text-app-ok px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
           <div className="w-1.5 h-1.5 rounded-full bg-app-ok animate-pulse" />
-          Live
+          {t("live")}
         </div>
       </div>
 
@@ -130,8 +132,8 @@ export default function GroupChat() {
             <div className="w-16 h-16 bg-app-card2 rounded-full flex items-center justify-center text-app-mu mb-4 shadow-inner">
               <Ic.Send size={24} />
             </div>
-            <p className="text-xs font-bold text-app-tx uppercase tracking-widest">No messages yet</p>
-            <p className="text-[10px] text-app-mu mt-1">Be the first to say hello!</p>
+            <p className="text-xs font-bold text-app-tx uppercase tracking-widest">{t("no_messages_yet")}</p>
+            <p className="text-[10px] text-app-mu mt-1">{t("be_first_hello")}</p>
           </div>
         ) : (
           messages.map((m) => {
@@ -165,7 +167,7 @@ export default function GroupChat() {
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your message..."
+            placeholder={t("type_message_placeholder")}
             className="flex-1 bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-sm font-medium text-app-tx outline-none focus:border-app-am/50 transition-all placeholder:opacity-40"
           />
           <button
@@ -173,7 +175,7 @@ export default function GroupChat() {
             disabled={!newMessage.trim()}
             className="bg-app-am hover:brightness-110 text-black px-6 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-app-am/10"
           >
-            Send <Ic.Send size={14} />
+            {t("send")} <Ic.Send size={14} />
           </button>
         </form>
       </div>

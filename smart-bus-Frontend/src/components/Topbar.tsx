@@ -1,22 +1,23 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import type { Theme } from "../types";
 import { Ic } from "../icons";
 import Api from "../services/Api";
 import socket from "../services/socket";
+import LanguageSwitcher from "./LanguageSwitcher";
 
-
-const META: Record<string, { title: string; sub: string }> = {
-  "/dashboard":          { title: "Dashboard",        sub: "Welcome back" },
-  "/book-trip":          { title: "Book Trip",         sub: "Reserve your seat for tomorrow" },
-  "/my-trips":           { title: "My Trips",          sub: "Manage your weekly transportation" },
-  "/track-bus":          { title: "Track Bus",         sub: "Live bus location and ETA" },
-  "/settings":           { title: "My Profile",        sub: "Manage your personal information" },
-  "/admin/dashboard":    { title: "Dashboard",         sub: "Overview of today's operations" },
-  "/admin/users":        { title: "Users Management",  sub: "Manage students and drivers" },
-  "/admin/routes":       { title: "Manage Routes",     sub: "Configure bus routes" },
-  "/admin/settings":     { title: "Settings",          sub: "Global system configuration" },
-  "/admin/support":      { title: "Support Inbox",     sub: "View and manage student tickets" },
+const META_KEYS: Record<string, { title: string; sub: string }> = {
+  "/dashboard": { title: "dashboard", sub: "topbar_welcomeBack" },
+  "/book-trip": { title: "topbar_bookTrip", sub: "topbar_reserveSeat" },
+  "/my-trips": { title: "topbar_myTrips", sub: "topbar_weeklyTransport" },
+  "/track-bus": { title: "topbar_trackBus", sub: "topbar_liveBusEta" },
+  "/settings": { title: "topbar_myProfile", sub: "topbar_managePersonalInfo" },
+  "/admin/dashboard": { title: "dashboard", sub: "topbar_adminDashboardOverview" },
+  "/admin/users": { title: "topbar_usersManagement", sub: "topbar_manageStudentsDrivers" },
+  "/admin/routes": { title: "topbar_manageRoutes", sub: "topbar_configureRoutes" },
+  "/admin/settings": { title: "settings", sub: "topbar_globalSystemConfig" },
+  "/admin/support": { title: "topbar_supportInbox", sub: "topbar_manageTickets" },
 };
 
 interface Props {
@@ -35,6 +36,7 @@ interface NotifItem {
 }
 
 export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
+  const { t } = useTranslation();
   const [nd, setNd] = useState(false);
   const [ud, setUd] = useState(false);
   const location = useLocation();
@@ -72,9 +74,12 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
     return () => clearTimeout(timer);
   }, [searchQuery, isAdmin]);
 
-  const { title, sub } = META[location.pathname] || {
-    title: "SmartBus",
-    sub: isAdmin ? "Admin Panel" : "Student Portal",
+  const routeMeta = META_KEYS[location.pathname];
+  const { title, sub } = routeMeta
+    ? { title: t(routeMeta.title), sub: t(routeMeta.sub) }
+    : {
+    title: t("dashboard"),
+    sub: isAdmin ? t("topbar_adminPanel") : t("topbar_studentPortal"),
   };
 
   // ── Live user profile ──────────────────────────────────────────────────────
@@ -136,7 +141,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
     const handleNewNotif = (notif: any) => {
       setNotifs(prev => [{
         _id: notif._id || Date.now().toString(),
-        title: notif.title || "New Alert",
+        title: notif.title || t("topbar_newAlert"),
         message: notif.message || "",
         read: false,
         createdAt: notif.createdAt || new Date().toISOString(),
@@ -151,7 +156,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
       socket.off("newNotification", handleNewNotif);
       socket.off("new_notification", handleNewNotif);
     };
-  }, [user._id, isAdmin]);
+  }, [user._id, isAdmin, t]);
 
   const unreadCount = notifs.filter((n) => !n.read).length;
 
@@ -195,7 +200,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
             </h2>
             {isAdmin && (
               <span className="text-[9px] font-black uppercase tracking-widest bg-app-am/10 text-app-am border border-app-am/20 px-2 py-0.5 rounded-md">
-                Admin
+                {t("admin")}
               </span>
             )}
           </div>
@@ -205,6 +210,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
 
       {/* ── Right: Actions ── */}
       <div className="flex items-center gap-4 md:gap-6" onClick={(e) => e.stopPropagation()}>
+        <LanguageSwitcher />
         
         {/* Search */}
         {isAdmin && (
@@ -214,7 +220,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search students..."
+                placeholder={t("topbar_searchStudents")}
                 className="bg-transparent text-[13px] font-medium outline-none placeholder:text-app-mu2 text-app-tx w-full"
               />
             </div>
@@ -224,9 +230,9 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
               <div className="absolute top-full mt-2 left-0 w-full rounded-2xl border border-app-bd/50 bg-app-card shadow-2xl z-50 overflow-hidden">
                 <div className="max-h-64 overflow-y-auto custom-scrollbar">
                   {isSearching ? (
-                    <div className="p-4 text-center text-[10px] font-bold text-app-mu uppercase tracking-widest">Searching...</div>
+                    <div className="p-4 text-center text-[10px] font-bold text-app-mu uppercase tracking-widest">{t("topbar_searching")}</div>
                   ) : searchResults.length === 0 ? (
-                    <div className="p-4 text-center text-[10px] font-bold text-app-mu uppercase tracking-widest">No users found</div>
+                    <div className="p-4 text-center text-[10px] font-bold text-app-mu uppercase tracking-widest">{t("topbar_noUsersFound")}</div>
                   ) : (
                     searchResults.map(u => (
                       <div 
@@ -278,18 +284,18 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
             <div className={`${dropClass} w-80`}>
               <div className="flex items-center justify-between border-b border-app-bd/40 p-4 bg-app-card2/30">
                 <span className="font-syne text-[13px] font-bold text-app-tx uppercase tracking-wider">
-                  {isAdmin ? "System Alerts" : "Alerts"}
+                  {isAdmin ? t("topbar_systemAlerts") : t("topbar_alerts")}
                 </span>
                 {unreadCount > 0 && (
                   <span className="rounded-lg bg-app-am/10 px-2 py-0.5 text-[9px] font-black text-app-am border border-app-am/20">
-                    {unreadCount} NEW
+                    {t("topbar_unread_badge", { count: unreadCount })}
                   </span>
                 )}
               </div>
               <div className="max-h-80 overflow-y-auto custom-scrollbar">
                 {notifs.length === 0 ? (
                   <p className="p-6 text-center text-[11px] text-app-mu font-bold opacity-50">
-                    No notifications
+                    {t("topbar_noNotifications")}
                   </p>
                 ) : (
                   notifs.slice(0, 5).map((n) => (
@@ -322,7 +328,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
                 onClick={() => { navigate(isAdmin ? "/admin/notifications" : "/notifications"); setNd(false); }}
                 className="w-full border-t border-app-bd/30 py-3 text-center text-[11px] font-black uppercase tracking-widest text-app-am hover:bg-app-am hover:text-white transition-all"
               >
-                See All Notifications
+                {t("topbar_seeAllNotifications")}
               </button>
             </div>
           )}
@@ -355,7 +361,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
                 onClick={() => { navigate(isAdmin ? "/admin/profile" : "/profile"); setUd(false); }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all"
               >
-                <Ic.User /> Profile
+                <Ic.User /> {t("profile")}
               </button>
 
               {/* Settings Button (Dynamic Route) */}
@@ -363,7 +369,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
                 onClick={() => { navigate(isAdmin ? "/admin/settings" : "/settings"); setUd(false); }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-app-mu hover:bg-app-card2 hover:text-app-am transition-all"
               >
-                <Ic.Gear /> Settings
+                <Ic.Gear /> {t("settings")}
               </button>
 
               <div className="h-[1px] bg-app-bd/30 mx-2 my-1" />
@@ -373,7 +379,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
                 onClick={handleLogout}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-app-err hover:bg-app-err/10 transition-all"
               >
-                <Ic.Logout /> Sign Out
+                <Ic.Logout /> {t("sign_out")}
               </button>
             </div>
           )}

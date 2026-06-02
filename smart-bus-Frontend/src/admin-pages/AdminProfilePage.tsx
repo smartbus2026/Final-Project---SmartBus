@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Ic } from '../icons';
 import Api from '../services/Api';
 
 const AdminProfilePage = () => {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<string | null>(null);
@@ -25,16 +27,16 @@ const AdminProfilePage = () => {
     setPreview(objectUrl);
   };
 
-  if (loading) return <div className="p-8 text-center text-app-mu font-black uppercase tracking-widest text-[11px]">Loading profile...</div>;
-  if (!profile) return <div className="p-8 text-center text-app-err font-black uppercase tracking-widest text-[11px]">Failed to load profile</div>;
+  if (loading) return <div className="p-8 text-center text-app-mu font-black uppercase tracking-widest text-[11px]">{t('loading_profile')}</div>;
+  if (!profile) return <div className="p-8 text-center text-app-err font-black uppercase tracking-widest text-[11px]">{t('failed_load_profile')}</div>;
 
   return (
     <div className="p-8 space-y-8 bg-app-bg text-app-tx min-h-screen transition-colors duration-500 animate-in fade-in zoom-in-95">
       
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black uppercase tracking-widest text-app-tx">Admin Profile</h2>
-          <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">Manage Your Administrator Account</p>
+          <h2 className="text-2xl font-black uppercase tracking-widest text-app-tx">{t('admin_profile')}</h2>
+          <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">{t('manage_admin_account')}</p>
         </div>
       </div>
 
@@ -54,26 +56,26 @@ const AdminProfilePage = () => {
             <h2 className="text-2xl font-black text-app-tx uppercase tracking-wider">{profile.name}</h2>
             <p className="text-[11px] font-bold text-app-mu uppercase tracking-[0.2em]">{profile.email}</p>
             <span className="inline-block px-4 py-1.5 bg-app-am/10 text-app-am text-[10px] font-black uppercase tracking-widest rounded-xl mt-2 border border-app-am/20">
-              System Administrator
+              {t('system_administrator')}
             </span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8 border-t border-app-bd/50">
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-app-mu">Admin ID</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-app-mu">{t('admin_id')}</p>
             <div className="bg-app-card2 px-4 py-3 rounded-2xl border border-app-bd/30 font-bold text-[13px]">
               {profile._id?.slice(-6).toUpperCase() || "ADM-001"}
             </div>
           </div>
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-app-mu">Contact Number</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-app-mu">{t('contact_number')}</p>
             <div className="bg-app-card2 px-4 py-3 rounded-2xl border border-app-bd/30 font-bold text-[13px]">
-              {profile.phone || "Not Configured"}
+              {profile.phone || t('not_configured')}
             </div>
           </div>
           <div className="space-y-2 md:col-span-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-app-mu">Account Created</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-app-mu">{t('account_created')}</p>
             <div className="bg-app-card2 px-4 py-3 rounded-2xl border border-app-bd/30 font-bold text-[13px]">
               {new Date(profile.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </div>

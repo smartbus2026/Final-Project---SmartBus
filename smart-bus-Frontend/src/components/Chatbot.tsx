@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 const Chatbot = () => {
+    const { t } = useTranslation();
     const [isMounted, setIsMounted] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [message, setMessage] = useState('');
@@ -38,7 +40,7 @@ const Chatbot = () => {
         } catch (error) {
             setChatHistory(prev => [...prev, {
                 role: 'assistant',
-                content: 'Sorry, I am having trouble connecting to the AI.'
+                content: t('chatbot_error')
             }]);
         } finally {
             setLoading(false);
@@ -85,17 +87,17 @@ const Chatbot = () => {
                     <div className="relative p-5 bg-gradient-to-br from-app-am/90 to-app-am/40 backdrop-blur-md">
                         <div className="flex items-center justify-between">
                             <div>
-                                <h3 className="text-black font-black text-xl tracking-tight leading-none">SmartBus AI</h3>
+                                <h3 className="text-black font-black text-xl tracking-tight leading-none">{t('chatbot_title')}</h3>
                                 <div className="flex items-center gap-1.5 mt-1.5">
                                     <span className="relative flex h-2 w-2">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                         <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                                     </span>
-                                    <span className="text-[10px] text-black/70 font-bold uppercase tracking-widest">System Operational</span>
+                                    <span className="text-[10px] text-black/70 font-bold uppercase tracking-widest">{t('chatbot_operational')}</span>
                                 </div>
                             </div>
                             <div className="bg-black/10 px-3 py-1.5 rounded-xl border border-black/5 text-center">
-                                <span className="block text-[8px] text-black/50 font-black uppercase leading-none mb-0.5 text-left">Reg. Window</span>
+                                <span className="block text-[8px] text-black/50 font-black uppercase leading-none mb-0.5 text-left">{t('chatbot_reg_window')}</span>
                                 <span className="text-[10px] text-black font-black whitespace-nowrap uppercase tracking-tighter">12:00 AM – 2:00 PM</span>
                             </div>
                         </div>
@@ -109,7 +111,7 @@ const Chatbot = () => {
                                     <span className="text-5xl">🚌</span>
                                 </div>
                                 <p className="text-[11px] font-black text-app-tx uppercase tracking-[0.2em] text-center px-10 leading-relaxed">
-                                    Your personal route assistant is ready.
+                                    {t('chatbot_ready')}
                                 </p>
                             </div>
                         )}
@@ -133,7 +135,7 @@ const Chatbot = () => {
                                         <div className="w-1.5 h-1.5 bg-app-am rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                                         <div className="w-1.5 h-1.5 bg-app-am rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                                     </div>
-                                    <span className="text-[10px] text-app-mu font-black uppercase tracking-widest">AI Calculating...</span>
+                                    <span className="text-[10px] text-app-mu font-black uppercase tracking-widest">{t('chatbot_calculating')}</span>
                                 </div>
                             </div>
                         )}
@@ -147,7 +149,7 @@ const Chatbot = () => {
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                                placeholder="Type your query..."
+                                placeholder={t('chatbot_placeholder')}
                                 className="w-full bg-app-card2/50 border border-white/10 px-5 py-4 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-app-am/50 focus:border-app-am transition-all text-app-tx placeholder:text-app-mu/50 pr-14"
                             />
                             <button
@@ -161,7 +163,7 @@ const Chatbot = () => {
                             </button>
                         </div>
                         <p className="text-center text-[9px] text-app-mu mt-3 font-medium opacity-50 uppercase tracking-tighter">
-                            Powered by SmartBus Neural Engine
+                            {t('chatbot_powered')}
                         </p>
                     </div>
                 </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -25,6 +26,7 @@ const busIcon = new L.DivIcon({
 });
 
 function StopItem({ stop, isPickup, index }: { stop: any, isPickup: boolean, index: number }) {
+  const { t } = useTranslation();
   const baseLine = "flex items-center gap-5 relative transition-all duration-500";
 
   if (isPickup) {
@@ -35,10 +37,10 @@ function StopItem({ stop, isPickup, index }: { stop: any, isPickup: boolean, ind
         </div>
         <div className="flex-1">
           <p className="text-[13px] font-bold font-syne text-app-am uppercase tracking-tight">{stop.name}</p>
-          <p className="text-[10px] text-app-mu font-medium">Your Pickup Point</p>
+          <p className="text-[10px] text-app-mu font-medium">{t("your_pickup")}</p>
         </div>
         <span className="bg-app-am/20 text-app-am text-[8px] px-2 py-0.5 rounded-md font-black border border-app-am/20 tracking-tighter animate-pulse">
-          STAND HERE
+          {t("stand_here")}
         </span>
       </div>
     );
@@ -57,6 +59,7 @@ function StopItem({ stop, isPickup, index }: { stop: any, isPickup: boolean, ind
 }
 
 export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | "light", go?: (p: Page) => void }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [activeBooking, setActiveBooking] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -167,7 +170,7 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
       <div className="p-4 md:p-6 space-y-6 h-full flex items-center justify-center bg-app-bg overflow-hidden">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-app-bd border-t-app-am rounded-full animate-spin"></div>
-          <div className="animate-pulse text-app-mu font-black uppercase tracking-widest text-[10px]">Connecting to Fleet GPS...</div>
+          <div className="animate-pulse text-app-mu font-black uppercase tracking-widest text-[10px]">{t("connecting_gps")}</div>
         </div>
       </div>
     );
@@ -181,9 +184,9 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
             <div className="w-16 h-16 bg-app-card2 rounded-full flex items-center justify-center mx-auto mb-6 text-app-mu border border-app-bd">
               <Ic.Bus size={24} />
             </div>
-            <h2 className="text-lg font-black font-syne uppercase tracking-widest text-app-tx mb-2">No Active Trips</h2>
+            <h2 className="text-lg font-black font-syne uppercase tracking-widest text-app-tx mb-2">{t("no_active_trips")}</h2>
             <p className="text-xs text-app-mu font-medium leading-relaxed mb-8">
-              You have no active or scheduled trips to track right now. Please book a seat first.
+              {t("no_active_trips_track")}
             </p>
             <button
               onClick={() => {
@@ -192,7 +195,7 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
               }}
               className="bg-app-am text-black px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:brightness-110 transition-all w-full flex items-center justify-center gap-2"
             >
-              <Ic.Calendar /> Book a Seat
+              <Ic.Calendar /> {t("book_a_seat")}
             </button>
           </div>
         </div>
@@ -201,8 +204,8 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
   }
 
   const routeStops = activeBooking.trip?.route?.stops || [];
-  const busNumber = activeBooking.trip?.bus_number || "AWAITING ASSIGNMENT";
-  const driverName = activeBooking.trip?.driver || "Pending Driver";
+  const busNumber = activeBooking.trip?.bus_number || t("awaiting_assignment");
+  const driverName = activeBooking.trip?.driver || t("pending_driver");
 
   const activeBusCoords = Array.from(activeBuses.values())
     .filter((bus: any) => bus.lat !== undefined && bus.lng !== undefined)
@@ -230,14 +233,14 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
         <div className="col-span-1 lg:col-span-7 bg-app-card rounded-[32px] p-5 border border-app-bd flex flex-col min-h-[400px] shadow-2xl relative overflow-hidden transition-all hover:border-app-bd2">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h4 className="font-syne font-black text-app-tx uppercase tracking-tight text-sm">Live Movement</h4>
-              <p className="text-[10px] text-app-mu font-bold tracking-[2px]">GPS CONNECTED</p>
+              <h4 className="font-syne font-black text-app-tx uppercase tracking-tight text-sm">{t("live_movement")}</h4>
+              <p className="text-[10px] text-app-mu font-bold tracking-[2px]">{t("gps_connected")}</p>
             </div>
             <button
               onClick={() => go?.("dashboard")}
               className="group flex items-center gap-2 bg-app-card2 border border-app-bd px-3 py-1.5 rounded-xl text-[10px] font-bold text-app-mu hover:text-app-tx transition-all"
             >
-              <span className="group-hover:-translate-x-1 transition-transform">←</span> BACK
+              <span className="group-hover:-translate-x-1 transition-transform">←</span> {t("back")}
             </button>
           </div>
 
@@ -254,8 +257,8 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
 
             {/* Arrival Tag Floating */}
             <div className="absolute top-4 right-4 z-[1000] bg-app-card/80 backdrop-blur-xl p-3 px-6 rounded-2xl border border-white/5 text-center shadow-2xl">
-              <p className="text-[9px] text-app-mu font-black uppercase tracking-widest mb-1">Arrival In</p>
-              <p className="font-syne text-2xl font-black text-app-am">{eta} <span className="text-[10px]">MIN</span></p>
+              <p className="text-[9px] text-app-mu font-black uppercase tracking-widest mb-1">{t("arrival_in")}</p>
+              <p className="font-syne text-2xl font-black text-app-am">{eta} <span className="text-[10px]">{t("min")}</span></p>
             </div>
           </div>
         </div>
@@ -271,19 +274,19 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
               </div>
               <div>
                 <h4 className="font-syne font-black text-app-tx uppercase text-sm tracking-tight">{busNumber}</h4>
-                <p className="text-[11px] text-app-mu font-medium">Driver: {driverName}</p>
+                <p className="text-[11px] text-app-mu font-medium">{t("driver_prefix")} {driverName}</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[9px] text-app-mu font-black uppercase tracking-tighter">Current Speed</p>
-              <p className="text-app-am font-syne font-bold text-sm tracking-tight">42 km/h</p>
+              <p className="text-[9px] text-app-mu font-black uppercase tracking-tighter">{t("current_speed")}</p>
+              <p className="text-app-am font-syne font-bold text-sm tracking-tight">{t("speed_kmh", { speed: 42 })}</p>
             </div>
           </div>
 
           {/* Stops Timeline */}
           <div className="bg-app-card rounded-[32px] p-6 flex-1 border border-app-bd shadow-xl overflow-hidden flex flex-col">
             <h4 className="font-syne font-black text-xs mb-8 text-app-tx uppercase tracking-[3px] flex items-center gap-2">
-              <Ic.Route className="text-app-am" /> Route Stops
+              <Ic.Route className="text-app-am" /> {t("route_stops")}
             </h4>
 
             <div className="flex-1 space-y-8 relative ml-4 overflow-y-auto no-scrollbar pb-6 pr-2">
@@ -300,7 +303,7 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
               ))}
               {routeStops.length === 0 && (
                 <div className="text-[10px] text-app-mu font-bold uppercase tracking-widest text-center mt-10">
-                  No stops found for this route.
+                  {t("no_stops_found")}
                 </div>
               )}
             </div>

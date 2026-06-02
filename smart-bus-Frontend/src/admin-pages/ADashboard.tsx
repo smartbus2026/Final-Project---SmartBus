@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Ic } from '../icons';
 import Api from '../services/Api';
 
 const AdminDashboard: React.FC = () => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
     totalStudents: 0,
@@ -177,12 +179,12 @@ const AdminDashboard: React.FC = () => {
     // Validate assignments: every row must have both a busId and a driverId
     const hasInvalidAssignments = assignments.some(a => !a.busId || !a.driverId);
     if (hasInvalidAssignments || dispatchForm.routeIds.length === 0) {
-      setDispatchMessage({ type: "error", text: "Please assign a bus and a driver for every row, and select at least one route." });
+      setDispatchMessage({ type: "error", text: t("dispatch_validation") });
       return;
     }
 
     if (dispatchForm.timeSlot === "Return" && !dispatchForm.specificReturnTime) {
-      setDispatchMessage({ type: "error", text: "Please select a specific return time for Return trips." });
+      setDispatchMessage({ type: "error", text: t("dispatch_return_required") });
       return;
     }
 
@@ -206,7 +208,7 @@ const AdminDashboard: React.FC = () => {
 
       await Api.post('/bookings/admin/dispatch', payload);
 
-      setDispatchMessage({ type: "success", text: "Buses assigned successfully and students notified!" });
+      setDispatchMessage({ type: "success", text: t("dispatch_success") });
       setDispatchForm(prev => ({ ...prev, routeIds: [], specificReturnTime: "" }));
       setAssignments([{ busId: "", driverId: "" }]);
       
@@ -214,7 +216,7 @@ const AdminDashboard: React.FC = () => {
       setDemandDate(prev => prev);
       fetchAssignedTrips();
     } catch (err: any) {
-      setDispatchMessage({ type: "error", text: err.response?.data?.message || "Failed to dispatch bus." });
+      setDispatchMessage({ type: "error", text: err.response?.data?.message || t("dispatch_failed") });
     } finally {
       setDispatchLoading(false);
     }
@@ -222,27 +224,27 @@ const AdminDashboard: React.FC = () => {
 
   const stats = [
     {
-      title: "Total Students",
+      title: t("total_students"),
       value: loading ? "..." : data.totalStudents.toLocaleString(),
-      trend: "Registered accounts",
+      trend: t("stat_registered_accounts"),
       icon: <Ic.Users />
     },
     {
-      title: "Active Trips",
+      title: t("active_trips"),
       value: loading ? "..." : data.activeTripsCount.toString(),
-      trend: "Currently en route",
+      trend: t("stat_currently_en_route"),
       icon: <Ic.Bus />
     },
     {
-      title: "Available Routes",
+      title: t("available_routes"),
       value: loading ? "..." : data.totalRoutes.toString(),
-      trend: "Active service paths",
+      trend: t("stat_active_service_paths"),
       icon: <Ic.Pin />
     },
     {
-      title: "Total Bookings",
+      title: t("total_bookings"),
       value: loading ? "..." : data.totalBookings.toLocaleString(),
-      trend: "System wide",
+      trend: t("stat_system_wide"),
       icon: <Ic.Calendar />
     },
   ];
@@ -255,10 +257,10 @@ const AdminDashboard: React.FC = () => {
   };
 
   const statusLabel: Record<string, string> = {
-    active: "Active",
-    pending: "Not Started",
-    completed: "Completed",
-    cancelled: "Cancelled",
+    active: t("active"),
+    pending: t("not_started"),
+    completed: t("completed"),
+    cancelled: t("cancelled"),
   };
 
   return (
@@ -285,9 +287,9 @@ const AdminDashboard: React.FC = () => {
           <div>
             <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-app-am animate-pulse inline-block" />
-              Live Booking Demands
+              {t("live_booking_demands")}
             </h3>
-            <p className="text-[10px] text-app-mu mt-0.5">Pending student bookings grouped by route & time slot</p>
+            <p className="text-[10px] text-app-mu mt-0.5">{t("admin_demands_subtitle")}</p>
           </div>
           {/* Date tabs */}
           <div className="flex gap-1 bg-app-card2 border border-app-bd rounded-xl p-1">
@@ -295,7 +297,7 @@ const AdminDashboard: React.FC = () => {
               <button key={d} onClick={() => setDemandDate(d)}
                 className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
                   ${demandDate === d ? "bg-app-am text-black shadow-sm" : "text-app-mu hover:text-app-tx"}`}>
-                {d.charAt(0).toUpperCase() + d.slice(1)}
+                {d === "today" ? t("today") : t("tomorrow")}
               </button>
             ))}
           </div>
@@ -304,13 +306,13 @@ const AdminDashboard: React.FC = () => {
         {demandLoading ? (
           <div className="p-10 flex flex-col items-center gap-3 text-app-mu">
             <div className="w-8 h-8 border-2 border-app-bd border-t-app-am rounded-full animate-spin" />
-            <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">Loading demands...</p>
+            <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">{t("loading_demands")}</p>
           </div>
         ) : demands.length === 0 ? (
           <div className="p-10 flex flex-col items-center gap-3 text-app-mu opacity-50">
             <Ic.Calendar size={32} />
-            <p className="text-[11px] font-black uppercase tracking-widest">No pending demands for this date</p>
-            <p className="text-[10px]">Students haven't submitted booking requests yet.</p>
+            <p className="text-[11px] font-black uppercase tracking-widest">{t("no_pending_demands")}</p>
+            <p className="text-[10px]">{t("no_demands_hint")}</p>
           </div>
         ) : (
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -318,8 +320,8 @@ const AdminDashboard: React.FC = () => {
               const isHigh   = d.totalStudents > 45;
               const isMedium = d.totalStudents > 30 && !isHigh;
               const slotLabel = d.timeSlot === "Return" && d.specificReturnTime
-                ? `Return — ${d.specificReturnTime}`
-                : d.timeSlot;
+                ? t("return_slot_prefix", { time: d.specificReturnTime })
+                : d.timeSlot === "Morning" ? t("morning") : d.timeSlot === "Return" ? t("return") : d.timeSlot;
 
               return (
                 <div key={i} className="rounded-xl border border-app-bd bg-app-card p-4 transition-all hover:border-app-bd/80">
@@ -334,7 +336,7 @@ const AdminDashboard: React.FC = () => {
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider whitespace-nowrap
                         ${isHigh   ? "bg-red-500/10 text-red-400 border-red-500/20" :
                                      "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"}`}>
-                        {isHigh ? "Overloaded" : "High Demand"}
+                        {isHigh ? t("overloaded") : t("high_demand")}
                       </span>
                     )}
                   </div>
@@ -348,7 +350,7 @@ const AdminDashboard: React.FC = () => {
                   {/* Student count & capacity bar */}
                   <div className="mt-2">
                     <div className="flex items-center justify-between mb-2 text-sm text-app-tx font-medium">
-                      <span className="text-app-mu">Booked</span>
+                      <span className="text-app-mu">{t("booked")}</span>
                       <span>{d.totalStudents} <span className="text-xs text-app-mu">/ 45</span></span>
                     </div>
                     
@@ -364,7 +366,7 @@ const AdminDashboard: React.FC = () => {
                     {/* Multi-bus warning */}
                     {isHigh && (
                       <div className="mt-3 text-xs text-red-400 font-medium flex items-center gap-1.5">
-                        <Ic.Bus size={12} /> Requires {Math.ceil(d.totalStudents / 45)} buses
+                        <Ic.Bus size={12} /> {t("requires_buses", { count: Math.ceil(d.totalStudents / 45) })}
                       </div>
                     )}
                   </div>
@@ -377,11 +379,11 @@ const AdminDashboard: React.FC = () => {
 
       {/* ── Dispatch Form ── */}
       <div className="bg-app-card rounded-2xl border border-app-bd shadow-sm overflow-hidden p-6 mt-6">
-        <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest mb-4">Assign Bus & Dispatch</h3>
+        <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest mb-4">{t("assign_bus_dispatch")}</h3>
         <form onSubmit={handleDispatch} className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Dynamic Bus & Driver Assignments */}
           <div className="lg:col-span-2 space-y-4">
-            <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">Assign Buses & Drivers</label>
+            <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">{t("assign_buses_drivers")}</label>
             {assignments.map((assignment, index) => (
               <div key={index} className="flex flex-col sm:flex-row items-center gap-3 bg-app-bg border border-app-bd rounded-xl p-3 relative">
                 <div className="w-full">
@@ -394,9 +396,9 @@ const AdminDashboard: React.FC = () => {
                     }}
                     className="w-full bg-app-card text-app-tx text-sm border border-app-bd rounded-lg p-2.5 focus:outline-none focus:border-app-am appearance-none cursor-pointer"
                   >
-                    <option value="">-- Choose Bus --</option>
+                    <option value="">{t("choose_bus")}</option>
                     {buses.map(b => (
-                      <option key={b._id} value={b._id}>{b.busCode} (Cap: {b.capacity || 45})</option>
+                      <option key={b._id} value={b._id}>{b.busCode} ({t("cap_label")}: {b.capacity || 45})</option>
                     ))}
                   </select>
                 </div>
@@ -410,7 +412,7 @@ const AdminDashboard: React.FC = () => {
                     }}
                     className="w-full bg-app-card text-app-tx text-sm border border-app-bd rounded-lg p-2.5 focus:outline-none focus:border-app-am appearance-none cursor-pointer"
                   >
-                    <option value="">-- Choose Driver --</option>
+                    <option value="">{t("choose_driver")}</option>
                     {drivers.map(d => (
                       <option key={d._id} value={d._id}>{d.name}</option>
                     ))}
@@ -424,7 +426,7 @@ const AdminDashboard: React.FC = () => {
                       setAssignments(newAssignments);
                     }}
                     className="p-2 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors absolute -right-2 -top-2 sm:static sm:right-auto sm:top-auto bg-app-card sm:bg-transparent border border-app-bd sm:border-none shadow-sm sm:shadow-none"
-                    title="Remove assignment"
+                    title={t("remove_assignment")}
                   >
                     <Ic.Trash size={16} />
                   </button>
@@ -437,28 +439,28 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setAssignments([...assignments, { busId: "", driverId: "" }])}
               className="text-[11px] font-bold text-app-am uppercase tracking-wider flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-app-am/10 transition-colors mt-2"
             >
-              <Ic.Plus size={14} /> Add Another Bus
+              <Ic.Plus size={14} /> {t("add_another_bus")}
             </button>
           </div>
 
           {/* TimeSlot Selection */}
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">Time Slot</label>
+              <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">{t("time_slot")}</label>
               <select 
                 value={dispatchForm.timeSlot}
                 onChange={(e) => setDispatchForm(prev => ({ ...prev, timeSlot: e.target.value, specificReturnTime: "" }))}
                 className="w-full bg-app-bg text-app-tx text-sm border border-app-bd rounded-xl p-3 focus:outline-none focus:border-app-am appearance-none cursor-pointer"
               >
-                <option value="Morning">Morning</option>
-                <option value="Return">Return</option>
+                <option value="Morning">{t("morning")}</option>
+                <option value="Return">{t("return")}</option>
               </select>
             </div>
             
             {dispatchForm.timeSlot === "Return" && (
               <div className="flex-1">
                 <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">
-                  Return Time <span className="text-red-400">*</span>
+                  {t("return_time_label")} <span className="text-red-400">*</span>
                 </label>
                 <select 
                   required
@@ -468,12 +470,12 @@ const AdminDashboard: React.FC = () => {
                     !dispatchForm.specificReturnTime ? 'border-red-500/40' : 'border-app-bd'
                   }`}
                 >
-                  <option value="" disabled>-- Select Return Time --</option>
+                  <option value="" disabled>{t("select_return_time")}</option>
                   <option value="3:30 PM">3:30 PM</option>
                   <option value="7:00 PM">7:00 PM</option>
                 </select>
                 {!dispatchForm.specificReturnTime && (
-                  <p className="text-[9px] text-red-400 font-bold mt-1 uppercase tracking-widest">Required for Return trips</p>
+                  <p className="text-[9px] text-red-400 font-bold mt-1 uppercase tracking-widest">{t("return_time_required_note")}</p>
                 )}
               </div>
             )}
@@ -481,7 +483,7 @@ const AdminDashboard: React.FC = () => {
 
           {/* Multi-select Routes */}
           <div>
-            <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">Select Target Routes</label>
+            <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">{t("select_target_routes")}</label>
             <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-3 bg-app-bg border border-app-bd rounded-xl">
               {data.routesList.map(r => {
                 const isSelected = dispatchForm.routeIds.includes(r._id);
@@ -503,7 +505,7 @@ const AdminDashboard: React.FC = () => {
                   </button>
                 );
               })}
-              {data.routesList.length === 0 && <span className="text-xs text-app-mu">Loading routes...</span>}
+              {data.routesList.length === 0 && <span className="text-xs text-app-mu">{t("loading_routes")}</span>}
             </div>
           </div>
 
@@ -521,7 +523,7 @@ const AdminDashboard: React.FC = () => {
               disabled={dispatchLoading}
               className="bg-app-am text-black px-6 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] hover:bg-app-am/90 transition-all disabled:opacity-50"
             >
-              {dispatchLoading ? "Dispatching..." : "Assign Bus & Notify"}
+              {dispatchLoading ? t("dispatching") : t("assign_bus_notify")}
             </button>
           </div>
         </form>
@@ -531,14 +533,14 @@ const AdminDashboard: React.FC = () => {
         {/* Pending Tickets Widget (Occupies 1 column, Today's Trips occupies 2) */}
         <div className="bg-app-card rounded-2xl border border-app-bd shadow-sm overflow-hidden lg:col-span-1 h-fit">
           <div className="flex justify-between items-center px-6 py-4 border-b border-app-bd">
-            <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest">Pending Tickets</h3>
-            <button className="text-[10px] font-black text-app-am hover:underline tracking-wider" onClick={() => window.location.href = '/admin/support'}>View All</button>
+            <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest">{t("pending_tickets")}</h3>
+            <button className="text-[10px] font-black text-app-am hover:underline tracking-wider" onClick={() => window.location.href = '/admin/support'}>{t("view_all")}</button>
           </div>
           <div className="divide-y divide-app-bd">
             {loading ? (
-              <div className="p-6 text-center text-xs text-app-mu">Loading tickets...</div>
+              <div className="p-6 text-center text-xs text-app-mu">{t("loading_tickets")}</div>
             ) : data.tickets.length === 0 ? (
-              <div className="p-6 text-center text-xs text-app-mu">No pending tickets</div>
+              <div className="p-6 text-center text-xs text-app-mu">{t("no_pending_tickets")}</div>
             ) : (
               data.tickets.map((t: any, i) => (
                 <div key={t._id || i} className="px-6 py-4 hover:bg-app-card2/50 transition-colors">
@@ -548,7 +550,7 @@ const AdminDashboard: React.FC = () => {
                       onClick={() => handleResolveTicket(t._id)}
                       className="px-2 py-1 bg-app-ok/10 text-app-ok text-[9px] font-black uppercase tracking-widest rounded hover:bg-app-ok hover:text-white transition-colors cursor-pointer"
                     >
-                      Resolve
+                      {t("resolve")}
                     </button>
                   </div>
                   <p className="text-[10px] text-app-mu mb-2 line-clamp-2">{t.description}</p>
@@ -562,14 +564,14 @@ const AdminDashboard: React.FC = () => {
         {/* ── Today's Trips ── */}
         <div className="bg-app-card rounded-2xl border border-app-bd shadow-sm overflow-hidden lg:col-span-2 flex flex-col">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center px-6 py-4 border-b border-app-bd gap-4">
-            <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest whitespace-nowrap">Today's Trips</h3>
+            <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest whitespace-nowrap">{t("todays_trips")}</h3>
             <div className="flex flex-wrap gap-2">
               <select
                 value={tripFilter.routeId}
                 onChange={(e) => setTripFilter(prev => ({ ...prev, routeId: e.target.value }))}
                 className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 py-1.5 focus:outline-none focus:border-app-am min-w-[120px]"
               >
-                <option value="">All Routes</option>
+                <option value="">{t("all_routes")}</option>
                 {data.routesList.map(r => (
                   <option key={r._id} value={r._id}>{r.name}</option>
                 ))}
@@ -580,9 +582,9 @@ const AdminDashboard: React.FC = () => {
                 onChange={(e) => setTripFilter(prev => ({ ...prev, timeSlot: e.target.value, specificReturnTime: "" }))}
                 className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 py-1.5 focus:outline-none focus:border-app-am min-w-[120px]"
               >
-                <option value="">All Times</option>
-                <option value="Morning">Morning</option>
-                <option value="Return">Return</option>
+                <option value="">{t("all_times")}</option>
+                <option value="Morning">{t("morning")}</option>
+                <option value="Return">{t("return")}</option>
               </select>
 
               {tripFilter.timeSlot === "Return" && (
@@ -591,7 +593,7 @@ const AdminDashboard: React.FC = () => {
                   onChange={(e) => setTripFilter(prev => ({ ...prev, specificReturnTime: e.target.value }))}
                   className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 py-1.5 focus:outline-none focus:border-app-am min-w-[120px]"
                 >
-                  <option value="">Any Return</option>
+                  <option value="">{t("any_return")}</option>
                   <option value="3:30 PM">3:30 PM</option>
                   <option value="7:00 PM">7:00 PM</option>
                 </select>
@@ -603,7 +605,7 @@ const AdminDashboard: React.FC = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-app-bd bg-app-bg/50">
-                  {["Route", "Bus", "Driver", "Time", "Students", "Status"].map(h => (
+                  {[t("table_route"), t("bus"), t("table_driver"), t("time"), t("table_students"), t("status")].map(h => (
                     <th key={h} className="px-6 py-3 text-left text-[10px] font-black text-app-mu uppercase tracking-widest">{h}</th>
                   ))}
                 </tr>
@@ -611,7 +613,7 @@ const AdminDashboard: React.FC = () => {
               <tbody className="divide-y divide-app-bd">
                 {tripsLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-xs text-app-mu">Loading trips...</td>
+                    <td colSpan={5} className="px-6 py-8 text-center text-xs text-app-mu">{t("loading_trips_table")}</td>
                   </tr>
                 ) : (() => {
                   const filteredTrips = assignedTrips.filter(t => {
@@ -624,7 +626,7 @@ const AdminDashboard: React.FC = () => {
                   if (filteredTrips.length === 0) {
                     return (
                       <tr>
-                        <td colSpan={5} className="px-6 py-8 text-center text-xs text-app-mu">No assigned trips match your filters</td>
+                        <td colSpan={5} className="px-6 py-8 text-center text-xs text-app-mu">{t("no_trips_match_filters")}</td>
                       </tr>
                     );
                   }
@@ -634,11 +636,11 @@ const AdminDashboard: React.FC = () => {
                       <td className="px-6 py-4">
                         <span className="flex items-center gap-2 text-[12px] font-bold text-app-tx">
                           <span className="text-app-am"><Ic.Pin size={14} /></span>
-                          {trip.route?.name || "Unknown Route"}
+                          {trip.route?.name || t("unknown_route")}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-[12px] font-medium text-app-tx">{trip.busNumber || trip.bus?.busCode || "Unassigned"}</td>
-                      <td className="px-6 py-4 text-[12px] font-medium text-app-tx">{trip.driverName || "Unassigned"}</td>
+                      <td className="px-6 py-4 text-[12px] font-medium text-app-tx">{trip.busNumber || trip.bus?.busCode || t("unassigned")}</td>
+                      <td className="px-6 py-4 text-[12px] font-medium text-app-tx">{trip.driverName || t("unassigned")}</td>
                       <td className="px-6 py-4">
                         <span className="flex items-center gap-1.5 text-[12px] text-app-mu">
                           <Ic.Clock size={12} /> {trip.timeSlot} {trip.specificReturnTime ? `(${trip.specificReturnTime})` : ""}
@@ -647,7 +649,7 @@ const AdminDashboard: React.FC = () => {
                       <td className="px-6 py-4 text-[12px] font-bold text-app-tx">{trip.studentsCount || trip.students?.length || 0}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${statusStyle.active}`}>
-                          Assigned
+                          {t("assigned")}
                         </span>
                       </td>
                     </tr>

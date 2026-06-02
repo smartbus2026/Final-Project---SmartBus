@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Ic } from '../icons';
 import Api from '../services/Api';
 
@@ -28,13 +29,14 @@ interface AssignedTripData {
 const today = new Date().toISOString().split('T')[0];
 
 const ManageTripsPage: React.FC = () => {
+  const { t } = useTranslation();
   const [trips, setTrips] = useState<AssignedTripData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // ── Delete Logic ──
   const handleDelete = async (trip: AssignedTripData) => {
-    if (!window.confirm("Are you sure you want to delete this trip?")) return;
+    if (!window.confirm(t("confirm_delete_trip"))) return;
     try {
       const tripIds = trip.actualIds && trip.actualIds.length > 0 
         ? trip.actualIds 
@@ -46,7 +48,7 @@ const ManageTripsPage: React.FC = () => {
       setTrips(prev => prev.filter(t => t.id !== trip.id));
     } catch (err: any) {
       console.error("Failed to delete trip", err);
-      alert(err.response?.data?.message || "Failed to delete trip.");
+      alert(err.response?.data?.message || t("delete_trip_failed"));
     }
   };
 
@@ -76,7 +78,7 @@ const ManageTripsPage: React.FC = () => {
         : editingTrip.id;
 
       if (targetId.includes("-")) {
-        alert("Cannot edit: No real Trip found for this assignment group.");
+        alert(t("cannot_edit_group"));
         return;
       }
 
@@ -107,7 +109,7 @@ const ManageTripsPage: React.FC = () => {
       setEditingTrip(null);
     } catch (err: any) {
       console.error("Failed to update trip", err);
-      alert(err.response?.data?.message || "Failed to update trip.");
+      alert(err.response?.data?.message || t("update_trip_failed"));
     }
   };
 
@@ -167,15 +169,15 @@ const ManageTripsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-black uppercase tracking-widest text-app-tx">
-            Assigned Trips
+            {t("assigned_trips")}
           </h1>
           <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">
-            Overview of all dispatched fleet schedules
+            {t("assigned_trips_subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 bg-app-card border border-app-bd rounded-xl px-3 py-2">
           <Ic.Calendar size={14} className="text-app-am shrink-0" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-app-mu mr-1">Date</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-app-mu mr-1">{t("date")}</span>
           <input
             type="date"
             value={selectedDate}
@@ -188,13 +190,13 @@ const ManageTripsPage: React.FC = () => {
       {/* ── Filter Bar ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 p-4 bg-app-card border border-app-bd rounded-2xl">
         <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">Route</label>
+          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t("route")}</label>
           <select
             value={filterRoute}
             onChange={e => setFilterRoute(e.target.value)}
             className={selectClass}
           >
-            <option value="">All Routes</option>
+            <option value="">{t("all_routes")}</option>
             {uniqueRoutes.map(r => (
               <option key={r} value={r}>{r}</option>
             ))}
@@ -202,13 +204,13 @@ const ManageTripsPage: React.FC = () => {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">Bus Number</label>
+          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t("bus_number")}</label>
           <select
             value={filterBus}
             onChange={e => setFilterBus(e.target.value)}
             className={selectClass}
           >
-            <option value="">All Buses</option>
+            <option value="">{t("all_buses")}</option>
             {uniqueBuses.map(b => (
               <option key={b} value={b}>{b}</option>
             ))}
@@ -216,15 +218,15 @@ const ManageTripsPage: React.FC = () => {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">Time Slot</label>
+          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t("time_slot")}</label>
           <select
             value={filterTimeSlot}
             onChange={e => setFilterTimeSlot(e.target.value)}
             className={selectClass}
           >
-            <option value="">All Time Slots</option>
-            <option value="Morning">Morning</option>
-            <option value="Return">Return</option>
+            <option value="">{t("all_time_slots")}</option>
+            <option value="Morning">{t("morning")}</option>
+            <option value="Return">{t("return")}</option>
           </select>
         </div>
 
@@ -235,7 +237,7 @@ const ManageTripsPage: React.FC = () => {
               onClick={() => { setFilterRoute(''); setFilterBus(''); setFilterTimeSlot(''); }}
               className="text-[10px] font-black uppercase tracking-widest text-app-am hover:underline"
             >
-              ✕ Clear Filters
+              ✕ {t("clear_filters")}
             </button>
           </div>
         )}
@@ -244,8 +246,10 @@ const ManageTripsPage: React.FC = () => {
       {/* ── Summary Badge ── */}
       {!isLoading && (
         <p className="text-[10px] font-bold text-app-mu uppercase tracking-widest mb-4">
-          Showing <span className="text-app-tx">{filteredTrips.length}</span> trip{filteredTrips.length !== 1 ? 's' : ''} for{' '}
-          <span className="text-app-am">{selectedDate === today ? 'Today' : selectedDate}</span>
+          {t("showing_trips_for", {
+            count: filteredTrips.length,
+            date: selectedDate === today ? t("today") : selectedDate,
+          })}
         </p>
       )}
 
@@ -254,14 +258,14 @@ const ManageTripsPage: React.FC = () => {
         <div className="flex justify-center items-center h-64">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-app-bd border-t-app-am rounded-full animate-spin" />
-            <div className="animate-pulse text-app-mu font-black uppercase tracking-widest text-[10px]">Loading Trips...</div>
+            <div className="animate-pulse text-app-mu font-black uppercase tracking-widest text-[10px]">{t("loading_trips_page")}</div>
           </div>
         </div>
       ) : filteredTrips.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 gap-4 opacity-30">
           <Ic.Bus size={48} />
           <p className="text-[10px] font-black uppercase tracking-widest text-app-mu">
-            No assigned trips match your filters
+            {t("no_trips_match_filters")}
           </p>
         </div>
       ) : (
@@ -291,10 +295,10 @@ const ManageTripsPage: React.FC = () => {
                       {trip.status}
                     </span>
                     <button onClick={() => handleEditClick(trip)} className="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:bg-blue-500/10 px-2 py-1 rounded-lg transition-colors">
-                      Edit
+                      {t("edit")}
                     </button>
                     <button onClick={() => handleDelete(trip)} className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 px-2 py-1 rounded-lg transition-colors">
-                      Delete
+                      {t("delete")}
                     </button>
                   </div>
                 </div>
@@ -394,7 +398,7 @@ const ManageTripsPage: React.FC = () => {
       {editingTrip && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-app-card border border-app-bd rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl relative">
-            <h2 className="text-xl font-black uppercase tracking-widest text-app-tx mb-6">Edit Trip</h2>
+            <h2 className="text-xl font-black uppercase tracking-widest text-app-tx mb-6">{t("edit_trip")}</h2>
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-app-mu mb-2">Bus Number</label>

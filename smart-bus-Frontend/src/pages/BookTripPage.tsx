@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Ic } from "../icons";
 import Api from "../services/Api";
@@ -101,6 +102,7 @@ function formatTime(hour: number, minute: number): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function BookTripPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [allRoutes,            setAllRoutes]            = useState<Route[]>([]);
@@ -229,8 +231,7 @@ export default function BookTripPage() {
       setModal({
         isOpen:  true,
         type:    "success",
-        message:
-          "Your booking demand is registered. You will be notified of your bus assignment once the booking window closes.",
+        message: t("booking_success_message_long"),
       });
       setSelectedRouteId("");
       setSelectedTimeSlot("");
@@ -242,7 +243,7 @@ export default function BookTripPage() {
         type:    "error",
         message:
           error?.response?.data?.message ||
-          "Failed to submit booking demand. Please try again.",
+          t("booking_submit_failed"),
       });
     } finally {
       setIsBooking(false);
@@ -266,9 +267,9 @@ export default function BookTripPage() {
 
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-black font-syne text-app-tx uppercase tracking-tighter">
-          Book <span className="text-app-am">Route</span>
+          {t("book_route")}
         </h1>
-        <p className="text-xs text-app-mu font-medium">Register your demand for tomorrow's buses</p>
+        <p className="text-xs text-app-mu font-medium">{t("book_route_subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -276,14 +277,14 @@ export default function BookTripPage() {
           {/* ── Select Route ── */}
           <div className="bg-app-card rounded-[24px] p-6 border border-app-bd shadow-xl group">
             <div className="flex items-center gap-2 text-app-am text-[11px] font-black uppercase tracking-widest mb-4">
-              <Ic.Route /> Select Route
+              <Ic.Route /> {t("select_route")}
             </div>
             <select
               value={selectedRouteId}
               onChange={(e) => setSelectedRouteId(e.target.value)}
               className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer"
             >
-              <option value="">{isLoading ? "Loading..." : "-- Choose a Route --"}</option>
+              <option value="">{isLoading ? t("loading") : t("choose_route")}</option>
               {allRoutes.map((route) => (
                 <option key={route._id} value={route._id} className="bg-app-card text-app-tx">
                   {route.name}
@@ -295,7 +296,7 @@ export default function BookTripPage() {
           {/* ── Select Time Slot ── */}
           <div className="bg-app-card rounded-[24px] p-6 border border-app-bd shadow-xl">
             <div className="flex items-center gap-2 text-app-tx text-[11px] font-black uppercase tracking-widest mb-6">
-              <Ic.Calendar /> Select Time Slot
+              <Ic.Calendar /> {t("select_time_slot")}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <button
@@ -305,7 +306,7 @@ export default function BookTripPage() {
                     ? "bg-app-am/10 border-app-am text-app-am shadow-lg"
                     : "bg-app-card2 border-app-bd text-app-mu hover:border-app-am/50 hover:text-app-tx"}`}
               >
-                Morning
+                {t("morning")}
               </button>
               <button
                 onClick={() => setSelectedTimeSlot("Return")}
@@ -314,21 +315,21 @@ export default function BookTripPage() {
                     ? "bg-app-am/10 border-app-am text-app-am shadow-lg"
                     : "bg-app-card2 border-app-bd text-app-mu hover:border-app-am/50 hover:text-app-tx"}`}
               >
-                Return
+                {t("return")}
               </button>
             </div>
 
             {selectedTimeSlot === "Return" && (
               <div className="mt-6 pt-6 border-t border-app-bd animate-in slide-in-from-top-4 duration-300">
                 <div className="flex items-center gap-2 text-app-tx text-[11px] font-black uppercase tracking-widest mb-4">
-                  <Ic.Calendar /> Select Return Time
+                  <Ic.Calendar /> {t("select_return_time")}
                 </div>
                 <select
                   value={selectedSpecificReturn}
                   onChange={(e) => setSelectedSpecificReturn(e.target.value)}
                   className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer"
                 >
-                  <option value="">-- Choose Return Time --</option>
+                  <option value="">{t("choose_return_time")}</option>
                   {returnTimeOptions.map((rt) => (
                     <option key={rt} value={rt} className="bg-app-card text-app-tx">
                       {rt}
@@ -348,13 +349,12 @@ export default function BookTripPage() {
             {/* Header row */}
             <div className="flex justify-between items-center mb-6 relative z-10">
               <div className="flex items-center gap-2 text-app-am text-[11px] font-black uppercase tracking-widest">
-                <Ic.Calendar /> Booking Window
+                <Ic.Calendar /> {t("booking_window")}
               </div>
 
               {isLoading ? (
-                // Neutral state while data is in-flight — never flash CLOSED
                 <span className="px-3 py-1 rounded-full text-[9px] border font-black bg-app-card2 text-app-mu border-app-bd">
-                  CHECKING…
+                  {t("booking_checking")}
                 </span>
               ) : (
                 <span
@@ -364,7 +364,7 @@ export default function BookTripPage() {
                       : "bg-red-500/10 text-app-err border-red-500/20"
                   }`}
                 >
-                  {windowState.isOpen ? "OPEN" : "CLOSED"}
+                  {windowState.isOpen ? t("booking_open") : t("booking_closed")}
                 </span>
               )}
             </div>
@@ -374,10 +374,10 @@ export default function BookTripPage() {
               <div>
                 <span className="text-app-mu text-[10px] font-bold uppercase tracking-tight block">
                   {isLoading
-                    ? "Loading schedule…"
+                    ? t("loading_schedule")
                     : windowState.isOpen
-                      ? "Time remaining"
-                      : "Currently closed"}
+                      ? t("time_remaining")
+                      : t("currently_closed")}
                 </span>
                 {/* Time-range label — always shows the admin-configured window */}
                 <span className="text-app-mu2 text-[9px] font-bold">
@@ -420,7 +420,7 @@ export default function BookTripPage() {
             : "bg-app-card2 border border-app-bd text-app-mu2 cursor-not-allowed opacity-50"}`}
       >
         <Ic.Bus />
-        {isBooking ? "Registering Demand..." : "Register Booking Demand"}
+        {isBooking ? t("registering_demand") : t("register_booking_demand")}
       </button>
 
       {/* ── Result Modal ── */}
@@ -442,7 +442,7 @@ export default function BookTripPage() {
                 )}
               </div>
               <h3 className="font-syne text-xl font-black text-app-tx uppercase tracking-wider mt-2">
-                {modal.type === "success" ? "Demand Registered!" : "Action Failed"}
+                {modal.type === "success" ? t("demand_registered") : t("action_failed")}
               </h3>
               <p className="text-sm text-app-mu font-medium px-2">{modal.message}</p>
               <button
@@ -456,7 +456,7 @@ export default function BookTripPage() {
                     : "bg-app-card2 border border-app-bd text-app-tx hover:border-app-err hover:text-app-err"
                 }`}
               >
-                {modal.type === "success" ? "View My Trips" : "Close & Try Again"}
+                {modal.type === "success" ? t("view_my_trips") : t("close_try_again")}
               </button>
             </div>
           </div>

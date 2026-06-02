@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Ic } from "../icons";
 
 interface Props {  
@@ -9,49 +10,50 @@ interface Props {
 }
 
 const STUDENT_NAV = [
-  { id: "dashboard",     path: "/dashboard",      label: "Dashboard",      icon: <Ic.Grid /> },
-  { id: "bookTrip",      path: "/book-trip",       label: "Book Trip",      icon: <Ic.Calendar /> },
-  { id: "myTrips",       path: "/my-trips",        label: "My Trips",       icon: <Ic.Route /> },
-  { id: "routeDetails",  path: "/route-details",   label: "Route Details",  icon: <Ic.Map /> },
-  { id: "trackBus",      path: "/track-bus",       label: "Track Bus",      icon: <Ic.Target /> },
-  { id: "attendance",    path: "/attendance",      label: "Attendance",     icon: <Ic.Chart /> },
-  { id: "notifications", path: "/notifications",   label: "Notifications",  icon: <Ic.Bell /> },
-  { id: "routeChat",     path: "/route-chat",      label: "Live Chat",      icon: <Ic.Chat /> }, 
+  { id: "dashboard", path: "/dashboard", labelKey: "dashboard", icon: <Ic.Grid /> },
+  { id: "bookTrip", path: "/book-trip", labelKey: "nav_bookTrip", icon: <Ic.Calendar /> },
+  { id: "myTrips", path: "/my-trips", labelKey: "nav_myTrips", icon: <Ic.Route /> },
+  { id: "routeDetails", path: "/route-details", labelKey: "nav_routeDetails", icon: <Ic.Map /> },
+  { id: "trackBus", path: "/track-bus", labelKey: "nav_trackBus", icon: <Ic.Target /> },
+  { id: "attendance", path: "/attendance", labelKey: "nav_attendance", icon: <Ic.Chart /> },
+  { id: "notifications", path: "/notifications", labelKey: "nav_notifications", icon: <Ic.Bell /> },
+  { id: "routeChat", path: "/route-chat", labelKey: "nav_liveChat", icon: <Ic.Chat /> },
 ];
 
 const ADMIN_NAV = [
-  { id: "dashboard",     path: "/admin/dashboard",     label: "Dashboard",       icon: <Ic.Grid /> },
-  { id: "createTrip",    path: "/admin/create-trip",   label: "Create Trip",     icon: <Ic.Plus /> },
-  { id: "users",         path: "/admin/users",         label: "Users",           icon: <Ic.Users /> },
-  { id: "routes",        path: "/admin/routes",        label: "Manage Routes",   icon: <Ic.Route /> },
-  { id: "manageTrips",   path: "/admin/trips",         label: "Manage Trips",    icon: <Ic.Route /> },
-  { id: "liveTracking",  path: "/admin/live-tracking", label: "Live Tracking",   icon: <Ic.Target /> },
-  { id: "notifications", path: "/admin/notifications", label: "Notifications",   icon: <Ic.Bell /> },
-  { id: "support",       path: "/admin/support",       label: "Support Inbox",   icon: <Ic.Chat /> },
+  { id: "dashboard", path: "/admin/dashboard", labelKey: "dashboard", icon: <Ic.Grid /> },
+  { id: "createTrip", path: "/admin/create-trip", labelKey: "nav_createTrip", icon: <Ic.Plus /> },
+  { id: "users", path: "/admin/users", labelKey: "nav_users", icon: <Ic.Users /> },
+  { id: "routes", path: "/admin/routes", labelKey: "nav_manageRoutes", icon: <Ic.Route /> },
+  { id: "manageTrips", path: "/admin/trips", labelKey: "nav_manageTrips", icon: <Ic.Route /> },
+  { id: "liveTracking", path: "/admin/live-tracking", labelKey: "nav_liveTracking", icon: <Ic.Target /> },
+  { id: "notifications", path: "/admin/notifications", labelKey: "nav_notifications", icon: <Ic.Bell /> },
+  { id: "support", path: "/admin/support", labelKey: "nav_supportInbox", icon: <Ic.Chat /> },
 ];
 
 const ADMIN_BOTTOM = [
-  { id: "reports",  path: "/admin/reports",  label: "System Reports", icon: <Ic.Chart /> },
-  { id: "settings", path: "/admin/settings", label: "Settings",       icon: <Ic.Gear /> },
+  { id: "reports", path: "/admin/reports", labelKey: "nav_systemReports", icon: <Ic.Chart /> },
+  { id: "settings", path: "/admin/settings", labelKey: "settings", icon: <Ic.Gear /> },
 ];
 
 const DRIVER_NAV = [
-  { id: "driverDashboard", path: "/driver/dashboard", label: "My Trips", icon: <Ic.Bus /> },
-  { id: "liveTracking", path: "/driver/live-tracking", label: "Live Tracking", icon: <Ic.Target /> },
+  { id: "driverDashboard", path: "/driver/dashboard", labelKey: "nav_myTrips", icon: <Ic.Bus /> },
+  { id: "liveTracking", path: "/driver/live-tracking", labelKey: "nav_liveTracking", icon: <Ic.Target /> },
 ];
 
 const DRIVER_BOTTOM = [
-  { id: "settings", path: "/settings", label: "Profile Settings", icon: <Ic.Gear /> },
+  { id: "settings", path: "/settings", labelKey: "nav_profileSettings", icon: <Ic.Gear /> },
 ];
 
 const STUDENT_BOTTOM = [
-  { id: "support",  path: "/support",  label: "Support Center",  icon: <Ic.Help /> },
-  { id: "settings", path: "/settings", label: "Profile Settings", icon: <Ic.Gear /> },
+  { id: "support", path: "/support", labelKey: "nav_supportCenter", icon: <Ic.Help /> },
+  { id: "settings", path: "/settings", labelKey: "nav_profileSettings", icon: <Ic.Gear /> },
 ];
 
 export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
+  const { t } = useTranslation();
 
-  const NAV        = role === "admin" ? ADMIN_NAV    : role === "driver" ? DRIVER_NAV    : STUDENT_NAV;
+  const NAV = role === "admin" ? ADMIN_NAV : role === "driver" ? DRIVER_NAV : STUDENT_NAV;
   const BOTTOM_NAV  = role === "admin" ? ADMIN_BOTTOM : role === "driver" ? DRIVER_BOTTOM : STUDENT_BOTTOM;
 
   return (
@@ -78,12 +80,12 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
               Smart<span className="text-app-am">Bus</span>
               {role === "admin" && (
                 <span className="text-[8px] bg-app-am/10 text-app-am px-1.5 py-0.5 rounded-md ml-2 border border-app-am/20 font-black">
-                  ADMIN
+                  {t("badge_admin")}
                 </span>
               )}
               {role === "driver" && (
                 <span className="text-[8px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded-md ml-2 border border-blue-400/20 font-black">
-                  DRIVER
+                  {t("badge_driver")}
                 </span>
               )}
             </h1>
@@ -110,7 +112,7 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
                 <span className="transition-colors duration-300 group-[.active]:text-app-am">
                   {n.icon}
                 </span>
-                <span className="text-[13px] font-bold tracking-tight">{n.label}</span>
+                <span className="text-[13px] font-bold tracking-tight">{t(n.labelKey)}</span>
               </NavLink>
             ))}
           </nav>
@@ -136,7 +138,7 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
               <span className="transition-colors duration-300 group-[.active]:text-app-am">
                 {n.icon}
               </span>
-              <span className="text-[13px] font-bold tracking-tight">{n.label}</span>
+              <span className="text-[13px] font-bold tracking-tight">{t(n.labelKey)}</span>
             </NavLink>
           ))}
 
@@ -151,7 +153,7 @@ export default function Sidebar({ open, setOpen, role, onLogout }: Props) {
             <span className="group-hover:rotate-12 transition-transform duration-300">
               <Ic.Logout />
             </span>
-            <span className="text-[11px] font-black uppercase tracking-widest">Sign Out</span>
+            <span className="text-[11px] font-black uppercase tracking-widest">{t("sign_out")}</span>
           </button>
         </div>
 

@@ -1,25 +1,32 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDriverContext } from './DriverLayout';
 import { Ic } from '../icons';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const TIME_SLOT_LABELS: Record<string, string> = {
-  morning:     '🌅 Morning Departure',
-  return_1530: '🕞 Return 15:30',
-  return_1900: '🌆 Return 19:00',
-};
-
-const STATUS_STYLE: Record<string, string> = {
-  scheduled: 'bg-blue-500/10 text-blue-400 border border-blue-400/30',
-  active:    'bg-app-ok/10 text-app-ok border border-app-ok/30',
-  'in-progress': 'bg-app-ok/10 text-app-ok border border-app-ok/30',
-  in_progress: 'bg-app-ok/10 text-app-ok border border-app-ok/30',
-  completed: 'bg-app-am/10 text-app-am border border-app-am/30',
-  cancelled: 'bg-app-err/10 text-app-err border border-app-err/30',
+const STATUS_KEY: Record<string, string> = {
+  scheduled: 'status_scheduled',
+  active: 'active',
+  'in-progress': 'status_in_progress',
+  in_progress: 'status_in_progress',
+  completed: 'completed',
+  cancelled: 'cancelled',
 };
 
 export default function DriverTrips() {
+  const { t, i18n } = useTranslation();
   const { trips, isLoading, activeTrip, actionLoading, handleStartTrip, handleEndTrip } = useDriverContext();
+  const dateLocale = i18n.language === 'ar' ? 'ar-EG' : 'en-GB';
+
+  const timeSlotLabel = (slot: string) => {
+    const labels: Record<string, string> = {
+      morning: t('morning_departure'),
+      return_1530: t('return_1530'),
+      return_1900: t('return_1900'),
+    };
+    return labels[slot] ?? slot;
+  };
+
+  const statusLabel = (status: string) => t(STATUS_KEY[status] ?? status);
 
   if (isLoading) {
     return (
@@ -27,7 +34,7 @@ export default function DriverTrips() {
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-2 border-app-bd border-t-app-am rounded-full animate-spin" />
           <p className="text-[10px] font-black uppercase tracking-widest text-app-mu animate-pulse">
-            Loading Trips…
+            {t('loading_driver_trips')}
           </p>
         </div>
       </div>
@@ -39,10 +46,10 @@ export default function DriverTrips() {
       <div className="flex flex-col items-center justify-center h-64 gap-4 opacity-40">
         <Ic.Bus size={48} />
         <p className="text-[10px] font-black uppercase tracking-widest text-app-mu text-center">
-          No upcoming trips assigned to you
+          {t('no_upcoming_trips')}
         </p>
         <p className="text-[9px] text-app-mu2 uppercase tracking-widest">
-          Contact your administrator to assign trips
+          {t('contact_admin_trips')}
         </p>
       </div>
     );
@@ -52,11 +59,12 @@ export default function DriverTrips() {
     <div className="mb-12">
       <div className="flex items-center gap-3 mb-6">
         <h2 className="text-xl font-black uppercase tracking-tight text-app-tx italic">
-          My <span className="text-app-am">Trips</span>
+          {t('my_trips_part1') && <>{t('my_trips_part1')}{' '}</>}
+          <span className="text-app-am">{t('my_trips_part2')}</span>
         </h2>
         <div className="h-px bg-app-bd/50 flex-1" />
         <p className="text-[10px] font-bold text-app-mu uppercase tracking-widest">
-          <span className="text-app-tx">{trips.length}</span> Assigned
+          <span className="text-app-tx">{trips.length}</span> {t('driver_assigned')}
         </p>
       </div>
 
@@ -65,13 +73,13 @@ export default function DriverTrips() {
           const isThisActive    = trip.status === 'active' || trip.status === 'in-progress' || trip.status === 'in_progress';
           const isBtnLoading    = actionLoading === trip._id;
           const stops           = trip.route?.stops ?? [];
-          const firstStop       = stops[0]?.name ?? 'Origin';
-          const lastStop        = stops[stops.length - 1]?.name ?? 'Destination';
+          const firstStop       = stops[0]?.name ?? t('stop_origin');
+          const lastStop        = stops[stops.length - 1]?.name ?? t('stop_destination');
           const routeName       = trip.route?.name ?? '—';
 
           const tripStartTime = (() => {
             const d = new Date(trip.date);
-            let timeStr = "08:30"; // Morning slot default
+            let timeStr = "08:30";
             if (trip.time_slot === "return_1530") {
               timeStr = "15:30";
             } else if (trip.time_slot === "return_1900") {
@@ -84,6 +92,7 @@ export default function DriverTrips() {
 
           const canStart = (tripStartTime.getTime() - Date.now()) <= 60 * 60 * 1000;
           const startDisabled = isBtnLoading || !!activeTrip || !canStart;
+          const passengerCount = trip.usersCount ?? trip.booked_seats;
 
           return (
             <div
@@ -116,38 +125,38 @@ export default function DriverTrips() {
                     </div>
                   </div>
                   <span className={`text-[8px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shrink-0 ${STATUS_STYLE[trip.status]}`}>
-                    {trip.status}
+                    {statusLabel(trip.status)}
                   </span>
                 </div>
 
                 <div className="space-y-3 flex-1">
-                  <InfoRow icon={<Ic.Bus size={13} />}      label="Bus"        value={trip.bus_number} />
-                  <InfoRow icon={<Ic.Clock size={13} />}    label="Time Slot"  value={TIME_SLOT_LABELS[trip.time_slot] ?? trip.time_slot} />
+                  <InfoRow icon={<Ic.Bus size={13} />}      label={t('bus')}        value={trip.bus_number} />
+                  <InfoRow icon={<Ic.Clock size={13} />}    label={t('time_slot')}  value={timeSlotLabel(trip.time_slot)} />
                   <InfoRow
                     icon={<Ic.Calendar size={13} />}
-                    label="Trip Date"
-                    value={new Date(trip.date).toLocaleDateString('en-GB', {
+                    label={t('trip_date')}
+                    value={new Date(trip.date).toLocaleDateString(dateLocale, {
                       weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
                     })}
                   />
                   <InfoRow
                     icon={<Ic.Time size={13} />}
-                    label="Departure"
-                    value={new Date(trip.scheduled_time ?? trip.date).toLocaleTimeString('en-GB', {
+                    label={t('departure')}
+                    value={new Date(trip.scheduled_time ?? trip.date).toLocaleTimeString(dateLocale, {
                       hour: '2-digit', minute: '2-digit'
                     })}
                   />
                   <InfoRow
                     icon={<Ic.Users size={13} />}
-                    label="Booked Students"
-                    value={`${trip.usersCount ?? trip.booked_seats} passengers`}
+                    label={t('booked_students')}
+                    value={t('passengers_count', { count: passengerCount })}
                   />
                 </div>
 
                 {stops.length > 0 && (
                   <div className="pt-4 border-t border-app-bd/40">
                     <p className="text-[9px] font-black uppercase tracking-widest text-app-mu mb-3 flex items-center gap-1.5">
-                      <Ic.Route size={11} /> Route Stops
+                      <Ic.Route size={11} /> {t('route_stops')}
                     </p>
                     <div className="relative pl-4">
                       <div className="absolute left-[7px] top-2 bottom-2 w-px bg-app-bd/60" />
@@ -170,12 +179,12 @@ export default function DriverTrips() {
                             </span>
                             {idx === 0 && (
                               <span className="text-[8px] font-black text-app-am uppercase tracking-widest shrink-0">
-                                Start
+                                {t('stop_start')}
                               </span>
                             )}
                             {idx === stops.length - 1 && (
                               <span className="text-[8px] font-black text-app-ok uppercase tracking-widest shrink-0">
-                                End
+                                {t('stop_end')}
                               </span>
                             )}
                           </li>
@@ -197,19 +206,19 @@ export default function DriverTrips() {
                       } ${isBtnLoading ? 'cursor-wait' : ''}`}
                     >
                       {isBtnLoading ? (
-                        <><Ic.Loader size={14} className="animate-spin" /> Starting…</>
+                        <><Ic.Loader size={14} className="animate-spin" /> {t('starting')}</>
                       ) : (
-                        <><Ic.Target size={14} /> Start Trip</>
+                        <><Ic.Target size={14} /> {t('start_trip')}</>
                       )}
                     </button>
                     {!canStart && (
                       <p className="text-center text-[9px] font-bold text-app-mu uppercase tracking-widest mt-1 animate-pulse">
-                        Button will unlock 1 hour before trip
+                        {t('unlocks_one_hour_before')}
                       </p>
                     )}
                     {!!activeTrip && !isThisActive && (
                       <p className="text-center text-[9px] font-bold text-app-err uppercase tracking-widest">
-                        End active trip first
+                        {t('end_active_first')}
                       </p>
                     )}
                   </div>
@@ -224,16 +233,16 @@ export default function DriverTrips() {
                     }`}
                   >
                     {isBtnLoading ? (
-                      <><Ic.Loader size={14} className="animate-spin" /> Ending…</>
+                      <><Ic.Loader size={14} className="animate-spin" /> {t('ending')}</>
                     ) : (
-                      <><Ic.Close size={14} /> End Trip</>
+                      <><Ic.Close size={14} /> {t('end_trip')}</>
                     )}
                   </button>
                 )}
 
                 {trip.status === 'completed' && (
                   <div className="w-full py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 bg-app-card2 border border-app-bd text-app-mu cursor-default">
-                    <Ic.Check size={13} /> Completed
+                    <Ic.Check size={13} /> {t('completed')}
                   </div>
                 )}
               </div>
@@ -244,6 +253,15 @@ export default function DriverTrips() {
     </div>
   );
 }
+
+const STATUS_STYLE: Record<string, string> = {
+  scheduled: 'bg-blue-500/10 text-blue-400 border border-blue-400/30',
+  active:    'bg-app-ok/10 text-app-ok border border-app-ok/30',
+  'in-progress': 'bg-app-ok/10 text-app-ok border border-app-ok/30',
+  in_progress: 'bg-app-ok/10 text-app-ok border border-app-ok/30',
+  completed: 'bg-app-am/10 text-app-am border border-app-am/30',
+  cancelled: 'bg-app-err/10 text-app-err border border-app-err/30',
+};
 
 const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({
   icon, label, value,

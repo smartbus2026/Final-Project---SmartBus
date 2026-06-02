@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Ic } from "../icons";
 import Api from "../services/Api";
 import socket from "../services/socket";
@@ -13,6 +14,7 @@ interface Notification {
 }
 
 export default function NotificationsPage() {
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -35,7 +37,7 @@ export default function NotificationsPage() {
     const handleNewNotif = (notif: any) => {
       setNotifications(prev => [{
         _id: notif._id || Date.now().toString(),
-        title: notif.title || "New Alert",
+        title: notif.title || t("topbar_newAlert"),
         message: notif.message || "",
         type: notif.type || "general",
         read: false,
@@ -51,7 +53,7 @@ export default function NotificationsPage() {
       socket.off("newNotification", handleNewNotif);
       socket.off("new_notification", handleNewNotif);
     };
-  }, []);
+  }, [t]);
 
   const handleMarkRead = async (id: string) => {
     // Optimistic UI update
@@ -84,27 +86,26 @@ export default function NotificationsPage() {
   if (isLoading) {
     return (
       <div className="p-6 flex justify-center items-center h-64 text-app-mu font-syne font-bold animate-pulse">
-        Loading notifications...
+        {t("loading_notifications")}
       </div>
     );
   }
 
   return (
     <div className="p-6">
-      
+
       <div className="mx-auto max-w-[800px] space-y-4">
-        
-        {/* Header & Read All */}
+
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-syne text-[15px] font-black uppercase tracking-wider text-app-tx">
-            Your Notifications
+            {t("your_notifications")}
           </h2>
           {notifications.some(n => !n.read) && (
             <button
               onClick={handleReadAll}
               className="px-4 py-2 bg-app-am/10 text-app-am text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-app-am hover:text-white transition-all shadow-sm"
             >
-              Mark All Read
+              {t("mark_all_read")}
             </button>
           )}
         </div>
@@ -148,7 +149,7 @@ export default function NotificationsPage() {
                 <div className="flex h-4 w-4 items-center justify-center rounded-full bg-green-500/10">
                   <Ic.Check  />
                 </div>
-                <span>{n.read ? "Read" : "Tap to mark as read"}</span>
+                <span>{n.read ? t("read_label") : t("tap_to_mark_read")}</span>
               </div>
             </div>
 
@@ -163,7 +164,7 @@ export default function NotificationsPage() {
         {notifications.length === 0 && (
           <div className="flex flex-col items-center py-20 opacity-30 text-center">
             <Ic.Bell />
-            <p className="font-syne font-bold">No notifications yet</p>
+            <p className="font-syne font-bold">{t("no_notifications_yet")}</p>
           </div>
         )}
       </div>

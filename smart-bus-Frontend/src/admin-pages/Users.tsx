@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Ic } from '../icons';
 import Api from '../services/Api';
 import { useNavigate } from 'react-router-dom';
@@ -60,6 +61,7 @@ const AddUserModal: React.FC<{
   onSuccess: () => void;
   setToast: (t: any) => void;
 }> = ({ onClose, onSuccess, setToast }) => {
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -91,7 +93,7 @@ const AddUserModal: React.FC<{
       }
 
       await Api.post('/auth/register', payload);
-      setToast({ msg: '✅ User added successfully', type: 'success' });
+      setToast({ msg: `✅ ${t('user_added')}`, type: 'success' });
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -100,7 +102,7 @@ const AddUserModal: React.FC<{
       const serverMsg =
         error.response?.data?.message ||
         error.response?.data?.error ||
-        'Registration failed. Check the console for details.';
+        t('registration_failed');
       setServerError(serverMsg);
     } finally {
       setLoading(false);
@@ -267,7 +269,7 @@ const AddUserModal: React.FC<{
             disabled={loading}
             className="flex-1 py-3 rounded-xl bg-app-am text-white dark:text-black font-black uppercase text-[10px] tracking-widest hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-app-am/20 flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            {loading ? <Loader2 className="animate-spin" size={15} /> : 'Add User'}
+            {loading ? <Loader2 className="animate-spin" size={15} /> : t('add_user')}
           </button>
         </div>
 
@@ -278,6 +280,7 @@ const AddUserModal: React.FC<{
 
 // ─── Main UsersPage ───────────────────────────────────────────────────────────
 const UsersPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -315,10 +318,10 @@ const UsersPage: React.FC = () => {
         phone_number: editingUser.phone_number,
         role: editingUser.role
       });
-      setToast({ msg: '✅ Student data updated', type: 'success' });
+      setToast({ msg: `✅ ${t('user_updated')}`, type: 'success' });
       setEditingUser(null);
       fetchUsers();
-    } catch (error) { setToast({ msg: '❌ Update failed', type: 'error' }); }
+    } catch (error) { setToast({ msg: `❌ ${t('update_failed')}`, type: 'error' }); }
   };
 
   const executeDelete = async () => {
@@ -326,8 +329,8 @@ const UsersPage: React.FC = () => {
     try {
       await Api.delete(`/users/${confirmDelete._id}`);
       setUsers(users.filter(u => u._id !== confirmDelete._id));
-      setToast({ msg: '🗑️ Student removed from system', type: 'success' });
-    } catch (error) { setToast({ msg: '❌ Delete failed', type: 'error' }); }
+      setToast({ msg: `🗑️ ${t('user_removed')}`, type: 'success' });
+    } catch (error) { setToast({ msg: `❌ ${t('delete_failed')}`, type: 'error' }); }
     finally { setConfirmDelete(null); }
   };
 
@@ -357,13 +360,13 @@ const UsersPage: React.FC = () => {
             <div className="w-16 h-16 bg-app-err/10 text-app-err rounded-full flex items-center justify-center mx-auto mb-6">
               <Ic.Close size={32} />
             </div>
-            <h2 className="text-xl font-black uppercase mb-2">Delete Student?</h2>
+            <h2 className="text-xl font-black uppercase mb-2">{t('delete_student')}</h2>
             <p className="text-app-mu text-[10px] mb-8 uppercase font-bold tracking-tight">
               Remove <span className="text-app-tx">{confirmDelete.name}</span>? This action is permanent.
             </p>
             <div className="flex gap-4">
-              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-4 rounded-2xl bg-app-bg2 font-black uppercase text-[10px] hover:brightness-95 transition-all">Cancel</button>
-              <button onClick={executeDelete} className="flex-1 py-4 rounded-2xl bg-app-err text-white font-black uppercase text-[10px]">Delete Now</button>
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-4 rounded-2xl bg-app-bg2 font-black uppercase text-[10px] hover:brightness-95 transition-all">{t('cancel')}</button>
+              <button onClick={executeDelete} className="flex-1 py-4 rounded-2xl bg-app-err text-white font-black uppercase text-[10px]">{t('delete_now')}</button>
             </div>
           </div>
         </div>
@@ -400,7 +403,7 @@ const UsersPage: React.FC = () => {
               </div>
             </div>
             <button type="submit" className="w-full bg-app-am text-white dark:text-black py-5 rounded-2xl font-black uppercase text-[10px] tracking-widest mt-10 hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-app-am/20">
-              Save Changes
+              {t('save_changes')}
             </button>
           </form>
         </div>
@@ -418,8 +421,8 @@ const UsersPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
         <div>
-          <h1 className="text-4xl font-black uppercase tracking-tighter italic">Student <span className="text-app-am">Directory</span></h1>
-          <p className="text-app-mu text-[10px] font-bold uppercase tracking-[0.5em] mt-1 italic">Operational Command Center</p>
+          <h1 className="text-4xl font-black uppercase tracking-tighter italic">{t('student_directory')}</h1>
+          <p className="text-app-mu text-[10px] font-bold uppercase tracking-[0.5em] mt-1 italic">{t('manage_directory')}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
@@ -427,7 +430,7 @@ const UsersPage: React.FC = () => {
             <Ic.Search className="text-app-mu2" />
             <input
               type="text"
-              placeholder="FILTER BY NAME OR ID..."
+              placeholder={t('filter_placeholder')}
               className="bg-transparent border-none outline-none text-[10px] font-black w-full uppercase tracking-widest placeholder:text-app-mu2 text-app-tx"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -441,10 +444,10 @@ const UsersPage: React.FC = () => {
               className="bg-transparent border-none outline-none text-[10px] font-black w-full uppercase tracking-widest text-app-tx cursor-pointer appearance-none pr-6"
               style={{ backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.4)' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundPosition: 'right center', backgroundRepeat: 'no-repeat', backgroundSize: '10px' }}
             >
-              <option value="all" className="bg-app-card text-app-tx">ALL ROLES</option>
-              <option value="admin" className="bg-app-card text-app-tx">ADMIN</option>
-              <option value="student" className="bg-app-card text-app-tx">STUDENT</option>
-              <option value="driver" className="bg-app-card text-app-tx">DRIVER</option>
+              <option value="all" className="bg-app-card text-app-tx">{t('all_roles')}</option>
+              <option value="admin" className="bg-app-card text-app-tx">{t('badge_admin')}</option>
+              <option value="student" className="bg-app-card text-app-tx">{t('student').toUpperCase()}</option>
+              <option value="driver" className="bg-app-card text-app-tx">{t('badge_driver')}</option>
             </select>
           </div>
 
@@ -453,7 +456,7 @@ const UsersPage: React.FC = () => {
             className="flex items-center gap-2 bg-app-am text-white dark:text-black px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-app-am/20 whitespace-nowrap"
           >
             <Plus size={16} />
-            Add User
+            {t('add_user')}
           </button>
         </div>
       </div>
@@ -464,16 +467,16 @@ const UsersPage: React.FC = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-app-bg2 text-app-mu text-[9px] font-black uppercase tracking-[0.2em]">
-                <th className="px-10 py-8">Full Identity</th>
-                <th className="px-10 py-8">Registration ID</th>
-                <th className="px-10 py-8">Contact Info</th>
-                <th className="px-10 py-8">Authority</th>
-                <th className="px-10 py-8 text-right">Operations</th>
+                <th className="px-10 py-8">{t('full_identity')}</th>
+                <th className="px-10 py-8">{t('registration_id')}</th>
+                <th className="px-10 py-8">{t('contact_info')}</th>
+                <th className="px-10 py-8">{t('authority')}</th>
+                <th className="px-10 py-8 text-right">{t('operations')}</th>
               </tr>
             </thead>
             <tbody className="text-[11px] font-black uppercase tracking-tight">
               {isLoading ? (
-                <tr><td colSpan={5} className="p-32 text-center text-app-mu2 italic tracking-[0.5em]">Syncing Database...</td></tr>
+                <tr><td colSpan={5} className="p-32 text-center text-app-mu2 italic tracking-[0.5em]">{t('syncing_database')}</td></tr>
               ) : filteredUsers.length === 0 ? (
                 <tr><td colSpan={5} className="p-32 text-center text-app-mu2 italic tracking-[0.5em]">No Users Found</td></tr>
               ) : filteredUsers.map((user) => (

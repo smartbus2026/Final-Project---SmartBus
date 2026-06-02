@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { Ic } from "../icons";
 import Api from "../services/Api";
@@ -18,6 +19,7 @@ const inputClass = "w-full rounded-xl border border-app-bd bg-app-card2 px-4 py-
 const labelClass = "mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-app-mu";
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const { id } = useParams(); // If present, Admin is editing a user
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
@@ -71,7 +73,7 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (passForm.newPass && passForm.newPass !== passForm.confirm) {
-      alert("Passwords do not match!");
+      alert(t("passwords_mismatch"));
       return;
     }
 
@@ -91,21 +93,23 @@ export default function SettingsPage() {
       }
 
       await Api.put(`/users/${targetUserId}`, updatePayload);
-      alert("Settings saved successfully!");
+      alert(t("settings_saved"));
       setPassForm({ current: "", newPass: "", confirm: "" });
     } catch (e) {
       console.error(e);
-      alert("Error saving settings.");
+      alert(t("settings_save_failed"));
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-app-mu">Loading settings...</div>;
+  if (loading) return <div className="p-8 text-center text-app-mu">{t("loading_settings_full")}</div>;
+
+  const isAdminEdit = id && role === "admin";
 
   return (
     <div className="mx-auto max-w-2xl p-6 pb-20 font-sans animate-in fade-in zoom-in-95 duration-300">
       <header className="mb-8">
-        <h1 className="text-2xl font-black text-app-tx">{id && role === 'admin' ? "Edit User" : "Settings"}</h1>
-        <p className="text-xs text-app-mu">Manage {id && role === 'admin' ? "student's account" : "your profile and app preferences"}</p>
+        <h1 className="text-2xl font-black text-app-tx">{isAdminEdit ? t("edit_user") : t("settings")}</h1>
+        <p className="text-xs text-app-mu">{isAdminEdit ? t("settings_manage_student") : t("settings_manage_own")}</p>
       </header>
 
       <div className="space-y-6">
@@ -113,11 +117,11 @@ export default function SettingsPage() {
         {/* --- Profile Information --- */}
         <div className="rounded-2xl border border-app-bd bg-app-card p-6 shadow-sm">
           <h4 className="mb-6 flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-app-tx">
-            <Ic.User className="text-app-am" size={16} /> Account Information
+            <Ic.User className="text-app-am" size={16} /> {t("account_information")}
           </h4>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>Full Name</label>
+              <label className={labelClass}>{t("full_name")}</label>
               <input
                 type="text"
                 className={inputClass}
@@ -126,7 +130,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className={labelClass}>Student ID</label>
+              <label className={labelClass}>{t("student_id")}</label>
               <input
                 type="text"
                 className={inputClass}
@@ -136,7 +140,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="sm:col-span-2">
-              <label className={labelClass}>Email Address {role === 'student' && <span className="text-app-err ml-1">(Read-only)</span>}</label>
+              <label className={labelClass}>{t("email_address")} {role === "student" && <span className="text-app-err ml-1">{t("email_readonly_suffix")}</span>}</label>
               <input
                 type="email"
                 className={inputClass}
@@ -146,7 +150,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="sm:col-span-2">
-              <label className={labelClass}>Phone Number</label>
+              <label className={labelClass}>{t("phone_number")}</label>
               <input
                 type="text"
                 className={inputClass}
@@ -160,12 +164,12 @@ export default function SettingsPage() {
         {/* --- Password Section --- */}
         <div className="rounded-2xl border border-app-bd bg-app-card p-6 shadow-sm">
           <h4 className="mb-6 flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-app-tx">
-            <Ic.Shield className="text-app-am" size={16} /> {id && role === 'admin' ? "Reset Password" : "Change Password"}
+            <Ic.Shield className="text-app-am" size={16} /> {isAdminEdit ? t("reset_password") : t("change_password")}
           </h4>
           <div className="space-y-4">
-            {(!id || role !== 'admin') && (
+            {!isAdminEdit && (
               <div>
-                <label className={labelClass}>Current Password</label>
+                <label className={labelClass}>{t("current_password")}</label>
                 <input
                   type="password"
                   className={inputClass}
@@ -176,7 +180,7 @@ export default function SettingsPage() {
             )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelClass}>New Password</label>
+                <label className={labelClass}>{t("new_password")}</label>
                 <input
                   type="password"
                   className={inputClass}
@@ -185,7 +189,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className={labelClass}>Confirm New</label>
+                <label className={labelClass}>{t("confirm_password")}</label>
                 <input
                   type="password"
                   className={inputClass}
@@ -200,12 +204,12 @@ export default function SettingsPage() {
         {/* --- Notifications Section --- */}
         <div className="rounded-2xl border border-app-bd bg-app-card p-6 shadow-sm">
           <h4 className="mb-6 flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-app-tx">
-            <Ic.Bell className="text-app-am" size={16} /> Notifications
+            <Ic.Bell className="text-app-am" size={16} /> {t("notifications_section")}
           </h4>
           <div className="space-y-4">
             {[
-              { id: 'bookingAlerts', title: 'Booking Alerts', desc: 'Window open/close reminders' },
-              { id: 'busArrival',    title: 'Bus Arrival',    desc: 'Real-time bus proximity alerts' }
+              { id: "bookingAlerts", title: t("booking_alerts"), desc: t("booking_alerts_desc_window") },
+              { id: "busArrival", title: t("bus_arrival"), desc: t("bus_arrival_desc") },
             ].map(item => (
               <div key={item.id} className="flex items-center justify-between">
                 <div>
@@ -228,7 +232,7 @@ export default function SettingsPage() {
           onClick={handleSave}
           className="w-full flex items-center justify-center gap-2 rounded-2xl bg-app-am py-4 text-xs font-black uppercase tracking-widest text-black shadow-lg shadow-app-am/20 transition-all hover:brightness-110 active:scale-95 cursor-pointer"
         >
-          <Ic.Save size={15} /> Save All Changes
+          <Ic.Save size={15} /> {t("save_all_changes")}
         </button>
 
       </div>

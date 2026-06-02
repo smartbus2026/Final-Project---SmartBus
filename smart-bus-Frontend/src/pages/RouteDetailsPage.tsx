@@ -1,13 +1,14 @@
-import { useRoutes } from "../hooks/useRoutes"; 
-// import { Ic } from "../icons";
+import { useTranslation } from "react-i18next";
+import { useRoutes } from "../hooks/useRoutes";
 
 export default function RouteDetailsPage() {
+  const { t } = useTranslation();
   const { routes, isLoading } = useRoutes();
 
   if (isLoading) {
     return (
       <div className="p-6 flex h-64 items-center justify-center text-app-mu font-syne animate-pulse">
-        Loading Routes Data...
+        {t("loading_routes")}
       </div>
     );
   }
@@ -68,17 +69,17 @@ export default function RouteDetailsPage() {
             {/* Footer: Driver & Time Info */}
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-app-bd2 bg-app-card2 px-3 py-2.5 transition-colors group-hover:bg-app-bg">
-                <div className="mb-1 text-[8px] font-bold uppercase tracking-widest text-app-mu">Driver</div>
+                <div className="mb-1 text-[8px] font-bold uppercase tracking-widest text-app-mu">{t("driver_label")}</div>
                 <div className="flex items-center gap-1.5 font-dm text-[11px] font-bold text-app-tx">
                   <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                  {r.driver || "Pending"}
+                  {r.driver || t("pending")}
                 </div>
               </div>
 
               <div className="rounded-xl border border-app-bd2 bg-app-card2 px-3 py-2.5 transition-colors group-hover:bg-app-bg">
-                <div className="mb-1 text-[8px] font-bold uppercase tracking-widest text-app-mu text-right">Departure</div>
+                <div className="mb-1 text-[8px] font-bold uppercase tracking-widest text-app-mu text-right">{t("departure")}</div>
                 <div className="text-right font-dm text-[12px] font-extrabold text-app-am tracking-tight">
-                  {r.time || "TBA"}
+                  {r.time || t("tba")}
                 </div>
               </div>
             </div>

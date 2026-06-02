@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDriverContext } from './DriverLayout';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Ic } from '../icons';
 
-// Fix standard Leaflet icon paths
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -29,13 +29,15 @@ const MapCenterUpdater: React.FC<{ lat: number; lng: number }> = ({ lat, lng }) 
 };
 
 export default function DriverLiveTracking() {
+  const { t } = useTranslation();
   const { activeTrip, geo } = useDriverContext();
 
   return (
     <div className="mb-8">
       <div className="flex items-center gap-3 mb-6">
         <h2 className="text-xl font-black uppercase tracking-tight text-app-tx italic">
-          Live <span className="text-app-am">Tracking</span>
+          {t('live_tracking_part1')}{' '}
+          <span className="text-app-am">{t('live_tracking_part2')}</span>
         </h2>
         <div className="h-px bg-app-bd/50 flex-1" />
       </div>
@@ -61,7 +63,7 @@ export default function DriverLiveTracking() {
            <div className="flex flex-col items-center gap-4">
               <div className="w-10 h-10 border-2 border-app-bd border-t-app-am rounded-full animate-spin" />
               <p className="text-[10px] font-black uppercase tracking-widest text-app-mu animate-pulse">
-                Acquiring GPS Signal for Map...
+                {t('acquiring_gps_map')}
               </p>
            </div>
         </div>
@@ -69,10 +71,10 @@ export default function DriverLiveTracking() {
         <div className="bg-app-card/30 border border-app-bd/50 border-dashed rounded-[2.5rem] h-[80vh] flex flex-col items-center justify-center opacity-70">
           <Ic.Target className="text-app-mu mb-4 opacity-50" size={48} />
           <p className="text-[12px] font-black uppercase tracking-widest text-app-mu text-center">
-            Live Map Tracking Inactive
+            {t('live_map_inactive')}
           </p>
           <p className="text-[10px] text-app-mu2 uppercase tracking-widest mt-2">
-            Start a trip to activate real-time GPS tracking
+            {t('start_trip_for_gps')}
           </p>
         </div>
       )}

@@ -4,6 +4,7 @@ import Route from "../models/Route";
 import Trip from "../models/Trip";
 import Notification from "../models/notification";
 import Settings from "../models/Settings.model";
+import SystemSettings from "../models/SystemSettings.model";
 import Bus from "../models/Bus";
 import User from "../models/User";
 import { getIO } from "../socket";
@@ -599,17 +600,6 @@ export const dispatchBus = async (req: Request, res: Response) => {
       });
     }
 
-    // ── Count previously assigned distinct buses for Quota Logic ──
-    const previousDistinctBuses = await Booking.distinct("busId", {
-      date: { $gte: targetDate, $lte: dayEnd },
-      timeSlot: timeSlot,
-      status: { $in: ["assigned", "active", "completed", "in-progress", "in_progress"] },
-      busId: { $exists: true, $ne: null }
-    });
-    const previousCount = previousDistinctBuses.length;
-    const newAssignmentsCount = validatedAssignments.length;
-    const totalCount = previousCount + newAssignmentsCount;
-
     // ── Fetch and Allocation of Pending Bookings (In-Memory) ──
     const bookingQuery: any = {
       route: { $in: actualRouteIds },
@@ -756,12 +746,25 @@ export const dispatchBus = async (req: Request, res: Response) => {
       message: `Successfully assigned ${assignmentsWithBookings.filter(a => a.bookings.length > 0).length} buses to ${totalAssignedBookings} bookings and created ${tripUpserts.length} Trip(s). Students notified.`
     });
 
-    // ── Shift Quota Warning and Limit Alert (Asynchronous & Non-Blocking) ──
+    // ── Shift & Monthly Quota Alerts (Asynchronous & Non-Blocking) ──
     setImmediate(async () => {
       try {
-        if (totalCount >= 7) {
+        const systemSettings = (await SystemSettings.findOne()) ?? (await SystemSettings.create({}));
+        const shiftLimit = systemSettings.defaultShiftLimit;
+        const monthlyBusQuota = systemSettings.monthlyBusQuota;
+
+        // Shift Logic: exact distinct buses assigned for the requested date + timeSlot
+        const distinctShiftBuses = await Booking.distinct("busId", {
+          date: { $gte: targetDate, $lte: dayEnd },
+          timeSlot: timeSlot,
+          status: { $in: ["assigned", "active", "completed", "in-progress", "in_progress"] },
+          busId: { $exists: true, $ne: null }
+        });
+        const shiftUsed = distinctShiftBuses.length;
+
+        if (shiftUsed > shiftLimit) {
           const alertTitle = "Quota Alert: Exceeded Shift Limit";
-          const alertMessage = `You have assigned more than 7 buses for the ${timeSlot} shift on ${date}. You are now utilizing your monthly reserve.`;
+          const alertMessage = `You have assigned more than ${shiftLimit} buses for the ${timeSlot} shift on ${date}. You are now utilizing your monthly reserve.`;
 
           const admins = await User.find({ role: "admin" }).select("_id");
           const notifications = admins.map(admin => ({
@@ -783,6 +786,63 @@ export const dispatchBus = async (req: Request, res: Response) => {
               title: alertTitle,
               message: alertMessage,
               type: "alert",
+              createdAt: new Date()
+            });
+          } catch (_) {}
+        }
+
+        // Monthly Renewal Logic (Smart Way): count within requested month's bounds.
+        const monthStart = new Date(targetDate);
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+        monthEnd.setHours(23, 59, 59, 999);
+
+        const distinctMonthlyAssignments = await Booking.aggregate([
+          {
+            $match: {
+              status: { $in: ["assigned", "active", "completed", "in-progress", "in_progress"] },
+              busId: { $exists: true, $ne: null },
+              date: { $gte: monthStart, $lte: monthEnd }
+            }
+          },
+          {
+            $group: {
+              _id: {
+                busId: "$busId",
+                date: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+                timeSlot: "$timeSlot"
+              }
+            }
+          },
+          { $count: "total" }
+        ]);
+
+        // distinctMonthlyAssignments already reflects the new state after we updated bookings.
+        const monthlyUsed = distinctMonthlyAssignments[0]?.total || 0;
+        if (monthlyUsed > monthlyBusQuota) {
+          const alertTitle = "Monthly Quota Exceeded";
+          const alertMessage = `Monthly Quota Exceeded: You have used all ${monthlyBusQuota} allocated buses for this month.`;
+
+          const admins = await User.find({ role: "admin" }).select("_id");
+          const notifications = admins.map(admin => ({
+            user: admin._id,
+            title: alertTitle,
+            message: alertMessage,
+            type: "critical",
+            read: false
+          }));
+
+          if (notifications.length > 0) {
+            await Notification.insertMany(notifications);
+          }
+
+          try {
+            const io = getIO();
+            io.to("admins").emit("newNotification", {
+              title: alertTitle,
+              message: alertMessage,
+              type: "critical",
               createdAt: new Date()
             });
           } catch (_) {}

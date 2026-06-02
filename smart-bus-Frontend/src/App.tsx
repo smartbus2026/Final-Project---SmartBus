@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import "./App.css";
 
 import AppLayout from "./components/AppLayout";
@@ -54,6 +55,8 @@ const Guard = ({ role, allowed, redirectTo, children }: GuardProps) =>
 
 // --- App ---
 export default function App() {
+  const { i18n, t } = useTranslation();
+
   const [theme, setTheme] = useState<Theme>(() =>
     (localStorage.getItem("theme") as Theme) ?? "dark"
   );
@@ -83,6 +86,12 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
+
+  useEffect(() => {
+    const lang = i18n.language === "ar" ? "ar" : "en";
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = lang;
+  }, [i18n.language]);
 
   return (
     <BrowserRouter>
@@ -140,7 +149,7 @@ export default function App() {
 
         </Route>
 
-        <Route path="*" element={<PlaceholderPage label="Page Not Found" />} />
+        <Route path="*" element={<PlaceholderPage label={t("page_not_found")} />} />
 
       </Routes>
       {role === "student" && <Chatbot />}

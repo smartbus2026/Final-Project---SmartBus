@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bus, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -12,6 +13,7 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onSuccess }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -42,7 +44,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
         else navigate('/dashboard');
       }
     } catch (error: any) {
-      setServerError(error.response?.data?.message || 'Invalid email or password');
+      setServerError(error.response?.data?.message || t('invalid_credentials'));
     } finally {
       setLoading(false);
     }
@@ -59,14 +61,14 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
             <Bus size={32} fill="currentColor" />
           </Link>
           <h1 className="text-3xl font-extrabold tracking-tight mt-4">SmartBus</h1>
-          <p className="text-[#8a8d91] text-xs uppercase tracking-[3px] mt-1 font-medium">Welcome Back</p>
+          <p className="text-[#8a8d91] text-xs uppercase tracking-[3px] mt-1 font-medium">{t('welcome_back')}</p>
         </div>
 
         {/* Main Card */}
         <div className="w-full bg-[#1c1e26] border border-[#2d3036] p-8 md:p-10 rounded-[32px] shadow-2xl animate-in delay-100">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-1">Sign In</h2>
-            <p className="text-[#8a8d91] text-sm font-medium">Access your institutional portal</p>
+            <h2 className="text-2xl font-bold mb-1">{t('sign_in')}</h2>
+            <p className="text-[#8a8d91] text-sm font-medium">{t('sign_in_subtitle')}</p>
           </div>
 
           {/* Error Message */}
@@ -81,13 +83,13 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
             {/* Email Field */}
             <div className="space-y-1.5 group">
               <label className="text-[#8a8d91] text-[11px] font-bold uppercase tracking-wider ml-1">
-                Institutional Email
+                {t('institutional_email')}
               </label>
               <div className="relative flex items-center">
                 <Mail className="absolute left-4 text-[#8a8d91] group-focus-within:text-[#f7a01b] transition-colors" size={18} />
                 <input 
                   type="email"
-                  placeholder="name@university.edu"
+                  placeholder={t('email_placeholder')}
                   {...register("email")}
                   disabled={loading}
                   className="w-full bg-[#262a33] border border-[#2d3036] py-3.5 pl-12 pr-4 rounded-xl text-white outline-none focus:border-[#f7a01b] focus:bg-[#2d323d] transition-all text-sm placeholder:text-gray-600 disabled:opacity-50"
@@ -101,7 +103,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
             {/* Password Field */}
             <div className="space-y-1.5 group">
               <label className="text-[#8a8d91] text-[11px] font-bold uppercase tracking-wider ml-1">
-                Password
+                {t('password')}
               </label>
               <div className="relative flex items-center">
                 <Lock className="absolute left-4 text-[#8a8d91] group-focus-within:text-[#f7a01b] transition-colors" size={18} />
@@ -131,7 +133,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
               disabled={loading}
               className="w-full bg-[#f7a01b] text-black font-bold py-4 rounded-2xl mt-4 shadow-xl shadow-orange-500/10 hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center disabled:opacity-70"
             >
-              {loading ? <Loader2 className="animate-spin" size={22} /> : "Sign In"}
+              {loading ? <Loader2 className="animate-spin" size={22} /> : t('sign_in')}
             </button>
           </form>
 
@@ -140,7 +142,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
         </div>
 
         <footer className="mt-10 text-[#8a8d91] text-[10px] font-bold uppercase tracking-[3px] opacity-40">
-          SmartBus Transportation System © 2026
+          {t('footer_copyright')}
         </footer>
       </div>
 

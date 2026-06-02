@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Ic } from '../icons';
 import Api from '../services/Api';
 
@@ -13,6 +14,7 @@ interface DashboardData {
 
 // ── Attendance Report Panel ──────────────────────────────────────────────────
 const AttendanceReportPanel: React.FC = () => {
+  const { t } = useTranslation();
   const today = new Date().toISOString().split('T')[0];
 
   const [filters, setFilters] = useState({ date: today, routeId: '', busId: '', timeSlot: '', specificReturnTime: '' });
@@ -64,11 +66,11 @@ const AttendanceReportPanel: React.FC = () => {
       {/* Panel Header */}
       <div className="px-6 py-4 border-b border-app-bd flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-app-card2/50">
         <div>
-          <h2 className="text-[13px] font-black uppercase tracking-widest text-app-tx">Attendance Report</h2>
-          <p className="text-[10px] text-app-mu mt-0.5">Filter by date, route, bus, or time slot — updates automatically</p>
+          <h2 className="text-[13px] font-black uppercase tracking-widest text-app-tx">{t('attendance_report')}</h2>
+          <p className="text-[10px] text-app-mu mt-0.5">{t('attendance_report_desc')}</p>
         </div>
         <span className="text-[10px] font-bold text-app-mu uppercase tracking-widest">
-          {loading ? 'Loading...' : `${stats.total} records found`}
+          {loading ? t('loading') : t('records_found', { count: stats.total })}
         </span>
       </div>
 
@@ -76,7 +78,7 @@ const AttendanceReportPanel: React.FC = () => {
       <div className="px-6 py-4 border-b border-app-bd grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Date */}
         <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">Date</label>
+          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t('date')}</label>
           <div className="flex items-center gap-2 bg-app-bg border border-app-bd rounded-xl px-3 py-2">
             <Ic.Calendar size={12} className="text-app-am shrink-0" />
             <input
@@ -90,48 +92,48 @@ const AttendanceReportPanel: React.FC = () => {
 
         {/* Route */}
         <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">Route</label>
+          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t('route')}</label>
           <select
             value={filters.routeId}
             onChange={e => setFilters(f => ({ ...f, routeId: e.target.value }))}
             className={selectClass}
           >
-            <option value="">All Routes</option>
+            <option value="">{t('all_routes')}</option>
             {routes.map((r: any) => <option key={r._id} value={r._id}>{r.name}</option>)}
           </select>
         </div>
 
         {/* Bus */}
         <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">Bus</label>
+          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t('bus')}</label>
           <select
             value={filters.busId}
             onChange={e => setFilters(f => ({ ...f, busId: e.target.value }))}
             className={selectClass}
           >
-            <option value="">All Buses</option>
+            <option value="">{t('all_buses')}</option>
             {buses.map((b: any) => <option key={b._id} value={b._id}>{b.busCode}</option>)}
           </select>
         </div>
 
         {/* TimeSlot */}
         <div className="flex flex-col gap-1">
-          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">Time Slot</label>
+          <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t('time_slot')}</label>
           <select
             value={filters.timeSlot}
             onChange={e => setFilters(f => ({ ...f, timeSlot: e.target.value, specificReturnTime: '' }))}
             className={selectClass}
           >
-            <option value="">All Slots</option>
-            <option value="Morning">Morning</option>
-            <option value="Return">Return</option>
+            <option value="">{t('all_slots')}</option>
+            <option value="Morning">{t('morning')}</option>
+            <option value="Return">{t('return')}</option>
           </select>
         </div>
 
         {/* Specific Return Time — conditional */}
         {filters.timeSlot === 'Return' && (
           <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-4">
-            <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">Return Time</label>
+            <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t('select_return_time')}</label>
             <div className="flex gap-2">
               {['3:30 PM', '7:00 PM'].map(t => (
                 <button
@@ -154,10 +156,10 @@ const AttendanceReportPanel: React.FC = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-6 py-4 border-b border-app-bd bg-app-bg/30">
         {[
-          { label: 'Total Records', value: stats.total,     color: 'text-app-mu',  bg: 'bg-app-card' },
-          { label: 'Completed',     value: stats.completed, color: 'text-app-ok',  bg: 'bg-green-500/10' },
-          { label: 'Missed',        value: stats.missed,    color: 'text-app-err', bg: 'bg-red-500/10' },
-          { label: 'Attend. Rate',  value: `${stats.rate}%`, color: stats.rate >= 75 ? 'text-app-ok' : 'text-app-err', bg: 'bg-app-card' },
+          { label: t('total_records'), value: stats.total,     color: 'text-app-mu',  bg: 'bg-app-card' },
+          { label: t('completed'),     value: stats.completed, color: 'text-app-ok',  bg: 'bg-green-500/10' },
+          { label: t('missed'),        value: stats.missed,    color: 'text-app-err', bg: 'bg-red-500/10' },
+          { label: t('attend_rate_short'),  value: `${stats.rate}%`, color: stats.rate >= 75 ? 'text-app-ok' : 'text-app-err', bg: 'bg-app-card' },
         ].map(s => (
           <div key={s.label} className={`rounded-xl p-5 border border-app-bd shadow-sm ${s.bg}`}>
             <p className="text-[9px] font-black uppercase tracking-widest text-app-mu mb-1.5">{s.label}</p>
@@ -170,19 +172,19 @@ const AttendanceReportPanel: React.FC = () => {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <div className="w-8 h-8 border-4 border-app-bd border-t-app-am rounded-full animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-app-mu animate-pulse">Syncing Database...</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-app-mu animate-pulse">{t('syncing_database')}</p>
         </div>
       ) : bookings.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-40">
           <Ic.Users size={40} className="text-app-mu" />
-          <p className="text-[11px] font-bold uppercase tracking-widest text-app-mu">No records match your filters</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-app-mu">{t('no_records_match')}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-app-bd bg-app-bg/50">
-                {['Student', 'Route', 'Bus', 'Date', 'Time Slot', 'Status'].map(h => (
+                {[t('student'), t('route'), t('bus'), t('date'), t('time_slot'), t('status')].map(h => (
                   <th key={h} className="px-6 py-4 text-left text-[9px] font-black uppercase tracking-widest text-app-mu">{h}</th>
                 ))}
               </tr>
@@ -211,11 +213,11 @@ const AttendanceReportPanel: React.FC = () => {
                   <td className="px-6 py-4">
                     {b.attendanceStatus === 'completed' ? (
                       <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase bg-green-500/10 text-app-ok border border-green-500/20 shadow-sm">
-                        <Ic.Check size={10} /> Present
+                        <Ic.Check size={10} /> {t('present')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase bg-red-500/10 text-app-err border border-red-500/20 shadow-sm">
-                        <Ic.X size={10} /> Missed
+                        <Ic.X size={10} /> {t('missed')}
                       </span>
                     )}
                   </td>
@@ -231,6 +233,7 @@ const AttendanceReportPanel: React.FC = () => {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 const AdminReport: React.FC = () => {
+  const { t } = useTranslation();
   const [dashData, setDashData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -253,7 +256,7 @@ const AdminReport: React.FC = () => {
       <div className="flex-1 bg-app-bg text-app-tx p-8 flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-app-bd border-t-app-am rounded-full animate-spin" />
-          <div className="animate-pulse text-app-mu font-black uppercase tracking-widest text-[10px]">Loading Dashboard...</div>
+          <div className="animate-pulse text-app-mu font-black uppercase tracking-widest text-[10px]">{t('loading_dashboard')}</div>
         </div>
       </div>
     );
@@ -265,10 +268,10 @@ const AdminReport: React.FC = () => {
       {/* ── Dashboard Stats ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { title: "Total Students",  value: dashData.totalUsers,    icon: <Ic.Users />,  color: "text-app-am" },
-          { title: "Total Trips",     value: dashData.totalTrips,    icon: <Ic.Pin />,    color: "text-app-ok" },
-          { title: "Active Trips",    value: dashData.activeTrips,   icon: <Ic.Clock />,  color: "text-app-tx" },
-          { title: "Total Bookings",  value: dashData.totalBookings, icon: <Ic.Check />,  color: "text-app-mu" },
+          { title: t('total_students'),  value: dashData.totalUsers,    icon: <Ic.Users />,  color: "text-app-am" },
+          { title: t('total_trips_label'),     value: dashData.totalTrips,    icon: <Ic.Pin />,    color: "text-app-ok" },
+          { title: t('active_trips'),    value: dashData.activeTrips,   icon: <Ic.Clock />,  color: "text-app-tx" },
+          { title: t('total_bookings'),  value: dashData.totalBookings, icon: <Ic.Check />,  color: "text-app-mu" },
         ].map((s, i) => (
           <div key={i} className="bg-app-card rounded-2xl p-5 border border-app-bd shadow-sm">
             <div className="flex items-center justify-between mb-4">

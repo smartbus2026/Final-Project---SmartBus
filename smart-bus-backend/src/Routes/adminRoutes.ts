@@ -2,6 +2,7 @@ import express from "express";
 import { protect } from "../middleware/authMiddleware";
 import { allowRoles } from "../middleware/roleMiddleware";
 import User from "../models/User";
+import { getSystemSettings, updateSystemSettings } from "../Controllers/settingsController";
 
 const router = express.Router();
 
@@ -15,5 +16,8 @@ router.get("/drivers", protect, allowRoles("admin"), async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+router.get("/settings", protect, allowRoles("admin"), getSystemSettings);
+router.put("/settings", protect, allowRoles("admin"), updateSystemSettings);
 
 export default router;

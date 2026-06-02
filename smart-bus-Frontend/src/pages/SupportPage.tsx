@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { FAQS } from "../data";
 import { Ic } from "../icons";
 import Api from "../services/Api";
@@ -18,6 +19,7 @@ interface Ticket {
 }
 
 export default function SupportPage() {
+  const { t } = useTranslation();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [subject, setSubject] = useState("");
   const [desc, setDesc] = useState("");
@@ -62,7 +64,7 @@ export default function SupportPage() {
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-app-am-d text-app-am">
               <Ic.Help  />
             </div>
-            Frequently Asked Questions
+            {t("faq_title")}
           </div>
           
           <div className="divide-y divide-app-bd">
@@ -91,7 +93,7 @@ export default function SupportPage() {
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-app-am-d text-app-am">
               <Ic.Chat  />
             </div>
-            Submit a Ticket
+            {t("submit_ticket")}
           </div>
 
           {submitted ? (
@@ -99,53 +101,52 @@ export default function SupportPage() {
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-500/10 text-app-ok">
                 <Ic.Check  />
               </div>
-              <h4 className="text-[15px] font-bold text-app-tx">Ticket Submitted!</h4>
-              <p className="mt-1 text-[11px] text-app-mu">We'll respond to your issue within 24 hours.</p>
-              <button 
+              <h4 className="text-[15px] font-bold text-app-tx">{t("ticket_submitted")}</h4>
+              <p className="mt-1 text-[11px] text-app-mu">{t("ticket_response_time")}</p>
+              <button
                 className="mt-6 cursor-pointer text-xs font-bold text-app-am underline underline-offset-4"
                 onClick={() => { setSubmitted(false); setSubject(""); setDesc(""); }}
               >
-                Send another report
+                {t("send_another")}
               </button>
             </div>
           ) : (
             <div className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-app-mu">Subject</label>
-                <input 
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-app-mu">{t("subject")}</label>
+                <input
                   className="w-full rounded-xl border border-app-bd bg-app-card2 px-4 py-3 text-[13px] text-app-tx outline-none focus:border-app-am focus:ring-1 focus:ring-app-am/20 transition-all placeholder:text-app-mu2"
-                  placeholder="What's the problem?" 
-                  value={subject} 
-                  onChange={e => setSubject(e.target.value)} 
+                  placeholder={t("whats_the_problem")}
+                  value={subject}
+                  onChange={e => setSubject(e.target.value)}
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-app-mu">Description</label>
-                <textarea 
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-app-mu">{t("description")}</label>
+                <textarea
                   className="w-full resize-none rounded-xl border border-app-bd bg-app-card2 px-4 py-3 text-[13px] text-app-tx outline-none focus:border-app-am focus:ring-1 focus:ring-app-am/20 transition-all placeholder:text-app-mu2"
-                  rows={4} 
-                  placeholder="Describe the issue in detail..." 
-                  value={desc} 
-                  onChange={e => setDesc(e.target.value)} 
+                  rows={4}
+                  placeholder={t("describe_issue_detail")}
+                  value={desc}
+                  onChange={e => setDesc(e.target.value)}
                 />
               </div>
-              <button 
+              <button
                 className="group flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-app-am py-3.5 text-[13px] font-bold text-white shadow-[0_4px_12px_var(--am-g)] transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={handleSubmit} 
+                onClick={handleSubmit}
                 disabled={!subject.trim() || loading}
               >
-                {loading ? <span className="animate-pulse">Submitting...</span> : <><Ic.Send  /> Submit Ticket</>}
+                {loading ? <span className="animate-pulse">{t("submitting")}</span> : <><Ic.Send  /> {t("submit_ticket_btn")}</>}
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Bottom: History ── */}
       <div className="rounded-2xl border border-app-bd bg-app-card p-6">
-        <h3 className="mb-5 font-syne text-[13px] font-bold uppercase tracking-wider text-app-tx">Previous Tickets</h3>
+        <h3 className="mb-5 font-syne text-[13px] font-bold uppercase tracking-wider text-app-tx">{t("previous_tickets")}</h3>
         {tickets.length === 0 ? (
-          <p className="text-center py-10 text-app-mu text-[12px] font-medium opacity-50">You haven't submitted any tickets yet.</p>
+          <p className="text-center py-10 text-app-mu text-[12px] font-medium opacity-50">{t("no_tickets_submitted")}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {tickets.map(t => (
@@ -169,4 +170,4 @@ export default function SupportPage() {
       </div>
     </div>
   );
-}
+}

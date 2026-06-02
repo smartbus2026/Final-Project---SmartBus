@@ -1,5 +1,6 @@
 import { Bus, GraduationCap, ShieldCheck, Moon, Sun, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   theme: "dark" | "light";
@@ -7,26 +8,24 @@ interface Props {
 }
 
 const WelcomePage: React.FC<Props> = ({ theme, toggleTheme }) => {
-  
+  const { t } = useTranslation();
 
   return (
     <div className="bg-slate-50 dark:bg-[#0f1115] text-gray-800 dark:text-gray-200 font-sans min-h-screen flex flex-col overflow-x-hidden transition-colors duration-300 relative selection:bg-amber-600 selection:text-white">
       
-      {/* Animated Background Blobs */}
       <div className="fixed inset-0 w-full h-full z-0 overflow-hidden pointer-events-none flex justify-center items-center">
         <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-amber-600/30 dark:bg-amber-600/20 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[80px] opacity-70 animate-[blob_7s_infinite]"></div>
         <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-yellow-500/30 dark:bg-yellow-600/10 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[80px] opacity-70 animate-[blob_7s_infinite] [animation-delay:2000ms]"></div>
         <div className="absolute -bottom-8 left-1/3 w-72 h-72 bg-orange-600/30 dark:bg-orange-800/20 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[80px] opacity-70 animate-[blob_7s_infinite] [animation-delay:4000ms]"></div>
       </div>
 
-      {/* Header / Navbar */}
       <header className="h-20 w-full flex items-center justify-between px-6 sm:px-10 z-20 relative bg-transparent">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-orange-600 flex items-center justify-center text-white font-bold shadow-lg shadow-amber-600/20">
             <Bus size={20} fill="currentColor" />
           </div>
           <div>
-            <h1 className="text-gray-900 dark:text-white font-bold text-xl leading-tight tracking-tight">SmartBus</h1>
+            <h1 className="text-gray-900 dark:text-white font-bold text-xl leading-tight tracking-tight">{t('welcome_brand')}</h1>
           </div>
         </div>
         
@@ -40,43 +39,40 @@ const WelcomePage: React.FC<Props> = ({ theme, toggleTheme }) => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-4 py-12 sm:py-20 w-full max-w-6xl mx-auto">
         
-        {/* Hero Text */}
         <div className="text-center max-w-2xl mx-auto mb-16 animate-[fadeInUp_0.8s_ease-out_forwards]">
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-600/10 border border-amber-600/20 text-amber-600 text-xs font-semibold uppercase tracking-wider mb-6">
             <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></span>
-            Welcome to the Future of Commuting
+            {t('welcome_tagline')}
           </span>
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6 tracking-tight">
-            Your Daily Commute, <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-yellow-500">Smarter & Easier.</span>
+            {t('welcome_hero_part1')}{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-yellow-500">
+              {t('welcome_hero_part2')}
+            </span>
           </h2>
           <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
-            Track your university bus in real-time, book your trips seamlessly, and never miss a ride again. Choose your portal to get started.
+            {t('welcome_hero_body')}
           </p>
         </div>
 
-        {/* Role Selection Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 w-full max-w-4xl mx-auto px-4">
           
-          {/* Student Card */}
           <PortalCard 
-            title="Student Portal"
-            description="Book your daily trips, track your assigned bus on the live map, and get instant admin announcements."
+            title={t('portal_student_title')}
+            description={t('portal_student_desc')}
             icon={<GraduationCap size={32} />}
-            buttonText="Enter as Student"
+            buttonText={t('enter_as_student')}
             link="/signup"
             type="student"
           />
 
-          {/* Admin Card */}
           <PortalCard 
-            title="Admin Panel"
-            description="Manage users, monitor live bus routes, track occupancy rates, and handle support tickets efficiently."
+            title={t('portal_admin_title')}
+            description={t('portal_admin_desc')}
             icon={<ShieldCheck size={32} />}
-            buttonText="Enter as Admin"
+            buttonText={t('enter_as_admin')}
             link="/admin/login"
             type="admin"
           />
@@ -84,12 +80,10 @@ const WelcomePage: React.FC<Props> = ({ theme, toggleTheme }) => {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="relative z-10 w-full py-6 text-center text-xs text-gray-500 dark:text-gray-500">
-        &copy; 2026 SmartBus System. All rights reserved.
+        {t('welcome_footer')}
       </footer>
 
-      {/* Custom Styles for Animations */}
       <style>{`
         @keyframes blob {
           0% { transform: translate(0px, 0px) scale(1); }
@@ -110,7 +104,6 @@ const WelcomePage: React.FC<Props> = ({ theme, toggleTheme }) => {
   );
 };
 
-// Sub-component for Cards
 interface CardProps {
   title: string;
   description: string;

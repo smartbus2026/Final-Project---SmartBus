@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { io, Socket } from 'socket.io-client';
 import Api from '../services/Api';
 import { Ic } from '../icons';
@@ -62,11 +63,13 @@ interface GeoState {
   error: string | null;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const TIME_SLOT_LABELS: Record<string, string> = {
-  morning:     '🌅 Morning Departure',
-  return_1530: '🕞 Return 15:30',
-  return_1900: '🌆 Return 19:00',
+const STATUS_KEY: Record<string, string> = {
+  scheduled: 'status_scheduled',
+  active: 'active',
+  'in-progress': 'status_in_progress',
+  in_progress: 'status_in_progress',
+  completed: 'completed',
+  cancelled: 'cancelled',
 };
 
 const STATUS_STYLE: Record<string, string> = {
@@ -85,6 +88,20 @@ const STATUS_STYLE: Record<string, string> = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const DriverDashboard: React.FC = () => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'ar' ? 'ar-EG' : 'en-GB';
+
+  const timeSlotLabel = (slot: string) => {
+    const labels: Record<string, string> = {
+      morning: t('morning_departure'),
+      return_1530: t('return_1530'),
+      return_1900: t('return_1900'),
+    };
+    return labels[slot] ?? slot;
+  };
+
+  const statusLabel = (status: string) => t(STATUS_KEY[status] ?? status);
+
   const [trips, setTrips]                 = useState<DriverTrip[]>([]);
   const [isLoading, setIsLoading]         = useState(true);
   const [activeTrip, setActiveTrip]       = useState<string | null>(null);
@@ -122,11 +139,11 @@ const DriverDashboard: React.FC = () => {
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       console.error('Failed to fetch driver trips:', error);
-      setToast({ msg: 'Could not load your trips. Check your connection.', type: 'error' });
+      setToast({ msg: t('load_trips_failed'), type: 'error' });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { fetchTrips(); }, [fetchTrips]);
 
@@ -161,7 +178,7 @@ const DriverDashboard: React.FC = () => {
   // ── Start GPS watch and emit over socket ────────────────────────────────────
   const startGpsWatch = useCallback((tripId: string) => {
     if (!navigator.geolocation) {
-      setGeo(g => ({ ...g, error: 'Geolocation is not supported by this browser.' }));
+      setGeo(g => ({ ...g, error: t('geo_not_supported') }));
       return;
     }
 
@@ -188,15 +205,15 @@ const DriverDashboard: React.FC = () => {
         setGeo(g => ({
           ...g,
           error: err.code === 1
-            ? 'Location access denied. Please enable location in browser settings.'
-            : 'Unable to get your location. Retrying…',
+            ? t('gps_denied')
+            : t('gps_retrying'),
         }));
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10_000 }
     );
 
     watchIdRef.current = watchId;
-  }, []);
+  }, [t]);
 
   // ── Stop GPS watch ──────────────────────────────────────────────────────────
   const stopGpsWatch = useCallback(() => {
@@ -220,11 +237,11 @@ const DriverDashboard: React.FC = () => {
       setActiveTrip(tripId);
       startGpsWatch(tripId);   // ← real GPS begins streaming here
 
-      setToast({ msg: '🚌 Trip started — GPS tracking is now live.', type: 'success' });
+      setToast({ msg: t('trip_started_gps'), type: 'success' });
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       setToast({
-        msg: error.response?.data?.message || 'Failed to start trip.',
+        msg: error.response?.data?.message || t('driver_start_trip_failed'),
         type: 'error',
       });
     } finally {
@@ -246,11 +263,11 @@ const DriverDashboard: React.FC = () => {
         prev.map(t => t._id === tripId ? { ...t, status: 'completed' } : t)
       );
 
-      setToast({ msg: '✅ Trip completed. GPS tracking stopped.', type: 'success' });
+      setToast({ msg: t('trip_completed_gps'), type: 'success' });
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       setToast({
-        msg: error.response?.data?.message || 'Failed to end trip.',
+        msg: error.response?.data?.message || t('driver_end_trip_failed'),
         type: 'error',
       });
     } finally {
@@ -289,10 +306,11 @@ const DriverDashboard: React.FC = () => {
           </div>
           <div>
             <h1 className="text-3xl font-black uppercase tracking-tighter italic">
-              Driver <span className="text-app-am">Dashboard</span>
+              {t('driver_title_part1')}{' '}
+              <span className="text-app-am">{t('driver_title_part2')}</span>
             </h1>
             <p className="text-[10px] text-app-mu font-bold uppercase tracking-[0.4em] mt-0.5">
-              Real-Time Trip Command Center
+              {t('driver_command_center')}
             </p>
           </div>
         </div>
@@ -307,7 +325,7 @@ const DriverDashboard: React.FC = () => {
               <span className="relative inline-flex rounded-full h-3 w-3 bg-app-ok" />
             </span>
             <span className="text-[10px] font-black uppercase tracking-widest text-app-ok">
-              GPS Broadcasting Live
+              {t('gps_broadcasting_live')}
             </span>
           </div>
 
@@ -318,20 +336,23 @@ const DriverDashboard: React.FC = () => {
           ) : geo.lat !== null ? (
             <div className="flex items-center gap-6 text-[10px] font-black text-app-mu uppercase tracking-widest">
               <span>
-                LAT <span className="text-app-tx font-mono">{geo.lat.toFixed(6)}</span>
+                {t('driver_lat')}{' '}
+                <span className="text-app-tx font-mono">{geo.lat.toFixed(6)}</span>
               </span>
               <span>
-                LNG <span className="text-app-tx font-mono">{geo.lng?.toFixed(6)}</span>
+                {t('driver_lng')}{' '}
+                <span className="text-app-tx font-mono">{geo.lng?.toFixed(6)}</span>
               </span>
               {geo.accuracy !== null && (
                 <span>
-                  ACC <span className="text-app-tx font-mono">±{Math.round(geo.accuracy)}m</span>
+                  {t('driver_acc')}{' '}
+                  <span className="text-app-tx font-mono">±{Math.round(geo.accuracy)}m</span>
                 </span>
               )}
             </div>
           ) : (
             <span className="text-[10px] font-bold text-app-mu animate-pulse">
-              Acquiring GPS signal…
+              {t('acquiring_gps_signal')}
             </span>
           )}
         </div>
@@ -343,7 +364,7 @@ const DriverDashboard: React.FC = () => {
           <div className="flex flex-col items-center gap-4">
             <div className="w-10 h-10 border-2 border-app-bd border-t-app-am rounded-full animate-spin" />
             <p className="text-[10px] font-black uppercase tracking-widest text-app-mu animate-pulse">
-              Loading Trips…
+              {t('loading_driver_trips')}
             </p>
           </div>
         </div>
@@ -352,10 +373,10 @@ const DriverDashboard: React.FC = () => {
         <div className="flex flex-col items-center justify-center h-64 gap-4 opacity-40">
           <Ic.Bus size={48} />
           <p className="text-[10px] font-black uppercase tracking-widest text-app-mu text-center">
-            No upcoming trips assigned to you
+            {t('no_upcoming_trips')}
           </p>
           <p className="text-[9px] text-app-mu2 uppercase tracking-widest">
-            Contact your administrator to assign trips
+            {t('contact_admin_trips')}
           </p>
         </div>
 
@@ -365,11 +386,12 @@ const DriverDashboard: React.FC = () => {
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-black uppercase tracking-tight text-app-tx italic">
-                My <span className="text-app-am">Trips</span>
+                {t('my_trips_part1') && <>{t('my_trips_part1')}{' '}</>}
+                <span className="text-app-am">{t('my_trips_part2')}</span>
               </h2>
               <div className="h-px bg-app-bd/50 flex-1" />
               <p className="text-[10px] font-bold text-app-mu uppercase tracking-widest">
-                <span className="text-app-tx">{trips.length}</span> Assigned
+                <span className="text-app-tx">{trips.length}</span> {t('driver_assigned')}
               </p>
             </div>
 
@@ -378,8 +400,8 @@ const DriverDashboard: React.FC = () => {
               const isThisActive    = trip.status === 'active' || trip.status === 'in-progress' || trip.status === 'in_progress';
               const isBtnLoading    = actionLoading === trip._id;
               const stops           = trip.route?.stops ?? [];
-              const firstStop       = stops[0]?.name ?? 'Origin';
-              const lastStop        = stops[stops.length - 1]?.name ?? 'Destination';
+              const firstStop       = stops[0]?.name ?? t('stop_origin');
+              const lastStop        = stops[stops.length - 1]?.name ?? t('stop_destination');
               const routeName       = trip.route?.name ?? '—';
 
               const tripStartTime = (() => {
@@ -397,6 +419,7 @@ const DriverDashboard: React.FC = () => {
 
               const canStart = (tripStartTime.getTime() - Date.now()) <= 60 * 60 * 1000;
               const startDisabled = isBtnLoading || !!activeTrip || !canStart;
+              const passengerCount = trip.usersCount ?? trip.booked_seats;
 
               return (
                 <div
@@ -432,32 +455,32 @@ const DriverDashboard: React.FC = () => {
                         </div>
                       </div>
                       <span className={`text-[8px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest shrink-0 ${STATUS_STYLE[trip.status]}`}>
-                        {trip.status}
+                        {statusLabel(trip.status)}
                       </span>
                     </div>
 
                     {/* ── Info Rows ── */}
                     <div className="space-y-3 flex-1">
-                      <InfoRow icon={<Ic.Bus size={13} />}      label="Bus"        value={trip.bus_number} />
-                      <InfoRow icon={<Ic.Clock size={13} />}    label="Time Slot"  value={TIME_SLOT_LABELS[trip.time_slot] ?? trip.time_slot} />
+                      <InfoRow icon={<Ic.Bus size={13} />}      label={t('bus')}        value={trip.bus_number} />
+                      <InfoRow icon={<Ic.Clock size={13} />}    label={t('time_slot')}  value={timeSlotLabel(trip.time_slot)} />
                       <InfoRow
                         icon={<Ic.Calendar size={13} />}
-                        label="Trip Date"
-                        value={new Date(trip.date).toLocaleDateString('en-GB', {
+                        label={t('trip_date')}
+                        value={new Date(trip.date).toLocaleDateString(dateLocale, {
                           weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
                         })}
                       />
                       <InfoRow
                         icon={<Ic.Time size={13} />}
-                        label="Departure"
-                        value={new Date(trip.scheduled_time ?? trip.date).toLocaleTimeString('en-GB', {
+                        label={t('departure')}
+                        value={new Date(trip.scheduled_time ?? trip.date).toLocaleTimeString(dateLocale, {
                           hour: '2-digit', minute: '2-digit'
                         })}
                       />
                       <InfoRow
                         icon={<Ic.Users size={13} />}
-                        label="Booked Students"
-                        value={`${trip.usersCount ?? trip.booked_seats} passengers`}
+                        label={t('booked_students')}
+                        value={t('passengers_count', { count: passengerCount })}
                       />
                     </div>
 
@@ -465,7 +488,7 @@ const DriverDashboard: React.FC = () => {
                     {stops.length > 0 && (
                       <div className="pt-4 border-t border-app-bd/40">
                         <p className="text-[9px] font-black uppercase tracking-widest text-app-mu mb-3 flex items-center gap-1.5">
-                          <Ic.Route size={11} /> Route Stops
+                          <Ic.Route size={11} /> {t('route_stops')}
                         </p>
                         <div className="relative pl-4">
                           {/* Vertical connector line */}
@@ -490,12 +513,12 @@ const DriverDashboard: React.FC = () => {
                                 </span>
                                 {idx === 0 && (
                                   <span className="text-[8px] font-black text-app-am uppercase tracking-widest shrink-0">
-                                    Start
+                                    {t('stop_start')}
                                   </span>
                                 )}
                                 {idx === stops.length - 1 && (
                                   <span className="text-[8px] font-black text-app-ok uppercase tracking-widest shrink-0">
-                                    End
+                                    {t('stop_end')}
                                   </span>
                                 )}
                               </li>
@@ -520,21 +543,20 @@ const DriverDashboard: React.FC = () => {
                           } ${isBtnLoading ? 'cursor-wait' : ''}`}
                         >
                           {isBtnLoading ? (
-                            <><Ic.Loader size={14} className="animate-spin" /> Starting…</>
+                            <><Ic.Loader size={14} className="animate-spin" /> {t('starting')}</>
                           ) : (
-                            <><Ic.Target size={14} /> Start Trip</>
+                            <><Ic.Target size={14} /> {t('start_trip')}</>
                           )}
                         </button>
                         {!canStart && (
                           <p className="text-center text-[9px] font-bold text-app-mu uppercase tracking-widest mt-1 animate-pulse">
-                            Button will unlock 1 hour before trip
+                            {t('unlocks_one_hour_before')}
                           </p>
                         )}
 
-                        {/* Another trip is already running */}
                         {!!activeTrip && !isThisActive && (
                           <p className="text-center text-[9px] font-bold text-app-err uppercase tracking-widest">
-                            End active trip first
+                            {t('end_active_first')}
                           </p>
                         )}
                       </div>
@@ -550,9 +572,9 @@ const DriverDashboard: React.FC = () => {
                         }`}
                       >
                         {isBtnLoading ? (
-                          <><Ic.Loader size={14} className="animate-spin" /> Ending…</>
+                          <><Ic.Loader size={14} className="animate-spin" /> {t('ending')}</>
                         ) : (
-                          <><Ic.Close size={14} /> End Trip</>
+                          <><Ic.Close size={14} /> {t('end_trip')}</>
                         )}
                       </button>
                     )}
@@ -560,7 +582,7 @@ const DriverDashboard: React.FC = () => {
                     {/* COMPLETED */}
                     {trip.status === 'completed' && (
                       <div className="w-full py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 bg-app-card2 border border-app-bd text-app-mu cursor-default">
-                        <Ic.Check size={13} /> Completed
+                        <Ic.Check size={13} /> {t('completed')}
                       </div>
                     )}
                   </div>
@@ -574,7 +596,8 @@ const DriverDashboard: React.FC = () => {
           <div id="live-tracking" className="mb-8">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-black uppercase tracking-tight text-app-tx italic">
-                Live <span className="text-app-am">Tracking</span>
+                {t('live_tracking_part1')}{' '}
+                <span className="text-app-am">{t('live_tracking_part2')}</span>
               </h2>
               <div className="h-px bg-app-bd/50 flex-1" />
             </div>
@@ -600,7 +623,7 @@ const DriverDashboard: React.FC = () => {
                  <div className="flex flex-col items-center gap-4">
                     <div className="w-10 h-10 border-2 border-app-bd border-t-app-am rounded-full animate-spin" />
                     <p className="text-[10px] font-black uppercase tracking-widest text-app-mu animate-pulse">
-                      Acquiring GPS Signal for Map...
+                      {t('acquiring_gps_map')}
                     </p>
                  </div>
               </div>
@@ -608,10 +631,10 @@ const DriverDashboard: React.FC = () => {
               <div className="bg-app-card/30 border border-app-bd/50 border-dashed rounded-[2.5rem] h-[400px] flex flex-col items-center justify-center opacity-70">
                 <Ic.Target className="text-app-mu mb-4 opacity-50" size={48} />
                 <p className="text-[12px] font-black uppercase tracking-widest text-app-mu text-center">
-                  Live Map Tracking Inactive
+                  {t('live_map_inactive')}
                 </p>
                 <p className="text-[10px] text-app-mu2 uppercase tracking-widest mt-2">
-                  Start a trip to activate real-time GPS tracking
+                  {t('start_trip_for_gps')}
                 </p>
               </div>
             )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Ic } from '../icons';
 import Api from '../services/Api';
@@ -26,14 +27,8 @@ interface Stats {
   total: number;
 }
 
-const statusConfig: Record<string, { label: string; class: string }> = {
-  completed: { label: 'Present',  class: 'bg-green-500/10 text-app-ok border border-green-500/20'   },
-  missed:    { label: 'Missed',   class: 'bg-red-500/10 text-app-err border border-red-500/20'      },
-  assigned:  { label: 'Assigned', class: 'bg-app-am/10 text-app-am border border-app-am/20'          },
-  pending:   { label: 'Pending',  class: 'bg-app-bd text-app-mu border border-app-bd'               },
-};
-
 const StudentProfile: React.FC = () => {
+  const { t } = useTranslation();
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
 
@@ -42,9 +37,14 @@ const StudentProfile: React.FC = () => {
   const [stats, setStats] = useState<Stats>({ completed: 0, missed: 0, total: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // Client-side filter
   const [filterStatus, setFilterStatus] = useState('');
+
+  const statusConfig: Record<string, { labelKey: string; class: string }> = {
+    completed: { labelKey: 'present', class: 'bg-green-500/10 text-app-ok border border-green-500/20' },
+    missed:    { labelKey: 'missed',  class: 'bg-red-500/10 text-app-err border border-red-500/20' },
+    assigned:  { labelKey: 'assigned', class: 'bg-app-am/10 text-app-am border border-app-am/20' },
+    pending:   { labelKey: 'pending',  class: 'bg-app-bd text-app-mu border border-app-bd' },
+  };
 
   useEffect(() => {
     if (!studentId) return;
@@ -56,13 +56,13 @@ const StudentProfile: React.FC = () => {
         setBookings(b || []);
         setStats(st || { completed: 0, missed: 0, total: 0 });
       } catch (err: any) {
-        setError(err.response?.data?.error || 'Failed to load student profile.');
+        setError(err.response?.data?.error || t('failed_load_student'));
       } finally {
         setIsLoading(false);
       }
     };
     load();
-  }, [studentId]);
+  }, [studentId, t]);
 
   const filteredBookings = filterStatus
     ? bookings.filter(b => b.attendanceStatus === filterStatus)
@@ -74,7 +74,7 @@ const StudentProfile: React.FC = () => {
     return (
       <div className="flex-1 bg-app-bg p-8 flex flex-col items-center justify-center gap-4 min-h-screen">
         <div className="w-10 h-10 border-2 border-app-bd border-t-app-am rounded-full animate-spin" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-app-mu animate-pulse">Loading Student...</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-app-mu animate-pulse">{t('loading_student')}</p>
       </div>
     );
   }
@@ -83,26 +83,26 @@ const StudentProfile: React.FC = () => {
     return (
       <div className="flex-1 bg-app-bg p-8 flex flex-col items-center justify-center gap-4 min-h-screen">
         <Ic.Users size={48} className="opacity-20 text-app-mu" />
-        <p className="text-app-err font-black uppercase text-[11px] tracking-widest">{error || 'Student not found.'}</p>
+        <p className="text-app-err font-black uppercase text-[11px] tracking-widest">{error || t('student_not_found')}</p>
         <button onClick={() => navigate(-1)} className="text-[10px] font-black uppercase tracking-widest text-app-am hover:underline">
-          ← Go Back
+          ← {t('go_back')}
         </button>
       </div>
     );
   }
 
+  const tableHeaders = [t('date'), t('route'), t('time_slot'), t('status')];
+
   return (
     <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen">
 
-      {/* ── Back navigation ── */}
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-app-mu hover:text-app-tx transition-colors mb-6"
       >
-        ← Back to Students
+        ← {t('back_to_students')}
       </button>
 
-      {/* ── Student Profile Header ── */}
       <div className="bg-app-card border border-app-bd rounded-2xl p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-6">
         <div className="w-16 h-16 rounded-2xl bg-app-am/10 flex items-center justify-center text-app-am text-3xl font-black shrink-0">
           {student.name?.charAt(0)?.toUpperCase()}
@@ -113,7 +113,7 @@ const StudentProfile: React.FC = () => {
           {student.phone && <p className="text-[11px] text-app-mu">{student.phone}</p>}
           {student.createdAt && (
             <p className="text-[9px] font-bold text-app-mu mt-2 uppercase tracking-widest">
-              Joined {new Date(student.createdAt).toLocaleDateString()}
+              {t('joined')} {new Date(student.createdAt).toLocaleDateString()}
             </p>
           )}
         </div>
@@ -121,17 +121,16 @@ const StudentProfile: React.FC = () => {
           onClick={() => navigate(`/admin/users/${studentId}/settings`)}
           className="px-4 py-2 rounded-xl border border-app-bd text-[10px] font-black uppercase tracking-widest text-app-mu hover:border-app-am hover:text-app-tx transition-all self-start sm:self-auto"
         >
-          Edit Profile
+          {t('edit_profile')}
         </button>
       </div>
 
-      {/* ── Statistics Row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Total Recorded', value: stats.total, color: 'text-app-mu' },
-          { label: 'Completed',      value: stats.completed, color: 'text-app-ok' },
-          { label: 'Missed',         value: stats.missed,    color: 'text-app-err' },
-          { label: 'Attend Rate',    value: `${rate}%`,      color: rate >= 75 ? 'text-app-ok' : 'text-app-err' },
+          { label: t('total_recorded'), value: stats.total, color: 'text-app-mu' },
+          { label: t('completed'), value: stats.completed, color: 'text-app-ok' },
+          { label: t('missed'), value: stats.missed, color: 'text-app-err' },
+          { label: t('attend_rate'), value: `${rate}%`, color: rate >= 75 ? 'text-app-ok' : 'text-app-err' },
         ].map(s => (
           <div key={s.label} className="bg-app-card border border-app-bd rounded-2xl p-5">
             <p className="text-[9px] font-black uppercase tracking-widest text-app-mu mb-2">{s.label}</p>
@@ -140,10 +139,9 @@ const StudentProfile: React.FC = () => {
         ))}
       </div>
 
-      {/* ── Attendance Rate Bar ── */}
       <div className="bg-app-card border border-app-bd rounded-2xl p-5 mb-6">
         <div className="flex justify-between items-center mb-3">
-          <span className="text-[10px] font-black uppercase tracking-widest text-app-mu">Attendance Rate</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-app-mu">{t('attendance_rate')}</span>
           <span className={`font-black text-xl ${rate >= 75 ? 'text-app-ok' : 'text-app-err'}`}>{rate}%</span>
         </div>
         <div className="w-full bg-app-card2 h-2 rounded-full overflow-hidden">
@@ -153,22 +151,21 @@ const StudentProfile: React.FC = () => {
           />
         </div>
         <p className="mt-2 text-[9px] font-bold text-app-mu uppercase tracking-widest">
-          {rate >= 75 ? '✓ Good attendance' : '⚠ Below 75% threshold'}
+          {rate >= 75 ? `✓ ${t('good_attendance_short')}` : `⚠ ${t('below_threshold')}`}
         </p>
       </div>
 
-      {/* ── Attendance History Table ── */}
       <div className="bg-app-card border border-app-bd rounded-2xl overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-app-bd gap-3">
-          <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest">Attendance History</h3>
+          <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest">{t('attendance_history')}</h3>
           <select
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
             className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-xl px-3 py-2 focus:outline-none focus:border-app-am transition-colors"
           >
-            <option value="">All Records</option>
-            <option value="completed">Completed Only</option>
-            <option value="missed">Missed Only</option>
+            <option value="">{t('all_records')}</option>
+            <option value="completed">{t('completed_only')}</option>
+            <option value="missed">{t('missed_only')}</option>
           </select>
         </div>
 
@@ -176,7 +173,7 @@ const StudentProfile: React.FC = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-app-bd bg-app-bg/50">
-                {['Date', 'Route', 'Time Slot', 'Status'].map(h => (
+                {tableHeaders.map(h => (
                   <th key={h} className="px-6 py-3 text-left text-[10px] font-black text-app-mu uppercase tracking-widest">{h}</th>
                 ))}
               </tr>
@@ -185,7 +182,7 @@ const StudentProfile: React.FC = () => {
               {filteredBookings.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-10 text-center text-xs text-app-mu">
-                    No attendance records found
+                    {t('no_attendance_records')}
                   </td>
                 </tr>
               ) : (
@@ -211,7 +208,7 @@ const StudentProfile: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${cfg.class}`}>
-                          {cfg.label}
+                          {t(cfg.labelKey)}
                         </span>
                       </td>
                     </tr>

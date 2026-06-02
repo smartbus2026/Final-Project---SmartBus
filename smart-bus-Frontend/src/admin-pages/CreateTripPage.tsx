@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Ic } from '../icons';
 import Api from '../services/Api'; 
@@ -12,6 +13,7 @@ interface BookingSettings {
 }
 
 const CreateBusPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -72,13 +74,13 @@ const CreateBusPage: React.FC = () => {
     console.log("Submitting Bus Payload:", formData);
     try {
       await Api.post('/buses', formData);
-      setModal({ isOpen: true, type: "success", message: "Bus created successfully!" });
+      setModal({ isOpen: true, type: "success", message: t('bus_created') });
       setFormData({ busCode: '', capacity: 45 });
       // If we are sharing state, it's generally best to refetch.
       // But we handled this in ADashboard with setInterval(fetchBuses, 5000), so it will auto-update!
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      setModal({ isOpen: true, type: "error", message: error.response?.data?.message || "Failed to create bus" });
+      setModal({ isOpen: true, type: "error", message: error.response?.data?.message || t('bus_create_failed') });
     } finally {
       setIsSubmitting(false);
     }
@@ -88,10 +90,10 @@ const CreateBusPage: React.FC = () => {
     setIsSavingSettings(true);
     try {
       await Api.put('/settings', settings);
-      setModal({ isOpen: true, type: "success", message: "Booking window updated successfully!" });
+      setModal({ isOpen: true, type: "success", message: t('booking_window_updated_short') });
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      setModal({ isOpen: true, type: "error", message: error.response?.data?.message || "Failed to save settings" });
+      setModal({ isOpen: true, type: "error", message: error.response?.data?.message || t('failed_save_settings') });
     } finally {
       setIsSavingSettings(false);
     }
@@ -106,17 +108,17 @@ const CreateBusPage: React.FC = () => {
           <Ic.Plus size={24} />
         </div>
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-widest text-app-tx">Create Bus</h1>
-          <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">Add new vehicles to your fleet</p>
+          <h1 className="text-2xl font-black uppercase tracking-widest text-app-tx">{t('create_bus')}</h1>
+          <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">{t('add_vehicles_fleet')}</p>
         </div>
       </div>
 
       {/* ── Monthly Quota Progress Bar ── */}
       <div className="bg-app-card border border-app-bd rounded-[2.5rem] p-8 shadow-xl">
         <div className="flex justify-between items-end mb-4">
-          <h2 className="text-lg font-black uppercase tracking-widest text-app-tx">Monthly Fleet Quota</h2>
+          <h2 className="text-lg font-black uppercase tracking-widest text-app-tx">{t('monthly_fleet_quota')}</h2>
           <span className="text-[12px] font-bold text-app-mu uppercase tracking-widest">
-            {quota.used} / {quota.total} Buses Used
+            {t('buses_used', { used: quota.used, total: quota.total })}
           </span>
         </div>
         <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden border border-app-bd">
@@ -134,12 +136,12 @@ const CreateBusPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
-                <Ic.Bus size={14} /> Bus Number / Plate
+                <Ic.Bus size={14} /> {t('bus_number_plate')}
               </label>
               <input 
                 type="text" 
                 required
-                placeholder="e.g. Bus 101 or 123-ABC"
+                placeholder={t('bus_placeholder')}
                 value={formData.busCode}
                 onChange={e => setFormData({ ...formData, busCode: e.target.value })}
                 className="w-full bg-app-card2 border border-app-bd rounded-2xl px-5 py-4 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors"
@@ -148,7 +150,7 @@ const CreateBusPage: React.FC = () => {
             
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-app-mu flex items-center gap-2">
-                <Ic.Users size={14} /> Total Seats Capacity
+                <Ic.Users size={14} /> {t('total_seats_capacity')}
               </label>
               <input 
                 type="number" 
@@ -168,7 +170,7 @@ const CreateBusPage: React.FC = () => {
               className={`bg-app-am text-black px-10 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center gap-3
                 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'}`}
             >
-              {isSubmitting ? "Creating..." : <><Ic.Plus size={16} /> Create Bus</>}
+              {isSubmitting ? t('creating') : <><Ic.Plus size={16} /> {t('create_bus_btn')}</>}
             </button>
           </div>
         </form>
@@ -182,8 +184,8 @@ const CreateBusPage: React.FC = () => {
       <Ic.Time size={18} />
     </div>
     <div>
-      <h2 className="font-syne text-[15px] font-black uppercase tracking-wider text-app-tx">Booking Window</h2>
-      <p className="text-[10px] font-bold text-app-mu mt-0.5">Control when students can register for trips</p>
+      <h2 className="font-syne text-[15px] font-black uppercase tracking-wider text-app-tx">{t('booking_window')}</h2>
+      <p className="text-[10px] font-bold text-app-mu mt-0.5">{t('booking_window_desc')}</p>
     </div>
   </div>
 
@@ -191,7 +193,7 @@ const CreateBusPage: React.FC = () => {
     
     {/* Open Time */}
     <div className="space-y-3">
-      <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">Booking Opens At</label>
+      <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">{t('booking_opens_at')}</label>
       <div className="flex gap-2">
         <select
           value={settings.booking_open_hour > 12 ? settings.booking_open_hour - 12 : settings.booking_open_hour === 0 ? 12 : settings.booking_open_hour}
@@ -237,7 +239,7 @@ const CreateBusPage: React.FC = () => {
 
     {/* Close Time */}
     <div className="space-y-3">
-      <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">Booking Closes At</label>
+      <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">{t('booking_closes_at')}</label>
       <div className="flex gap-2">
         <select
           value={settings.booking_close_hour > 12 ? settings.booking_close_hour - 12 : settings.booking_close_hour === 0 ? 12 : settings.booking_close_hour}
@@ -289,7 +291,7 @@ const CreateBusPage: React.FC = () => {
       className={`bg-app-am text-black px-10 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center gap-3
         ${isSavingSettings ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'}`}
     >
-      {isSavingSettings ? "Saving..." : <><Ic.Check size={16} /> Save Settings</>}
+      {isSavingSettings ? t('saving') : <><Ic.Check size={16} /> {t('save_settings')}</>}
     </button>
   </div>
 </div>
@@ -304,7 +306,7 @@ const CreateBusPage: React.FC = () => {
                 {modal.type === 'success' ? <Ic.Check /> : <span className="font-bold text-3xl">!</span>}
               </div>
               <h3 className="font-syne text-xl font-black text-app-tx uppercase tracking-wider mt-2">
-                {modal.type === 'success' ? 'Success!' : 'Action Failed'}
+                {modal.type === 'success' ? t('success_exclamation') : t('action_failed')}
               </h3>
               <p className="text-sm text-app-mu font-medium px-2">{modal.message}</p>
               <div className="flex gap-3 w-full mt-4">
@@ -312,14 +314,14 @@ const CreateBusPage: React.FC = () => {
                   onClick={() => setModal({ ...modal, isOpen: false })}
                   className="flex-1 py-4 rounded-xl font-syne font-black text-[13px] uppercase tracking-widest bg-app-card2 border border-app-bd text-app-tx hover:text-app-mu transition-all"
                 >
-                  Close
+                  {t('close')}
                 </button>
                 {modal.type === 'success' && (
                   <button
                     onClick={() => navigate('/admin/dashboard')}
                     className="flex-1 py-4 rounded-xl font-syne font-black text-[13px] uppercase tracking-widest bg-app-am text-black hover:brightness-110 transition-all"
                   >
-                    Go to Dashboard
+                    {t('go_to_dashboard')}
                   </button>
                 )}
               </div>

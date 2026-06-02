@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Bus from "../models/Bus";
+import SystemSettings from "../models/SystemSettings.model";
 
 export const createBus = async (req: Request, res: Response) => {
   try {
@@ -58,8 +59,9 @@ export const getFleetQuota = async (req: Request, res: Response) => {
     ]);
 
     const usedCapacity = distinctDispatches[0]?.total || 0;
+    const systemSettings = (await SystemSettings.findOne()) ?? (await SystemSettings.create({}));
 
-    return res.status(200).json({ usedCapacity, totalCapacity: 308 });
+    return res.status(200).json({ usedCapacity, totalCapacity: systemSettings.monthlyBusQuota });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

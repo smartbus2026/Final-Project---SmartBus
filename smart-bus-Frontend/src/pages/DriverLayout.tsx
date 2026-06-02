@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Outlet, useOutletContext } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import Api from '../services/Api';
@@ -52,6 +53,7 @@ export function useDriverContext() {
 }
 
 export default function DriverLayout() {
+  const { t } = useTranslation();
   const [trips, setTrips]                 = useState<DriverTrip[]>([]);
   const [isLoading, setIsLoading]         = useState(true);
   const [activeTrip, setActiveTrip]       = useState<string | null>(null);
@@ -105,7 +107,7 @@ export default function DriverLayout() {
           console.error('[GPS Interval Error]', err);
           setGeo(g => ({
             ...g,
-            error: 'Unable to get location update.'
+            error: t('gps_location_update_failed'),
           }));
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -117,7 +119,7 @@ export default function DriverLayout() {
 
     // Repeat every 30 seconds (30000ms)
     trackingIntervalRef.current = setInterval(fetchAndEmit, 30000);
-  }, []);
+  }, [t]);
 
   // ── Stop GPS Tracking Interval ──────────────────────────────────────────────
   const stopGpsTrackingInterval = useCallback(() => {
@@ -145,11 +147,11 @@ export default function DriverLayout() {
         startGpsTrackingInterval(alreadyActive._id, busId, driverId, routeId);
       }
     } catch (err: any) {
-      setToast({ msg: 'Could not load your trips. Check your connection.', type: 'error' });
+      setToast({ msg: t('load_trips_failed'), type: 'error' });
     } finally {
       setIsLoading(false);
     }
-  }, [startGpsTrackingInterval]);
+  }, [startGpsTrackingInterval, t]);
 
   useEffect(() => { fetchTrips(); }, [fetchTrips]);
 
@@ -178,7 +180,7 @@ export default function DriverLayout() {
     e.stopPropagation();
 
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
+      alert(t('geo_not_supported'));
       return;
     }
 
@@ -202,10 +204,10 @@ export default function DriverLayout() {
 
           startGpsTrackingInterval(tripId, busId, driverId, routeId);
 
-          setToast({ msg: '🚌 Trip started — GPS tracking is now live.', type: 'success' });
+          setToast({ msg: t('trip_started_gps'), type: 'success' });
         } catch (err: any) {
           setToast({
-            msg: err.response?.data?.message || 'Failed to start trip.',
+            msg: err.response?.data?.message || t('driver_start_trip_failed'),
             type: 'error',
           });
         } finally {
@@ -214,7 +216,7 @@ export default function DriverLayout() {
       },
       (error) => {
         console.error("GPS access error:", error);
-        alert("You must enable GPS location to start the trip.");
+        alert(t('enable_gps_start'));
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -234,10 +236,10 @@ export default function DriverLayout() {
         prev.map(t => t._id === tripId ? { ...t, status: 'completed' } : t)
       );
 
-      setToast({ msg: '✅ Trip completed. GPS tracking stopped.', type: 'success' });
+      setToast({ msg: t('trip_completed_gps'), type: 'success' });
     } catch (err: any) {
       setToast({
-        msg: err.response?.data?.message || 'Failed to end trip.',
+        msg: err.response?.data?.message || t('driver_end_trip_failed'),
         type: 'error',
       });
     } finally {
@@ -271,10 +273,11 @@ export default function DriverLayout() {
           </div>
           <div>
             <h1 className="text-3xl font-black uppercase tracking-tighter italic">
-              Driver <span className="text-app-am">Dashboard</span>
+              {t('driver_title_part1')}{' '}
+              <span className="text-app-am">{t('driver_title_part2')}</span>
             </h1>
             <p className="text-[10px] text-app-mu font-bold uppercase tracking-[0.4em] mt-0.5">
-              Real-Time Trip Command Center
+              {t('driver_command_center')}
             </p>
           </div>
         </div>
@@ -289,7 +292,7 @@ export default function DriverLayout() {
               <span className="relative inline-flex rounded-full h-3 w-3 bg-app-ok" />
             </span>
             <span className="text-[10px] font-black uppercase tracking-widest text-app-ok">
-              GPS Broadcasting Live
+              {t('gps_broadcasting_live')}
             </span>
           </div>
 
@@ -300,20 +303,23 @@ export default function DriverLayout() {
           ) : geo.lat !== null ? (
             <div className="flex items-center gap-6 text-[10px] font-black text-app-mu uppercase tracking-widest">
               <span>
-                LAT <span className="text-app-tx font-mono">{geo.lat.toFixed(6)}</span>
+                {t('driver_lat')}{' '}
+                <span className="text-app-tx font-mono">{geo.lat.toFixed(6)}</span>
               </span>
               <span>
-                LNG <span className="text-app-tx font-mono">{geo.lng?.toFixed(6)}</span>
+                {t('driver_lng')}{' '}
+                <span className="text-app-tx font-mono">{geo.lng?.toFixed(6)}</span>
               </span>
               {geo.accuracy !== null && (
                 <span>
-                  ACC <span className="text-app-tx font-mono">±{Math.round(geo.accuracy)}m</span>
+                  {t('driver_acc')}{' '}
+                  <span className="text-app-tx font-mono">±{Math.round(geo.accuracy)}m</span>
                 </span>
               )}
             </div>
           ) : (
             <span className="text-[10px] font-bold text-app-mu animate-pulse">
-              Acquiring GPS signal…
+              {t('acquiring_gps_signal')}
             </span>
           )}
         </div>

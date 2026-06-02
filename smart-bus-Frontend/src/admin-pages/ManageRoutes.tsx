@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Ic } from '../icons';
 import Api from '../services/Api';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
@@ -14,6 +15,7 @@ L.Marker.prototype.options.icon = DefaultIcon;
 const ASWAN_CENTER: [number, number] = [24.0889, 32.8998];
 
 const ManageRoutesPage: React.FC = () => {
+  const { t } = useTranslation();
   const [routes, setRoutes] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +49,7 @@ const ManageRoutesPage: React.FC = () => {
 
   const handleDeploy = async () => {
     if (!form.name.trim() || form.stops.some(s => !s.trim())) {
-      setToast({ msg: 'Please fill all required fields', type: 'error' });
+      setToast({ msg: t('fill_required'), type: 'error' });
       return;
     }
     setIsLoading(true);
@@ -56,8 +58,8 @@ const ManageRoutesPage: React.FC = () => {
       await fetchRoutes();
       setIsModalOpen(false);
       setForm({ name: '', distance: '', duration: '', startTime: '07:30', startLocation: { lat: 24.0889, lng: 32.8998 }, stops: [''] });
-      setToast({ msg: 'Route deployed successfully', type: 'success' });
-    } catch (e) { setToast({ msg: 'Deployment failed', type: 'error' }); }
+      setToast({ msg: t('route_deployed'), type: 'success' });
+    } catch (e) { setToast({ msg: t('deployment_failed'), type: 'error' }); }
     finally { setIsLoading(false); }
   };
 
@@ -67,14 +69,14 @@ const ManageRoutesPage: React.FC = () => {
       if (confirmDelete.type === 'route') {
         await Api.delete(`/routes/${confirmDelete.routeId}`);
         setRoutes(prev => prev.filter(r => r._id !== confirmDelete.routeId));
-        setToast({ msg: 'Route deleted successfully', type: 'success' });
+        setToast({ msg: t('route_deleted'), type: 'success' });
       } else {
         await Api.delete(`/routes/${confirmDelete.routeId}/remove-stop/${confirmDelete.stopId}`);
         await fetchRoutes();
-        setToast({ msg: `Stop "${confirmDelete.stopName}" removed`, type: 'success' });
+        setToast({ msg: t('stop_removed', { name: confirmDelete.stopName }), type: 'success' });
       }
     } catch (e) { 
-      setToast({ msg: 'Delete failed', type: 'error' }); 
+      setToast({ msg: t('delete_failed_route'), type: 'error' }); 
     } finally { 
       setConfirmDelete(null); 
     }
@@ -87,8 +89,8 @@ const ManageRoutesPage: React.FC = () => {
       await fetchRoutes();
       setNewStopName('');
       setQuickAddId(null);
-      setToast({ msg: 'Stop added successfully', type: 'success' });
-    } catch (e) { setToast({ msg: 'Failed to add stop', type: 'error' }); }
+      setToast({ msg: t('stop_added'), type: 'success' });
+    } catch (e) { setToast({ msg: t('failed_add_stop'), type: 'error' }); }
   };
 
   const MapPicker = () => {

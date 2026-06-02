@@ -1,10 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { TripStatus } from "../types";
 import { Ic } from "../icons";
 import Api from "../services/Api";
 import socket from "../services/socket";
 
+const TAB_KEYS: Record<TripStatus, string> = {
+  upcoming: "tab_upcoming",
+  completed: "tab_completed",
+  missed: "tab_missed",
+  cancelled: "tab_cancelled",
+};
+
 export default function MyTripsPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<TripStatus>("upcoming");
   const [bookings, setBookings] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
@@ -90,12 +99,12 @@ export default function MyTripsPage() {
   };
 
   const handleCancel = async (id: string) => {
-    if (!window.confirm("Cancel this booking?")) return;
+    if (!window.confirm(t("confirm_cancel_booking"))) return;
     try {
       await Api.put(`/bookings/${id}/cancel`);
       fetchAll();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to cancel");
+      alert(err.response?.data?.message || t("failed_cancel"));
     }
   };
 
@@ -109,10 +118,10 @@ export default function MyTripsPage() {
           : b
         )
       );
-      setToast({ message: `Trip marked as ${status}!`, type: "success" });
+      setToast({ message: t("trip_marked", { status: t(status) }), type: "success" });
       setTimeout(() => setToast(null), 3000);
     } catch (err: any) {
-      const msg = err.response?.data?.message || "Failed to mark attendance";
+      const msg = err.response?.data?.message || t("failed_mark_attendance");
       setToast({ message: msg, type: "error" });
       setTimeout(() => setToast(null), 3000);
     } finally {
@@ -139,7 +148,7 @@ export default function MyTripsPage() {
       setEditModal({ open: false, booking: null });
       fetchAll();
     } catch (err: any) {
-      setEditError(err.response?.data?.message || "Failed to update");
+      setEditError(err.response?.data?.message || t("failed_update"));
     } finally {
       setEditSaving(false);
     }
@@ -153,8 +162,8 @@ export default function MyTripsPage() {
     if (b.status === "cancelled") currentStatus = "cancelled";
     else if (b.attendanceStatus === "completed") currentStatus = "completed";
     else if (b.attendanceStatus === "missed") currentStatus = "missed";
-    return { raw: b, id: b._id, status: currentStatus, date: bd ? bd.toDateString() : "TBA",
-      from: b.route?.name || "Route", timeSlot: b.timeSlot, returnTime: b.timeSlot === "Return" ? (b.specificReturnTime || "TBA") : "N/A",
+    return { raw: b, id: b._id, status: currentStatus, date: bd ? bd.toDateString() : t("tba"),
+      from: b.route?.name || t("route"), timeSlot: b.timeSlot, returnTime: b.timeSlot === "Return" ? (b.specificReturnTime || t("tba")) : "N/A",
       bookingStatus: b.status, attendanceStatus: b.attendanceStatus };
   });
 
@@ -168,17 +177,17 @@ export default function MyTripsPage() {
 
   const renderBadge = (s: string) => {
     const base = "inline-flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-full border uppercase tracking-wider";
-    if (s === "pending")   return <span className={`${base} bg-blue-500/10 text-blue-400 border-blue-500/20`}>⏳ Pending</span>;
-    if (s === "assigned")  return <span className={`${base} bg-app-am/10 text-app-am border-app-am/20`}>🚌 Bus Assigned</span>;
-    if (s === "active")    return <span className={`${base} bg-app-ok/10 text-app-ok border-app-ok/20`}>✓ Active</span>;
-    if (s === "completed") return <span className={`${base} bg-blue-500/10 text-blue-400 border-blue-500/20`}>✓ Done</span>;
-    if (s === "missed")    return <span className={`${base} bg-red-500/10 text-red-400 border-red-500/20`}>✗ Missed</span>;
-    return <span className={`${base} bg-red-500/10 text-red-400 border-red-500/20`}>Cancelled</span>;
+    if (s === "pending")   return <span className={`${base} bg-blue-500/10 text-blue-400 border-blue-500/20`}>⏳ {t("pending")}</span>;
+    if (s === "assigned")  return <span className={`${base} bg-app-am/10 text-app-am border-app-am/20`}>🚌 {t("bus_assigned")}</span>;
+    if (s === "active")    return <span className={`${base} bg-app-ok/10 text-app-ok border-app-ok/20`}>✓ {t("badge_active")}</span>;
+    if (s === "completed") return <span className={`${base} bg-blue-500/10 text-blue-400 border-blue-500/20`}>✓ {t("badge_done")}</span>;
+    if (s === "missed")    return <span className={`${base} bg-red-500/10 text-red-400 border-red-500/20`}>✗ {t("missed")}</span>;
+    return <span className={`${base} bg-red-500/10 text-red-400 border-red-500/20`}>{t("cancelled")}</span>;
   };
 
   if (isLoading) return (
     <div className="p-6 flex justify-center items-center h-64 text-app-mu font-syne font-bold animate-pulse">
-      Loading your trips...
+      {t("loading_trips")}
     </div>
   );
 
@@ -197,93 +206,87 @@ export default function MyTripsPage() {
 
       {/* Tab Bar */}
       <div className="flex w-fit gap-0.5 rounded-xl border border-app-bd bg-app-card2 p-0.5 mb-8 shadow-inner">
-        {(["upcoming", "completed", "missed", "cancelled"] as TripStatus[]).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
+        {(["upcoming", "completed", "missed", "cancelled"] as TripStatus[]).map((tabKey) => (
+          <button key={tabKey} onClick={() => setTab(tabKey)}
             className={`cursor-pointer rounded-lg px-5 py-2 text-xs font-bold transition-all
-              ${tab === t ? "bg-app-card text-app-am border border-app-bd shadow-sm" : "text-app-mu hover:text-app-tx"}`}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-            <span className="ml-1.5 opacity-40 text-[10px]">({counts[t]})</span>
+              ${tab === tabKey ? "bg-app-card text-app-am border border-app-bd shadow-sm" : "text-app-mu hover:text-app-tx"}`}>
+            {t(TAB_KEYS[tabKey])}
+            <span className="ml-1.5 opacity-40 text-[10px]">({counts[tabKey]})</span>
           </button>
         ))}
       </div>
 
       {/* Cards */}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-5">
-        {list.map((t) => {
-          const unlocked = isAttendanceUnlocked(t.raw);
-          const alreadyMarked = t.attendanceStatus === "completed" || t.attendanceStatus === "missed";
+        {list.map((trip) => {
+          const unlocked = isAttendanceUnlocked(trip.raw);
+          const alreadyMarked = trip.attendanceStatus === "completed" || trip.attendanceStatus === "missed";
           const windowOpen = isWindowOpen();
 
           return (
-            <div key={t.id} className={`group rounded-2xl border bg-app-card p-6 transition-all hover:shadow-xl
-              ${t.status === "completed" ? "border-blue-500/20 hover:border-blue-500/40" :
-                t.status === "missed"    ? "border-red-500/20 hover:border-red-500/40" :
-                t.status === "cancelled" ? "border-neutral-500/20 hover:border-neutral-500/40 opacity-75" :
+            <div key={trip.id} className={`group rounded-2xl border bg-app-card p-6 transition-all hover:shadow-xl
+              ${trip.status === "completed" ? "border-blue-500/20 hover:border-blue-500/40" :
+                trip.status === "missed"    ? "border-red-500/20 hover:border-red-500/40" :
+                trip.status === "cancelled" ? "border-neutral-500/20 hover:border-neutral-500/40 opacity-75" :
                 "border-app-bd hover:border-app-am/30"}`}>
 
-              {/* Header */}
               <div className="mb-4 flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-app-mu2 flex items-center gap-1.5 uppercase tracking-tighter">
-                  <Ic.Calendar size={12} /> {t.date}
+                  <Ic.Calendar size={12} /> {trip.date}
                 </span>
-                {renderBadge(t.bookingStatus)}
+                {renderBadge(trip.bookingStatus)}
               </div>
 
-              {/* Route */}
               <div className="mb-5 flex items-center gap-2 font-syne text-[15px] font-black text-app-tx">
                 <span className="text-app-am"><Ic.Pin size={16} /></span>
-                <span className="truncate">{t.from}</span>
+                <span className="truncate">{trip.from}</span>
                 <span className="font-normal text-app-mu mx-1 opacity-30">→</span>
-                <span>Campus</span>
+                <span>{t("campus")}</span>
               </div>
 
-              {/* Info chips */}
               <div className="grid grid-cols-2 gap-2 mb-5">
                 <div className="rounded-xl border border-app-bd bg-app-card2/50 px-3 py-3 shadow-inner">
-                  <div className="mb-1 text-[8px] font-black uppercase tracking-widest text-app-mu">Slot</div>
-                  <div className="text-[11px] font-bold text-app-tx">{t.timeSlot}</div>
+                  <div className="mb-1 text-[8px] font-black uppercase tracking-widest text-app-mu">{t("slot")}</div>
+                  <div className="text-[11px] font-bold text-app-tx">{trip.timeSlot}</div>
                 </div>
                 <div className="rounded-xl border border-app-bd bg-app-card2/50 px-3 py-3 shadow-inner">
-                  <div className="mb-1 text-[8px] font-black uppercase tracking-widest text-app-mu">Return</div>
-                  <div className={`text-[11px] font-bold ${t.timeSlot === "Return" ? "text-app-am" : "text-app-mu2"}`}>{t.returnTime}</div>
+                  <div className="mb-1 text-[8px] font-black uppercase tracking-widest text-app-mu">{t("return")}</div>
+                  <div className={`text-[11px] font-bold ${trip.timeSlot === "Return" ? "text-app-am" : "text-app-mu2"}`}>{trip.returnTime}</div>
                 </div>
               </div>
 
-              {/* Action buttons — upcoming only */}
-              {t.status === "upcoming" && (
+              {trip.status === "upcoming" && (
                 <div className="space-y-2">
 
-                  {/* Attendance */}
                   {alreadyMarked ? (
                     <div className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-[10px] font-black uppercase tracking-widest border
-                      ${t.attendanceStatus === "completed" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
-                      {t.attendanceStatus === "completed" ? <><Ic.Check size={12} /> Trip Completed</> : <><Ic.X size={12} /> Marked as Missed</>}
+                      ${trip.attendanceStatus === "completed" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
+                      {trip.attendanceStatus === "completed" ? <><Ic.Check size={12} /> {t("trip_completed_label")}</> : <><Ic.X size={12} /> {t("marked_as_missed")}</>}
                     </div>
                   ) : (
                     <div className="flex gap-2">
-                      <button onClick={() => handleAttendance(t.id, "completed")} disabled={!unlocked || attendanceLoading === t.id}
-                        title={!unlocked ? "Unlocks once trip start time passes" : ""}
+                      <button onClick={() => handleAttendance(trip.id, "completed")} disabled={!unlocked || attendanceLoading === trip.id}
+                        title={!unlocked ? t("unlock_after_start") : ""}
                         className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-green-500/20 bg-green-500/10 py-2.5 text-[10px] font-black text-app-ok transition-all hover:bg-green-500 hover:text-white uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">
-                        <Ic.Check size={12} /> {attendanceLoading === t.id ? "Saving..." : "Completed"}
+                        <Ic.Check size={12} /> {attendanceLoading === trip.id ? t("saving") : t("btn_completed")}
                       </button>
-                      <button onClick={() => handleAttendance(t.id, "missed")} disabled={!unlocked || attendanceLoading === t.id}
-                        title={!unlocked ? "Unlocks once trip start time passes" : ""}
+                      <button onClick={() => handleAttendance(trip.id, "missed")} disabled={!unlocked || attendanceLoading === trip.id}
+                        title={!unlocked ? t("unlock_after_start") : ""}
                         className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-yellow-500/20 bg-yellow-500/10 py-2.5 text-[10px] font-black text-yellow-400 transition-all hover:bg-yellow-500 hover:text-white uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">
-                        <Ic.X size={12} /> {attendanceLoading === t.id ? "Saving..." : "Missed"}
+                        <Ic.X size={12} /> {attendanceLoading === trip.id ? t("saving") : t("missed")}
                       </button>
                     </div>
                   )}
 
-                  {/* Edit + Cancel */}
                   <div className="flex gap-2">
-                    <button onClick={() => windowOpen && openEdit(t.raw)} disabled={!windowOpen}
-                      title={!windowOpen ? "Only during registration window" : "Edit booking"}
+                    <button onClick={() => windowOpen && openEdit(trip.raw)} disabled={!windowOpen}
+                      title={!windowOpen ? t("only_during_window") : t("edit_booking_title")}
                       className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-app-am/20 bg-app-am/10 py-2.5 text-[10px] font-black text-app-am transition-all hover:bg-app-am hover:text-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">
-                      ✎ Edit
+                      ✎ {t("edit")}
                     </button>
-                    <button onClick={() => handleCancel(t.id)}
+                    <button onClick={() => handleCancel(trip.id)}
                       className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/5 py-2.5 text-[10px] font-black text-app-err transition-all hover:bg-red-500 hover:text-white uppercase tracking-widest">
-                      <Ic.X size={12} /> Cancel
+                      <Ic.X size={12} /> {t("cancel")}
                     </button>
                   </div>
                 </div>
@@ -298,8 +301,8 @@ export default function MyTripsPage() {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-app-card2 text-app-mu shadow-inner">
             <Ic.Route size={32} />
           </div>
-          <h3 className="font-syne text-lg font-bold text-app-tx uppercase tracking-tight">No {tab} trips</h3>
-          <p className="text-xs text-app-mu mt-1">No bookings in this category.</p>
+          <h3 className="font-syne text-lg font-bold text-app-tx uppercase tracking-tight">{t("no_trips_in_tab", { tab: t(TAB_KEYS[tab]) })}</h3>
+          <p className="text-xs text-app-mu mt-1">{t("no_bookings_in_category")}</p>
         </div>
       )}
 
@@ -308,7 +311,7 @@ export default function MyTripsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-app-card border border-app-bd rounded-2xl p-7 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="font-syne text-base font-black text-app-tx uppercase tracking-tight">Edit Booking</h3>
+              <h3 className="font-syne text-base font-black text-app-tx uppercase tracking-tight">{t("edit_booking")}</h3>
               <button onClick={() => setEditModal({ open: false, booking: null })} className="text-app-mu hover:text-app-tx">
                 <Ic.X size={18} />
               </button>
@@ -322,22 +325,22 @@ export default function MyTripsPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold uppercase text-app-mu mb-2">Route</label>
+                <label className="block text-[10px] font-bold uppercase text-app-mu mb-2">{t("route")}</label>
                 <select value={editRouteId} onChange={e => setEditRouteId(e.target.value)}
                   className="w-full bg-app-card2 border border-app-bd rounded-xl px-4 py-3 text-sm text-app-tx outline-none focus:border-app-am appearance-none cursor-pointer">
-                  <option value="">-- Select Route --</option>
+                  <option value="">{t("select_route_placeholder")}</option>
                   {routes.map((r: any) => <option key={r._id} value={r._id} className="bg-app-card">{r.name}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase text-app-mu mb-2">Time Slot</label>
+                <label className="block text-[10px] font-bold uppercase text-app-mu mb-2">{t("select_time_slot")}</label>
                 <div className="grid grid-cols-2 gap-3">
-                  {["Morning", "Return"].map(slot => (
+                  {(["Morning", "Return"] as const).map(slot => (
                     <button key={slot} onClick={() => { setEditTimeSlot(slot); if (slot === "Morning") setEditReturnTime(""); }}
                       className={`py-3 rounded-xl font-bold text-sm border transition-all
                         ${editTimeSlot === slot ? "bg-app-am/10 border-app-am text-app-am" : "bg-app-card2 border-app-bd text-app-mu hover:border-app-am/50"}`}>
-                      {slot}
+                      {slot === "Morning" ? t("morning") : t("return")}
                     </button>
                   ))}
                 </div>
@@ -345,10 +348,10 @@ export default function MyTripsPage() {
 
               {editTimeSlot === "Return" && (
                 <div className="animate-in slide-in-from-top-2 duration-200">
-                  <label className="block text-[10px] font-bold uppercase text-app-mu mb-2">Return Time</label>
+                  <label className="block text-[10px] font-bold uppercase text-app-mu mb-2">{t("return_time")}</label>
                   <select value={editReturnTime} onChange={e => setEditReturnTime(e.target.value)}
                     className="w-full bg-app-card2 border border-app-bd rounded-xl px-4 py-3 text-sm text-app-tx outline-none focus:border-app-am appearance-none cursor-pointer">
-                    <option value="">-- Choose Time --</option>
+                    <option value="">{t("choose_time_placeholder")}</option>
                     {(settings?.returnTimeOptions || []).map((rt: string) => (
                       <option key={rt} value={rt} className="bg-app-card">{rt}</option>
                     ))}
@@ -360,12 +363,12 @@ export default function MyTripsPage() {
             <div className="flex gap-3 pt-2">
               <button onClick={() => setEditModal({ open: false, booking: null })}
                 className="flex-1 py-3 rounded-xl border border-app-bd text-app-mu text-[11px] font-black uppercase tracking-widest hover:text-app-tx transition-all">
-                Cancel
+                {t("cancel")}
               </button>
               <button onClick={handleEditSave}
                 disabled={editSaving || !editRouteId || !editTimeSlot || (editTimeSlot === "Return" && !editReturnTime)}
                 className="flex-1 py-3 rounded-xl bg-app-am text-black text-[11px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                {editSaving ? "Saving..." : "Save Changes"}
+                {editSaving ? t("saving") : t("save_changes")}
               </button>
             </div>
           </div>

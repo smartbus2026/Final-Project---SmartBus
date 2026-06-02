@@ -6,6 +6,7 @@ import Notification from "../models/notification";
 import User from "../models/User";
 import Quota from "../models/quotaModel";
 import Bus from "../models/Bus";
+import SystemSettings from "../models/SystemSettings.model";
 import { getIO } from "../socket";
 import {
   NotificationManager,
@@ -22,11 +23,19 @@ const dispatchFleetAlerts = async (shiftCount: number, dailyCount: number, usedC
     new EmailNotificationStrategy()
   ]);
 
+  const systemSettings = (await SystemSettings.findOne()) ?? (await SystemSettings.create({}));
+  const shiftLimit = systemSettings.defaultShiftLimit;
+
   for (const admin of adminIds) {
     const adminId = admin._id.toString();
 
-    if (shiftCount >= 7) {
-      await NotificationManager.notify(adminId, pushStrategy, "Shift Overflow Warning", `Warning: You exceeded the 7-bus limit for the ${time_slot} shift. This deducts from your return or extra balance.`);
+    if (shiftCount >= shiftLimit) {
+      await NotificationManager.notify(
+        adminId,
+        pushStrategy,
+        "Shift Overflow Warning",
+        `Warning: You exceeded the ${shiftLimit}-bus limit for the ${time_slot} shift. This deducts from your return or extra balance.`
+      );
     }
 
     const newDailyTotal = dailyCount + 1;
@@ -89,9 +98,10 @@ export const createTrip = async (req: Request, res: Response) => {
     const monthYear = `${month}-${year}`;
 
     // 2. Quota Initialization & Hard Limit Check
+    const systemSettings = (await SystemSettings.findOne()) ?? (await SystemSettings.create({}));
     let quota = await Quota.findOne({ monthYear });
     if (!quota) {
-      quota = new Quota({ monthYear, totalCapacity: 308, usedCapacity: 0 });
+      quota = new Quota({ monthYear, totalCapacity: systemSettings.monthlyBusQuota, usedCapacity: 0 });
     }
 
     if (quota.usedCapacity >= quota.totalCapacity) {
@@ -562,11 +572,12 @@ export const getMonthlyQuota = async (req: Request, res: Response) => {
     const calculatedCount = await Trip.countDocuments(queryFilter);
 
     // 3. Auto-correct the Quota Ledger
+    const systemSettings = (await SystemSettings.findOne()) ?? (await SystemSettings.create({}));
     const quota = await Quota.findOneAndUpdate(
       { monthYear },
       { 
         $set: { usedCapacity: calculatedCount },
-        $setOnInsert: { totalCapacity: 308 } 
+        $setOnInsert: { totalCapacity: systemSettings.monthlyBusQuota } 
       },
       { returnDocument: 'after', upsert: true }
     );
@@ -579,7 +590,7 @@ export const getMonthlyQuota = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       usedCapacity: calculatedCount,
-      totalCapacity: quota?.totalCapacity || 308
+      totalCapacity: quota?.totalCapacity || systemSettings.monthlyBusQuota
     });
   } catch (err: any) {
     return res.status(500).json({ message: err.message });
