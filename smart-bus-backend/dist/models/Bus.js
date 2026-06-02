@@ -37,7 +37,6 @@ const mongoose_1 = __importStar(require("mongoose"));
 const busSchema = new mongoose_1.Schema({
     busCode: { type: String, required: true, unique: true, trim: true },
     route: { type: mongoose_1.Schema.Types.ObjectId, ref: "Route" },
-    driverName: { type: String, required: true, trim: true },
     speedKmh: { type: Number, default: 0 },
     capacity: { type: Number },
     isActive: { type: Boolean, default: true },

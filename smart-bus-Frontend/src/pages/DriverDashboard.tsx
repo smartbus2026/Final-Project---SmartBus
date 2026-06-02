@@ -49,7 +49,7 @@ interface DriverTrip {
   date: string;
   scheduled_time: string;   // ISO string of departure — used for time-gating
   time_slot: 'morning' | 'return_1530' | 'return_1900';
-  status: 'scheduled' | 'active' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'active' | 'in-progress' | 'in_progress' | 'completed' | 'cancelled';
   booked_seats: number;
   total_seats: number;
   usersCount: number;       // enriched by backend — active booking count
@@ -72,6 +72,8 @@ const TIME_SLOT_LABELS: Record<string, string> = {
 const STATUS_STYLE: Record<string, string> = {
   scheduled: 'bg-blue-500/10 text-blue-400 border border-blue-400/30',
   active:    'bg-app-ok/10 text-app-ok border border-app-ok/30',
+  'in-progress': 'bg-app-ok/10 text-app-ok border border-app-ok/30',
+  in_progress: 'bg-app-ok/10 text-app-ok border border-app-ok/30',
   completed: 'bg-app-am/10 text-app-am border border-app-am/30',
   cancelled: 'bg-app-err/10 text-app-err border border-app-err/30',
 };
@@ -104,7 +106,7 @@ const DriverDashboard: React.FC = () => {
   const fetchTrips = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await Api.get('/trips/driver-trips');
+      const res = await Api.get('/driver/trips');
       console.log("API Response Status:", res.status);
       console.log("API Response Body:", res.data);
       const data: DriverTrip[] = res.data?.data ?? res.data ?? [];
@@ -113,7 +115,7 @@ const DriverDashboard: React.FC = () => {
       setTrips(data);
 
       // Restore active tracking if driver refreshed mid-trip
-      const alreadyActive = data.find(t => t.status === 'active');
+      const alreadyActive = data.find(t => t.status === 'active' || t.status === 'in-progress' || t.status === 'in_progress');
       if (alreadyActive) {
         setActiveTrip(alreadyActive._id);
       }
@@ -213,7 +215,7 @@ const DriverDashboard: React.FC = () => {
       await Api.patch(`/trips/${tripId}/start`);
 
       setTrips(prev =>
-        prev.map(t => t._id === tripId ? { ...t, status: 'active' } : t)
+        prev.map(t => t._id === tripId ? { ...t, status: 'in-progress' } : t)
       );
       setActiveTrip(tripId);
       startGpsWatch(tripId);   // ← real GPS begins streaming here
@@ -373,17 +375,28 @@ const DriverDashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {trips?.map(trip => {
-              const isThisActive    = trip.status === 'active';
+              const isThisActive    = trip.status === 'active' || trip.status === 'in-progress' || trip.status === 'in_progress';
               const isBtnLoading    = actionLoading === trip._id;
               const stops           = trip.route?.stops ?? [];
               const firstStop       = stops[0]?.name ?? 'Origin';
               const lastStop        = stops[stops.length - 1]?.name ?? 'Destination';
               const routeName       = trip.route?.name ?? '—';
 
-              // ── Time-gate REMOVED for testing ────────────────────────────
-              // START is only blocked while an API call is in progress OR
-              // another trip is already running. No time-window check.
-              const startDisabled = isBtnLoading || !!activeTrip;
+              const tripStartTime = (() => {
+                const d = new Date(trip.date);
+                let timeStr = "08:30"; // Morning slot default
+                if (trip.time_slot === "return_1530") {
+                  timeStr = "15:30";
+                } else if (trip.time_slot === "return_1900") {
+                  timeStr = "19:00";
+                }
+                const [hours, minutes] = timeStr.split(":").map(Number);
+                d.setHours(hours, minutes, 0, 0);
+                return d;
+              })();
+
+              const canStart = (tripStartTime.getTime() - Date.now()) <= 60 * 60 * 1000;
+              const startDisabled = isBtnLoading || !!activeTrip || !canStart;
 
               return (
                 <div
@@ -494,7 +507,7 @@ const DriverDashboard: React.FC = () => {
 
                     {/* ── Action Button ── */}
 
-                    {/* SCHEDULED — START (time-gate removed for testing) */}
+                    {/* SCHEDULED — START (1-hour time-gate enforced) */}
                     {trip.status === 'scheduled' && (
                       <div className="space-y-2">
                         <button
@@ -512,6 +525,11 @@ const DriverDashboard: React.FC = () => {
                             <><Ic.Target size={14} /> Start Trip</>
                           )}
                         </button>
+                        {!canStart && (
+                          <p className="text-center text-[9px] font-bold text-app-mu uppercase tracking-widest mt-1 animate-pulse">
+                            Button will unlock 1 hour before trip
+                          </p>
+                        )}
 
                         {/* Another trip is already running */}
                         {!!activeTrip && !isThisActive && (
@@ -523,7 +541,7 @@ const DriverDashboard: React.FC = () => {
                     )}
 
                     {/* ACTIVE — END button */}
-                    {trip.status === 'active' && (
+                    {(trip.status === 'active' || trip.status === 'in-progress' || trip.status === 'in_progress') && (
                       <button
                         disabled={isBtnLoading}
                         onClick={e => handleEndTrip(e, trip._id)}

@@ -23,12 +23,16 @@ const settingsRoutes_1 = __importDefault(require("./Routes/settingsRoutes"));
 const aiRoutes_1 = __importDefault(require("./Routes/aiRoutes"));
 const trackingRoutes_1 = __importDefault(require("./Routes/trackingRoutes"));
 const busRoutes_1 = __importDefault(require("./Routes/busRoutes"));
+const driverRoutes_1 = __importDefault(require("./Routes/driverRoutes"));
+const adminRoutes_1 = __importDefault(require("./Routes/adminRoutes"));
 // Socket Integration
 const socket_1 = require("./socket");
 (0, db_1.default)();
 // Start cron jobs after DB connection
 const tripReminder_1 = require("./jobs/tripReminder");
+const notificationJob_1 = require("./jobs/notificationJob");
 (0, tripReminder_1.startTripReminderJob)();
+(0, notificationJob_1.startNotificationJobs)();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5001;
 const server = http_1.default.createServer(app);
@@ -55,6 +59,8 @@ app.use("/api/settings", settingsRoutes_1.default);
 app.use("/api/ai", aiRoutes_1.default);
 app.use("/api/tracking", trackingRoutes_1.default);
 app.use("/api/buses", busRoutes_1.default);
+app.use("/api/driver", driverRoutes_1.default);
+app.use("/api/admin", adminRoutes_1.default);
 app.get("/", (_req, res) => {
     res.json({ status: "ok", message: "SmartBus API is running" });
 });

@@ -286,6 +286,7 @@ const UsersPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<UserType | null>(null);
   const [showAddUser, setShowAddUser] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string>('all');
 
   useEffect(() => { fetchUsers(); }, []);
 
@@ -330,10 +331,12 @@ const UsersPage: React.FC = () => {
     finally { setConfirmDelete(null); }
   };
 
-  const filteredUsers = users.filter(u =>
-    u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.student_id?.includes(searchQuery)
-  );
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          u.student_id?.includes(searchQuery);
+    const matchesRole = selectedRole === 'all' || u.role === selectedRole;
+    return matchesSearch && matchesRole;
+  });
 
   return (
     <div className="flex-1 bg-app-bg text-app-tx min-h-screen p-8 font-sans relative transition-colors duration-300">
@@ -419,8 +422,8 @@ const UsersPage: React.FC = () => {
           <p className="text-app-mu text-[10px] font-bold uppercase tracking-[0.5em] mt-1 italic">Operational Command Center</p>
         </div>
 
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="bg-app-card border border-app-bd px-6 py-4 rounded-2xl flex items-center gap-4 flex-1 md:w-[320px] shadow-sm">
+        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+          <div className="bg-app-card border border-app-bd px-6 py-4 rounded-2xl flex items-center gap-4 flex-1 md:w-[280px] shadow-sm">
             <Ic.Search className="text-app-mu2" />
             <input
               type="text"
@@ -430,6 +433,21 @@ const UsersPage: React.FC = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+
+          <div className="bg-app-card border border-app-bd px-6 py-4 rounded-2xl flex items-center gap-4 shadow-sm min-w-[160px]">
+            <select
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              className="bg-transparent border-none outline-none text-[10px] font-black w-full uppercase tracking-widest text-app-tx cursor-pointer appearance-none pr-6"
+              style={{ backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.4)' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundPosition: 'right center', backgroundRepeat: 'no-repeat', backgroundSize: '10px' }}
+            >
+              <option value="all" className="bg-app-card text-app-tx">ALL ROLES</option>
+              <option value="admin" className="bg-app-card text-app-tx">ADMIN</option>
+              <option value="student" className="bg-app-card text-app-tx">STUDENT</option>
+              <option value="driver" className="bg-app-card text-app-tx">DRIVER</option>
+            </select>
+          </div>
+
           <button
             onClick={() => setShowAddUser(true)}
             className="flex items-center gap-2 bg-app-am text-white dark:text-black px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-app-am/20 whitespace-nowrap"
@@ -478,22 +496,32 @@ const UsersPage: React.FC = () => {
                       {user.role}
                     </span>
                   </td>
-                  <td className="px-10 py-7 text-right space-x-2">
-                    {user.role === 'student' && (
+                  <td className="px-10 py-7">
+                    <div className="flex items-center justify-end gap-2">
+                      {user.role === 'student' && (
+                        <button
+                          onClick={() => navigate(`/admin/students/${user._id}`)}
+                          className="p-2 rounded-lg text-app-mu hover:text-blue-500 hover:bg-blue-500/10 transition-all duration-200"
+                          title="View Attendance Profile"
+                        >
+                          <Ic.Users size={20} />
+                        </button>
+                      )}
                       <button
-                        onClick={() => navigate(`/admin/students/${user._id}`)}
-                        className="p-3 bg-app-am/10 text-app-am rounded-xl hover:bg-app-am hover:text-white dark:hover:text-black transition-all shadow-sm"
-                        title="View Attendance Profile"
+                        onClick={() => setEditingUser(user)}
+                        className="p-2 rounded-lg text-app-mu hover:text-emerald-500 hover:bg-emerald-500/10 transition-all duration-200"
+                        title="Edit User"
                       >
-                        <Ic.Users size={14} />
+                        <Ic.Dots size={20} />
                       </button>
-                    )}
-                    <button onClick={() => setEditingUser(user)} className="p-3 bg-app-bg2 text-app-mu rounded-xl hover:bg-app-am hover:text-white dark:hover:text-black transition-all shadow-sm">
-                      <Ic.Dots size={14} />
-                    </button>
-                    <button onClick={() => setConfirmDelete(user)} className="p-3 bg-app-err/5 text-app-err/60 rounded-xl hover:bg-app-err hover:text-white transition-all">
-                      <Ic.Close size={14} />
-                    </button>
+                      <button
+                        onClick={() => setConfirmDelete(user)}
+                        className="p-2 rounded-lg text-app-mu hover:text-red-500 hover:bg-red-500/10 transition-all duration-200"
+                        title="Delete User"
+                      >
+                        <Ic.Close size={20} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -143,16 +143,16 @@ exports.addStopToRoute = addStopToRoute;
 const removeStopFromRoute = async (req, res) => {
     try {
         const { routeId, stopId } = req.params;
-        const route = await Route_1.default.findById(routeId);
+        const route = await Route_1.default.findByIdAndUpdate(routeId, { $pull: { stops: stopId } }, { returnDocument: 'after' });
         if (!route) {
             return res.status(404).json({ message: "Route not found" });
         }
-        route.stops = route.stops.filter((id) => id.toString() !== stopId);
-        await route.save();
-        res.status(200).json({ message: "Stop removed from route", route });
+        await stop_1.default.findByIdAndDelete(stopId);
+        res.status(200).json({ message: "Stop removed from route and deleted successfully", route });
     }
-    catch (err) {
-        res.status(500).json({ error: err.message });
+    catch (error) {
+        console.error("--- DELETE STOP ERROR ---", error);
+        res.status(500).json({ message: error.message || "Failed to delete stop." });
     }
 };
 exports.removeStopFromRoute = removeStopFromRoute;

@@ -9,4 +9,5 @@ const roleMiddleware_1 = require("../middleware/roleMiddleware");
 const reportController_1 = require("../Controllers/reportController");
 const router = express_1.default.Router();
 router.get("/dashboard-stats", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), reportController_1.getDashboardStats);
+router.get("/attendance", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), reportController_1.getAttendanceReport);
 exports.default = router;

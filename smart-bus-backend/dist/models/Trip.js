@@ -36,6 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const tripSchema = new mongoose_1.Schema({
     route: { type: mongoose_1.Schema.Types.ObjectId, ref: "Route", required: true },
+    driver: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
+    bus: { type: mongoose_1.Schema.Types.ObjectId, ref: "Bus" },
     date: { type: Date, required: true },
     time_slot: {
         type: String,
@@ -47,7 +49,7 @@ const tripSchema = new mongoose_1.Schema({
     booked_seats: { type: Number, default: 0 },
     status: {
         type: String,
-        enum: ["scheduled", "active", "completed", "cancelled"],
+        enum: ["scheduled", "active", "in-progress", "in_progress", "completed", "cancelled"],
         default: "scheduled"
     },
     current_location: {
@@ -56,5 +58,7 @@ const tripSchema = new mongoose_1.Schema({
         last_updated: Date
     }
 }, { timestamps: true });
-tripSchema.index({ route: 1, date: 1, time_slot: 1 }, { unique: true });
+// NOTE: Unique index removed — dispatch can create one Trip per bus+route+slot.
+// A non-unique compound index is kept for query performance only.
+tripSchema.index({ driver: 1, status: 1, date: 1 });
 exports.default = mongoose_1.default.model("Trip", tripSchema);

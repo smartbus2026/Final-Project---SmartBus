@@ -10,6 +10,8 @@ const notificationController_1 = require("../Controllers/notificationController"
 const router = express_1.default.Router();
 // مسار الطالب أو الأدمن عشان يجيب اشعاراته
 router.get("/", authMiddleware_1.protect, notificationController_1.getNotifications);
+// مسار عشان يخلي كل الاشعارات مقروءة
+router.put("/read-all", authMiddleware_1.protect, notificationController_1.markAllAsRead);
 // مسار عشان يخلي الإشعار مقروء
 router.put("/:id/read", authMiddleware_1.protect, notificationController_1.markAsRead);
 // مسار الأدمن عشان يبعت اشعارات للكل (حطينا حماية الأدمن هنا)

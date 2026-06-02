@@ -31,7 +31,7 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
 
   const stats = [
     { l: "Total Demands",v: bookings.length.toString(),                                              icon: <Ic.Route size={18} />,    c: "text-app-am", bg: "bg-app-am/10" },
-    { l: "Assigned",     v: bookings.filter(b => b.status === "assigned" || b.status === "active").length.toString(), icon: <Ic.Check size={18} />,    c: "text-app-ok", bg: "bg-app-ok/10" },
+    { l: "Assigned",     v: bookings.filter(b => b.status === "assigned" || b.status === "active" || b.status === "in-progress" || b.status === "in_progress").length.toString(), icon: <Ic.Check size={18} />,    c: "text-app-ok", bg: "bg-app-ok/10" },
     { l: "Pending",      v: bookings.filter(b => b.status === "pending").length.toString(),          icon: <Ic.Calendar size={18} />, c: "text-blue-400", bg: "bg-blue-500/10" },
     { l: "Cancelled",    v: bookings.filter(b => b.status === "cancelled").length.toString(),        icon: <Ic.X size={18} />,        c: "text-red-400", bg: "bg-red-500/10" },
   ];
@@ -200,7 +200,8 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                            b.status === "active"     ? "bg-app-ok/10 text-app-ok border-app-ok/20" :
+                            b.status === "active" || b.status === "in-progress" || b.status === "in_progress" ? "bg-app-ok/10 text-app-ok border-app-ok/20" :
+                            b.status === "assigned"   ? "bg-app-am/10 text-app-am border-app-am/20" :
                             b.status === "pending"    ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
                             b.status === "cancelled"  ? "bg-red-500/10 text-red-400 border-red-500/20" :
                                                         "bg-app-bd text-app-mu border-app-bd"

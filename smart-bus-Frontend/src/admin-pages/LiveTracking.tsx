@@ -16,6 +16,7 @@ interface ActiveTrip {
   id: string;
   routeName: string;
   busId: string;
+  busNumber: string;
   driverName: string;
   status: string;
   progress: number;
@@ -60,7 +61,7 @@ const LiveTracking: React.FC = () => {
       const res = await Api.get('/trips');
       const allTrips = res.data?.data || res.data || [];
       
-      const activeRaw = allTrips.filter((t: any) => t.status === 'active');
+      const activeRaw = allTrips.filter((t: any) => t.status === 'active' || t.status === 'in-progress' || t.status === 'in_progress');
       
       const mapped: ActiveTrip[] = activeRaw.map((t: any) => {
         const stops = (t.route?.stops || []).map((stop: any, index: number) => ({
@@ -72,7 +73,8 @@ const LiveTracking: React.FC = () => {
         return {
           id: t._id,
           routeName: t.route?.name || 'Unknown Route',
-          busId: t.bus_number || t.route?.code || 'Bus #01',
+          busId: t.bus?._id || t.bus_number || 'unknown-bus',
+          busNumber: t.bus_number || 'Unknown Bus',
           driverName: t.driver?.name || 'Pending Driver',
           status: t.status || 'Active',
           progress: getTripProgress(stops),
@@ -104,11 +106,30 @@ const LiveTracking: React.FC = () => {
     socketRef.current.emit("join-admin-tracking");
 
     socketRef.current.on("bus_location_update", (data: any) => {
-      if (data.tripId && data.location) {
+      // Update by busId
+      if (data.busId && data.lat !== undefined && data.lng !== undefined) {
+        setBusLocations(prev => ({
+          ...prev,
+          [data.busId]: [data.lat, data.lng]
+        }));
+      } else if (data.tripId && data.location) {
+        // Fallback for legacy format
         setBusLocations(prev => ({
           ...prev,
           [data.tripId]: [data.location.lat, data.location.lng]
         }));
+      }
+    });
+
+    // Automatically remove a bus/trip from the map if it's marked as completed
+    socketRef.current.on("trip_status_update", (data: any) => {
+      if (data.tripId && data.status === "completed") {
+        setBusLocations(prev => {
+          const next = { ...prev };
+          delete next[data.tripId];
+          return next;
+        });
+        setActiveTrips(prev => prev.filter(t => t.id !== data.tripId));
       }
     });
 
@@ -129,6 +150,10 @@ const LiveTracking: React.FC = () => {
   const mapCenter: [number, number] = [24.0889, 32.8998]; // Aswan center
   const tileUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 
+  // Check if we have active buses emitting locations
+  const tripsWithLocations = activeTrips.filter(trip => busLocations[trip.busId] || busLocations[trip.id]);
+  const hasEmittingBuses = tripsWithLocations.length > 0;
+
   return (
     <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen">
       <div className="mb-8">
@@ -136,12 +161,17 @@ const LiveTracking: React.FC = () => {
         <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">Real-time fleet monitoring</p>
       </div>
 
-      {activeTrips.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-          <div className="w-24 h-24 bg-app-card border border-app-bd rounded-full flex items-center justify-center text-app-mu opacity-50 shadow-inner">
-            <Ic.Target size={48} />
+      {(!hasEmittingBuses || activeTrips.length === 0) ? (
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-4 bg-app-card border border-app-bd rounded-[2.5rem] shadow-xl p-8">
+          <div className="w-20 h-20 bg-app-am/10 border border-app-am/20 text-app-am rounded-full flex items-center justify-center animate-pulse">
+            <Ic.Target size={36} />
           </div>
-          <p className="text-[12px] font-black uppercase tracking-widest text-app-mu mt-4">No buses are currently on the road</p>
+          <p className="text-sm font-black uppercase tracking-widest text-app-tx text-center mt-2">
+            No active trips at the moment
+          </p>
+          <p className="text-[11px] font-bold text-app-mu uppercase tracking-widest text-center max-w-md mt-1 leading-relaxed">
+            Waiting for drivers to start their trips.
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-8">
@@ -149,14 +179,16 @@ const LiveTracking: React.FC = () => {
           <div className="w-full h-[50vh] bg-app-card border border-app-bd rounded-[2.5rem] overflow-hidden shadow-2xl relative">
             <MapContainer center={mapCenter} zoom={14} zoomControl={false} className="h-full w-full">
               <TileLayer url={tileUrl} />
-              {activeTrips.map(trip => {
-                const position = busLocations[trip.id] || mapCenter; // Fallback to center if no location yet
+              {tripsWithLocations.map(trip => {
+                const position = busLocations[trip.busId] || busLocations[trip.id] || mapCenter;
                 return (
                   <Marker key={trip.id} position={position} icon={busIcon}>
                     <Popup className="custom-popup">
-                      <div className="font-syne font-bold text-sm text-black">
-                        {trip.routeName} <br />
-                        <span className="text-xs font-medium text-gray-600">{trip.busId}</span>
+                      <div className="font-syne font-bold text-sm text-black p-2">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Route Name</p>
+                        <p className="text-sm font-black text-app-am bg-black/5 px-2 py-1 rounded-md mb-2">{trip.routeName}</p>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Bus Number</p>
+                        <p className="text-sm font-black text-black">{trip.busNumber}</p>
                       </div>
                     </Popup>
                   </Marker>
@@ -168,14 +200,14 @@ const LiveTracking: React.FC = () => {
             <div className="absolute top-6 left-6 z-[1000] bg-app-card/90 backdrop-blur-md border border-app-bd p-4 rounded-2xl shadow-xl">
               <h3 className="text-sm font-black uppercase tracking-widest mb-1 flex items-center gap-2">
                  <span className="w-2 h-2 rounded-full bg-app-am animate-pulse"></span>
-                 Active Fleet: {activeTrips.length}
+                 Active Fleet: {tripsWithLocations.length}
               </h3>
             </div>
           </div>
 
           {/* Active Trips Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {activeTrips.map(trip => (
+            {tripsWithLocations.map(trip => (
               <div key={trip.id} className="bg-app-card border border-app-bd rounded-[2.5rem] overflow-hidden shadow-2xl transition-all hover:border-app-am/20 flex flex-col">
                 
                 <div className="p-6 border-b border-app-bd flex justify-between items-center bg-gradient-to-r from-app-am/5 to-transparent">
@@ -186,7 +218,7 @@ const LiveTracking: React.FC = () => {
                     <div>
                       <h2 className="text-sm font-black uppercase tracking-tight">{trip.routeName}</h2>
                       <p className="text-[10px] text-app-mu font-black uppercase tracking-widest mt-1">
-                        {trip.busId} • Driver: {trip.driverName}
+                        {trip.busNumber} • Driver: {trip.driverName}
                       </p>
                     </div>
                   </div>
@@ -207,7 +239,7 @@ const LiveTracking: React.FC = () => {
                         <div>
                            <p className="text-[10px] font-black uppercase text-app-mu tracking-widest">Current Location</p>
                            <p className="text-xs font-bold font-syne text-app-tx mt-1">
-                              {busLocations[trip.id] ? `${busLocations[trip.id][0].toFixed(4)}, ${busLocations[trip.id][1].toFixed(4)}` : 'Locating...'}
+                              {busLocations[trip.busId] || busLocations[trip.id] ? `${(busLocations[trip.busId] || busLocations[trip.id])[0].toFixed(4)}, ${(busLocations[trip.busId] || busLocations[trip.id])[1].toFixed(4)}` : 'Locating...'}
                            </p>
                         </div>
                      </div>

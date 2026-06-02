@@ -14,6 +14,7 @@ router.get("/my", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("st
 router.get("/stats", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), bookingController_1.getBookingStats);
 router.get("/today", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), bookingController_1.getTodayBookings);
 router.get("/admin/demand", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), bookingController_1.getDemandAggregation);
+router.get("/admin/assigned-trips", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), bookingController_1.getAssignedTrips);
 router.post("/admin/dispatch", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), bookingController_1.dispatchBus);
 router.post("/admin/recover", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), bookingController_1.recoverCancelledBookings);
 router.get("/", authMiddleware_1.protect, (0, roleMiddleware_1.allowRoles)("admin"), bookingController_1.getAllBookings);

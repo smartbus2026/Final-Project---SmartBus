@@ -8,7 +8,6 @@ interface IGeoPoint {
 export interface IBus extends Document {
   busCode: string;
   route: mongoose.Types.ObjectId;
-  driver: mongoose.Types.ObjectId;
   speedKmh: number;
   capacity?: number;
   isActive: boolean;
@@ -23,7 +22,6 @@ const busSchema = new Schema<IBus>(
   {
     busCode: { type: String, required: true, unique: true, trim: true },
     route: { type: Schema.Types.ObjectId, ref: "Route" },
-    driver: { type: Schema.Types.ObjectId, ref: "User", required: true },
     speedKmh: { type: Number, default: 0 },
     capacity: { type: Number },
     isActive: { type: Boolean, default: true },

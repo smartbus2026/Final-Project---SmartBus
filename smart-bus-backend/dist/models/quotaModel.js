@@ -34,13 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const userSchema = new mongoose_1.Schema({
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: { type: String, enum: ["student", "admin", "driver"], default: "student" },
-    student_id: { type: String, unique: true, sparse: true },
-    profile_pic: { type: String, default: "default-avatar.png" },
-    phone_number: { type: String }
+const quotaSchema = new mongoose_1.Schema({
+    monthYear: { type: String, required: true, unique: true },
+    totalCapacity: { type: Number, default: 308 },
+    usedCapacity: { type: Number, default: 0 }
 }, { timestamps: true });
-exports.default = mongoose_1.default.model("User", userSchema);
+exports.default = mongoose_1.default.model("Quota", quotaSchema);

@@ -167,7 +167,7 @@ export const getMyBookings = async (req: Request, res: Response) => {
           $lt: new Date(new Date(b.date).setHours(23, 59, 59, 999))
         },
         time_slot: time_slot,
-        status: { $in: ['scheduled', 'active', 'in_progress'] }
+        status: { $in: ['scheduled', 'active', 'in-progress', 'in_progress'] }
       }).populate({ path: "route", populate: { path: "stops", model: "Stop" } }).lean();
 
       return { ...b, trip: trip || null };
@@ -491,10 +491,22 @@ export const getDemandAggregation = async (req: Request, res: Response) => {
 
 export const dispatchBus = async (req: Request, res: Response) => {
   try {
-    const { busId, date, timeSlot, routeIds, specificReturnTime } = req.body;
+    const { busId, driverId, date, timeSlot, routeIds, specificReturnTime, routeId, assignments } = req.body;
 
-    if (!busId || !date || !timeSlot || !routeIds || routeIds.length === 0) {
+    // Normalize routeIds to always be an array
+    const actualRouteIds: string[] = routeId ? [routeId] : (routeIds || []);
+
+    if (!date || !timeSlot || actualRouteIds.length === 0) {
       return res.status(400).json({ status: "error", message: "Missing required fields for dispatch" });
+    }
+
+    // Normalize assignments: if assignments array is provided, use it; otherwise fallback to single busId/driverId
+    const actualAssignments: Array<{ busId: string; driverId: string }> = assignments && assignments.length > 0
+      ? assignments
+      : (busId ? [{ busId, driverId }] : []);
+
+    if (actualAssignments.length === 0) {
+      return res.status(400).json({ status: "error", message: "Missing bus or driver assignments for dispatch" });
     }
 
     const targetDate = new Date(date);
@@ -502,219 +514,282 @@ export const dispatchBus = async (req: Request, res: Response) => {
     const dayEnd = new Date(targetDate);
     dayEnd.setHours(23, 59, 59, 999);
 
-    const bus = await Bus.findById(busId);
-    if (!bus) return res.status(404).json({ status: "error", message: "Bus not found" });
-
-    // ── Driver Double-Booking Validation ──
-    const driverId = (bus as any).driver;
     const slotMap: Record<string, "morning" | "return_1530" | "return_1900"> = {
       Morning: "morning",
       Return:  specificReturnTime === "7:00 PM" ? "return_1900" : "return_1530",
     };
     const tripTimeSlot = slotMap[timeSlot] ?? "morning";
 
-    const existingTripForDriver = await Trip.findOne({
-      driver: driverId,
-      time_slot: tripTimeSlot,
-      date: { $gte: targetDate, $lte: dayEnd },
-      status: { $ne: "cancelled" }
-    });
+    // ── Pre-Validation Pass ──
+    const validatedAssignments: Array<{
+      busId: string;
+      busCode: string;
+      capacity: number;
+      driverId: string;
+    }> = [];
 
-    if (existingTripForDriver) {
-      return res.status(400).json({ 
-        status: "error", 
-        message: "This driver is already assigned to another trip in this time slot today. Cannot assign." 
+    const seenBusIds = new Set<string>();
+    const seenDriverIds = new Set<string>();
+
+    for (const assignment of actualAssignments) {
+      const { busId: currentBusId, driverId: currentDriverId } = assignment;
+
+      if (!currentBusId) {
+        return res.status(400).json({ status: "error", message: "Each assignment must have a valid busId" });
+      }
+
+      if (seenBusIds.has(currentBusId)) {
+        return res.status(400).json({ status: "error", message: `Duplicate busId '${currentBusId}' in request assignments.` });
+      }
+      seenBusIds.add(currentBusId);
+
+      const bus = await Bus.findById(currentBusId);
+      if (!bus) {
+        return res.status(404).json({ status: "error", message: `Bus not found for ID: ${currentBusId}` });
+      }
+
+      let finalDriverId = currentDriverId;
+      if (!finalDriverId) {
+        // Fall back to first driver
+        const fallbackDriver = await User.findOne({ role: "driver" });
+        if (!fallbackDriver) {
+          return res.status(400).json({ status: "error", message: "No drivers registered in the system. Please create a driver first." });
+        }
+        finalDriverId = fallbackDriver._id.toString();
+      }
+
+      if (seenDriverIds.has(finalDriverId)) {
+        return res.status(400).json({ status: "error", message: `Duplicate driverId '${finalDriverId}' in request assignments.` });
+      }
+      seenDriverIds.add(finalDriverId);
+
+      // Check if driver is already assigned to another non-cancelled trip
+      const existingTripForDriver = await Trip.findOne({
+        driver: finalDriverId,
+        time_slot: tripTimeSlot,
+        date: { $gte: targetDate, $lte: dayEnd },
+        status: { $ne: "cancelled" }
+      });
+      if (existingTripForDriver) {
+        return res.status(400).json({
+          status: "error",
+          message: `Driver is already assigned to another trip in this time slot today. Cannot double-book.`
+        });
+      }
+
+      // Check if bus is already assigned to another non-cancelled trip
+      const existingTripForBus = await Trip.findOne({
+        bus_number: bus.busCode,
+        time_slot: tripTimeSlot,
+        date: { $gte: targetDate, $lte: dayEnd },
+        status: { $ne: "cancelled" }
+      });
+      if (existingTripForBus) {
+        return res.status(400).json({
+          status: "error",
+          message: `Bus '${bus.busCode}' is already assigned to another trip in this time slot today. Cannot double-book.`
+        });
+      }
+
+      validatedAssignments.push({
+        busId: currentBusId,
+        busCode: bus.busCode,
+        capacity: bus.capacity ?? 45,
+        driverId: finalDriverId
       });
     }
-    // ────────────────────────────────────────
 
-    // Build the dynamic query
-    const query: any = {
-      route: { $in: routeIds },
+    // ── Count previously assigned distinct buses for Quota Logic ──
+    const previousDistinctBuses = await Booking.distinct("busId", {
+      date: { $gte: targetDate, $lte: dayEnd },
+      timeSlot: timeSlot,
+      status: { $in: ["assigned", "active", "completed", "in-progress", "in_progress"] },
+      busId: { $exists: true, $ne: null }
+    });
+    const previousCount = previousDistinctBuses.length;
+    const newAssignmentsCount = validatedAssignments.length;
+    const totalCount = previousCount + newAssignmentsCount;
+
+    // ── Fetch and Allocation of Pending Bookings (In-Memory) ──
+    const bookingQuery: any = {
+      route: { $in: actualRouteIds },
       date: { $gte: targetDate, $lte: dayEnd },
       timeSlot: timeSlot,
       status: "pending"
     };
-
     if (timeSlot === "Return" && specificReturnTime) {
-      query.specificReturnTime = specificReturnTime;
+      bookingQuery.specificReturnTime = specificReturnTime;
     }
 
-    // Find all matching pending bookings
-    const bookingsToUpdate = await Booking.find(query);
+    const allPendingBookings = await Booking.find(bookingQuery);
 
-    if (bookingsToUpdate.length === 0) {
+    const assignmentsWithBookings = validatedAssignments.map(val => ({
+      ...val,
+      bookings: [] as any[]
+    }));
+
+    for (const booking of allPendingBookings) {
+      const availableAssignment = assignmentsWithBookings.find(
+        a => a.bookings.length < a.capacity
+      );
+      if (availableAssignment) {
+        availableAssignment.bookings.push(booking);
+      } else {
+        break;
+      }
+    }
+
+    const totalBookingsToAssign = assignmentsWithBookings.reduce((sum, a) => sum + a.bookings.length, 0);
+    if (totalBookingsToAssign === 0) {
       return res.status(404).json({ status: "error", message: "No pending bookings found for the selected routes and time slot" });
     }
 
-    const bookingIds = bookingsToUpdate.map(b => b._id);
-    const userIds = [...new Set(bookingsToUpdate.map(b => b.user.toString()))];
+    // ── Bulk Creation & Save (Promise.all) ──
+    const results = await Promise.all(
+      assignmentsWithBookings
+        .filter(a => a.bookings.length > 0)
+        .map(async (assignment) => {
+          const { busId, busCode, capacity, driverId, bookings } = assignment;
+          const bookingIds = bookings.map(b => b._id);
+          const userIds = [...new Set(bookings.map(b => b.user.toString()))];
 
-    // Update to assigned
-    await Booking.updateMany(
-      { _id: { $in: bookingIds } },
-      { $set: { status: "assigned", busId: busId } }
+          // 1. Update bookings to assigned
+          await Booking.updateMany(
+            { _id: { $in: bookingIds } },
+            { $set: { status: "assigned", busId: busId } }
+          );
+
+          // 2. Create/Update Trip documents
+          const routeTripUpserts = await Promise.all(
+            actualRouteIds.map(async (routeId: string) => {
+              const passengerCount = bookings.filter(
+                b => b.route?.toString() === routeId
+              ).length;
+
+              return await Trip.findOneAndUpdate(
+                {
+                  route:     routeId,
+                  driver:    driverId,
+                  date:      targetDate,
+                  time_slot: tripTimeSlot,
+                },
+                {
+                  $set: {
+                    bus:          busId,
+                    bus_number:   busCode,
+                    total_seats:  capacity,
+                    booked_seats: passengerCount,
+                    status:       "scheduled",
+                  },
+                  $setOnInsert: {
+                    route:     routeId,
+                    driver:    driverId,
+                    date:      targetDate,
+                    time_slot: tripTimeSlot,
+                  },
+                },
+                { upsert: true, new: true }
+              );
+            })
+          );
+
+          // 3. Create Notifications
+          const notifMessage = `Your bus has been assigned! Bus No: ${busCode} is now covering your route.`;
+          await Promise.all(
+            userIds.map(userId =>
+              Notification.create({
+                user: userId,
+                title: "Bus Assigned",
+                message: notifMessage,
+                type: "trip",
+                read: false
+              })
+            )
+          );
+
+          const socketEmissionsList = userIds.map(userId => ({
+            userId,
+            payload: {
+              title: "Bus Assigned",
+              message: notifMessage,
+              busDetails: { _id: busId, busCode: busCode },
+              bookingIds: bookingIds.map(id => id.toString()),
+              timeSlot,
+              specificReturnTime: specificReturnTime || null,
+              routeIds: actualRouteIds
+            }
+          }));
+
+          return {
+            assignedCount: bookingIds.length,
+            routeTripUpserts,
+            socketEmissions: socketEmissionsList
+          };
+        })
     );
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // BRIDGE FIX: Create one Trip document per route so the Driver Dashboard
-    // can find it via Trip.find({ driver: req.user._id }).
-    // ─────────────────────────────────────────────────────────────────────────
+    // Aggregate results
+    let totalAssignedBookings = 0;
+    const tripUpserts: any[] = [];
+    const socketEmissions: any[] = [];
 
-    console.log("[DISPATCH] Bus driver ObjectId:", driverId);
-    console.log("[DISPATCH] Creating Trip documents for routeIds:", routeIds);
+    for (const resObj of results) {
+      totalAssignedBookings += resObj.assignedCount;
+      tripUpserts.push(...resObj.routeTripUpserts);
+      socketEmissions.push(...resObj.socketEmissions);
+    }
 
-    const tripUpserts = await Promise.all(
-      routeIds.map(async (routeId: string) => {
-        // Count passengers on this specific route
-        const passengerCount = bookingsToUpdate.filter(
-          b => b.route?.toString() === routeId
-        ).length;
-
-        // Use findOneAndUpdate with upsert so re-dispatching the same
-        // route/date/slot updates the existing Trip rather than duplicating.
-        const result = await Trip.findOneAndUpdate(
-          {
-            route:     routeId,
-            driver:    driverId,
-            date:      targetDate,
-            time_slot: tripTimeSlot,
-          },
-          {
-            $set: {
-              bus_number:   bus.busCode,
-              total_seats:  bus.capacity ?? 45,
-              booked_seats: passengerCount,
-              status:       "scheduled",
-            },
-            $setOnInsert: {
-              route:     routeId,
-              driver:    driverId,
-              date:      targetDate,
-              time_slot: tripTimeSlot,
-            },
-          },
-          { upsert: true, new: true }
-        );
-
-        console.log(
-          `[DISPATCH] Trip upserted — _id: ${result?._id} | route: ${routeId} | driver: ${driverId} | date: ${targetDate.toISOString().split("T")[0]}`
-        );
-
-        return result;
-      })
-    );
-
-    console.log("[DISPATCH] Total Trip documents upserted:", tripUpserts.length);
-
-    // Create notifications for students
-    const message = `Your bus has been assigned! Bus No: ${bus.busCode} is now covering your route.`;
-    const notifications = userIds.map(userId => ({
-      user: userId,
-      title: "Bus Assigned",
-      message: message,
-      type: "trip",
-      read: false
-    }));
-    await Notification.insertMany(notifications);
-
-    // Emit real-time events
-    const socketPayload = {
-      title: "Bus Assigned",
-      message,
-      busDetails: { _id: bus._id, busCode: bus.busCode },
-      bookingIds: bookingIds.map(id => id.toString()),
-      timeSlot,
-      specificReturnTime: specificReturnTime || null,
-      routeIds
-    };
-
+    // Emit socket notifications
     try {
       const io = getIO();
-      userIds.forEach(userId => {
-        io.to(`user:${userId}`).emit("newNotification", socketPayload);
-        io.to(`user:${userId}`).emit("bookingAssigned", socketPayload);
+      socketEmissions.forEach(({ userId, payload }) => {
+        io.to(`user:${userId}`).emit("newNotification", payload);
+        io.to(`user:${userId}`).emit("bookingAssigned", payload);
       });
       io.to("admins").emit("demandDispatched");
     } catch (socketErr) {
       console.warn("Socket.io not initialized, skipping realtime emission", socketErr);
     }
 
-    // ── Shift Quota Warning ────────────────────────────────────────────────────
-    // After a successful dispatch, count distinct bus assignments for this
-    // time slot on the dispatched date and fire a notification if the soft
-    // limit is exceeded.
-    try {
-      const SHIFT_LIMIT = 7;
+    res.status(200).json({
+      status: "success",
+      message: `Successfully assigned ${assignmentsWithBookings.filter(a => a.bookings.length > 0).length} buses to ${totalAssignedBookings} bookings and created ${tripUpserts.length} Trip(s). Students notified.`
+    });
 
-      const distinctShiftAssignments = await Booking.aggregate([
-        {
-          $match: {
-            status: { $in: ["assigned", "active", "completed"] },
-            busId: { $exists: true, $ne: null },
-            date: { $gte: targetDate, $lte: dayEnd },
-            timeSlot: timeSlot
-          }
-        },
-        {
-          $group: {
-            _id: "$busId"
-          }
-        },
-        { $count: "total" }
-      ]);
+    // ── Shift Quota Warning and Limit Alert (Asynchronous & Non-Blocking) ──
+    setImmediate(async () => {
+      try {
+        if (totalCount >= 7) {
+          const alertTitle = "Quota Alert: Exceeded Shift Limit";
+          const alertMessage = `You have assigned more than 7 buses for the ${timeSlot} shift on ${date}. You are now utilizing your monthly reserve.`;
 
-      const currentShiftCount = distinctShiftAssignments[0]?.total || 0;
-
-      if (currentShiftCount >= SHIFT_LIMIT) {
-        // ── Idempotency Check ──
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        // Ensure we haven't already notified about this exact shift/date today
-        const existingWarning = await Notification.findOne({
-          title: "Shift Quota Exceeded",
-          message: { $regex: `${timeSlot}.*${targetDate.toDateString()}`, $options: "i" },
-          createdAt: { $gte: startOfDay }
-        });
-
-        if (!existingWarning) {
           const admins = await User.find({ role: "admin" }).select("_id");
-          const pushStrategy = new PushNotificationStrategy();
-          const criticalStrategy = new MultiChannelStrategy([
-            new PushNotificationStrategy(),
-            new EmailNotificationStrategy()
-          ]);
-          const strategy = currentShiftCount > SHIFT_LIMIT ? criticalStrategy : pushStrategy;
+          const notifications = admins.map(admin => ({
+            user: admin._id,
+            title: alertTitle,
+            message: alertMessage,
+            type: "alert",
+            read: false
+          }));
 
-          for (const admin of admins) {
-            await NotificationManager.notify(
-              admin._id.toString(),
-              strategy,
-              "Shift Quota Exceeded",
-              `Warning: The capacity for the ${timeSlot} shift on ${targetDate.toDateString()} is exhausted. You have assigned ${currentShiftCount} buses, exceeding the limit of ${SHIFT_LIMIT}.`
-            );
+          if (notifications.length > 0) {
+            await Notification.insertMany(notifications);
+            console.log(`[QUOTA ALERT] Created async alert notifications for ${admins.length} admins.`);
           }
 
           try {
             const io = getIO();
             io.to("admins").emit("newNotification", {
-              title: "Shift Quota Exceeded",
-              message: `Warning: ${timeSlot} shift now has ${currentShiftCount}/${SHIFT_LIMIT} buses assigned.`,
-              type: "system",
+              title: alertTitle,
+              message: alertMessage,
+              type: "alert",
               createdAt: new Date()
             });
-          } catch (_) { /* socket may not be available */ }
+          } catch (_) {}
         }
+      } catch (quotaErr: any) {
+        console.error("[DispatchBus Async Quota Alert Error]:", quotaErr);
       }
-    } catch (quotaErr) {
-      // Non-critical — do not fail the dispatch if the quota check errors
-    }
-    // ─────────────────────────────────────────────────────────────────────────
-
-    res.status(200).json({
-      status: "success",
-      message: `Successfully assigned bus to ${bookingIds.length} bookings and created ${tripUpserts.length} Trip(s). Students notified.`
     });
   } catch (err: any) {
     console.error("[DispatchBus Error]:", err);
@@ -752,8 +827,7 @@ export const getAssignedTrips = async (req: Request, res: Response) => {
       .populate("route", "name")
       .populate({
         path: "busId",
-        select: "busCode driver capacity",
-        populate: { path: "driver", select: "name email" }
+        select: "busCode capacity"
       })
       .populate("user", "name email");
 
@@ -820,12 +894,13 @@ export const getAssignedTrips = async (req: Request, res: Response) => {
           { date: { $gte: dayStart, $lte: dayEnd } },
           { departure_time: { $gte: dayStart, $lte: dayEnd } }
         ]
-      });
+      }).populate("driver", "name email");
 
       if (realTrip) {
         group.actualTripId = realTrip._id.toString();
         group.actualIds = [realTrip._id.toString()];
         group.id = realTrip._id.toString(); // Override composite string with real MongoDB ObjectId
+        group.driverName = (realTrip.driver as any)?.name || "Unassigned";
       }
     }
 

@@ -61,7 +61,7 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
   const [activeBooking, setActiveBooking] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [eta, setEta] = useState(12);
-  const [busPosition, setBusPosition] = useState<[number, number] | null>(null);
+  const [activeBuses, setActiveBuses] = useState<Map<string, any>>(new Map());
   const socketRef = useRef<Socket | null>(null);
 
   // Fetch student bookings
@@ -79,7 +79,7 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
         const active = bookings.find((b: any) => 
           b.status !== 'cancelled' && 
           b.trip && 
-          ['scheduled', 'active', 'in_progress'].includes(b.trip.status)
+          ['scheduled', 'active', 'in_progress', 'in-progress'].includes(b.trip.status)
         );
 
         // VERIFICATION LOG REQUIRED BY USER
@@ -98,32 +98,66 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
   useEffect(() => {
     if (!activeBooking?.trip?._id) return;
 
+    const studentRouteId = activeBooking.route?._id || activeBooking.route;
+
     socketRef.current = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5001", {
       transports: ["websocket", "polling"]
     });
 
+    // Join specific rooms
     socketRef.current.emit("join_trip_room", activeBooking.trip._id);
+    if (studentRouteId) {
+      socketRef.current.emit("join-route-room", studentRouteId);
+    }
 
+    // Legacy listener (for trip-specific broadcasts)
     socketRef.current.on("bus_location_updated", (data: any) => {
-      // Strict payload expectation: { lat, lng }
       if (data.lat !== undefined && data.lng !== undefined) {
         console.log("Received live location from driver. Updating map:", data.lat, data.lng);
-        setBusPosition([data.lat, data.lng]);
+        const legacyBusId = activeBooking.trip?.bus?._id || activeBooking.trip?.bus_number || 'legacy-bus';
         
-        // Step 2: Status Sync
+        setActiveBuses(prev => {
+          const next = new Map(prev);
+          next.set(legacyBusId, { ...data, busId: legacyBusId });
+          return next;
+        });
+        
         setActiveBooking((prev: any) => {
           if (prev?.trip?.status === 'scheduled') {
-            return { ...prev, trip: { ...prev.trip, status: 'active' } };
+            return { ...prev, trip: { ...prev.trip, status: 'in-progress' } };
           }
           return prev;
         });
 
-        setEta(prev => (prev > 1 ? prev - 1 : 1)); // Mock ETA decrease
+        setEta(prev => (prev > 1 ? prev - 1 : 1));
       }
+    });
+
+    // Global listener: accept EVERY bus_location_update event
+    socketRef.current.on('bus_location_update', (data: any) => {
+      console.log('Unconditional update for bus:', data.busId);
+      setActiveBuses(prev => {
+        const newBuses = new Map(prev);
+        newBuses.set(data.busId, data);
+        return newBuses;
+      });
+
+      if (data.tripId && String(data.tripId) === String(activeBooking?.trip?._id)) {
+        setActiveBooking((prev: any) => {
+          if (prev?.trip?.status === 'scheduled') {
+            return { ...prev, trip: { ...prev.trip, status: 'in-progress' } };
+          }
+          return prev;
+        });
+      }
+      setEta(prev => (prev > 1 ? prev - 1 : 1));
     });
 
     return () => {
       socketRef.current?.emit("leave-trip-room", activeBooking.trip._id);
+      if (studentRouteId) {
+        socketRef.current?.emit("leave-route-room", studentRouteId);
+      }
       socketRef.current?.disconnect();
     };
   }, [activeBooking]);
@@ -170,14 +204,21 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
   const busNumber = activeBooking.trip?.bus_number || "AWAITING ASSIGNMENT";
   const driverName = activeBooking.trip?.driver || "Pending Driver";
 
+  const activeBusCoords = Array.from(activeBuses.values())
+    .filter((bus: any) => bus.lat !== undefined && bus.lng !== undefined)
+    .map((bus: any) => [bus.lat, bus.lng] as [number, number]);
+  const firstBusPos = activeBusCoords[0];
   const pickupStop = activeBooking.trip?.route?.stops?.find((s: any) => s._id === activeBooking.pickup_point);
-  const centerLat = busPosition?.[0] || activeBooking.trip?.current_location?.lat || pickupStop?.location?.lat || 24.0889;
-  const centerLng = busPosition?.[1] || activeBooking.trip?.current_location?.lng || pickupStop?.location?.lng || 32.8998;
+  const centerLat = firstBusPos?.[0] || activeBooking.trip?.current_location?.lat || pickupStop?.location?.lat || 24.0889;
+  const centerLng = firstBusPos?.[1] || activeBooking.trip?.current_location?.lng || pickupStop?.location?.lng || 32.8998;
   const center: [number, number] = [centerLat, centerLng];
 
   const tileUrl = theme === "dark" 
     ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
     : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
+  // Debug Log required by USER
+  console.log('Student State Active Buses:', activeBuses);
 
   return (
     <div className="p-4 md:p-6 space-y-6 h-full flex flex-col bg-app-bg overflow-hidden animate-in fade-in duration-500">
@@ -200,11 +241,15 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
             </button>
           </div>
 
-          <div className="relative flex-1 rounded-[24px] overflow-hidden border border-app-bd z-10 bg-app-card2">
+          <div className="relative flex-1 rounded-[24px] overflow-hidden border border-app-bd z-10 bg-app-card2 h-full min-h-[300px]">
+
+
             <MapContainer center={center} zoom={15} zoomControl={false} className="h-full w-full">
               <TileLayer url={tileUrl} />
               <MapUpdater theme={theme} center={center} />
-              <Marker position={center} icon={busIcon} />
+              {Array.from(activeBuses.values()).map((bus: any) => (
+                <Marker key={bus.busId} position={[bus.lat, bus.lng]} icon={busIcon} />
+              ))}
             </MapContainer>
 
             {/* Arrival Tag Floating */}

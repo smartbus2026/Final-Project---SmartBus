@@ -3,12 +3,13 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface ITrip extends Document {
   route: mongoose.Types.ObjectId;
   driver: mongoose.Types.ObjectId;
+  bus?: mongoose.Types.ObjectId;
   date: Date;
   time_slot: "morning" | "return_1530" | "return_1900";
   bus_number: string;
   total_seats: number;
   booked_seats: number;
-  status: "scheduled" | "active" | "completed" | "cancelled";
+  status: "scheduled" | "active" | "in-progress" | "in_progress" | "completed" | "cancelled";
   current_location: {
     lat: number;
     lng: number;
@@ -19,6 +20,7 @@ export interface ITrip extends Document {
 const tripSchema = new Schema<ITrip>({
   route: { type: Schema.Types.ObjectId, ref: "Route", required: true },
   driver: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  bus: { type: Schema.Types.ObjectId, ref: "Bus" },
   date: { type: Date, required: true },
 
   time_slot: {
@@ -32,7 +34,7 @@ const tripSchema = new Schema<ITrip>({
   booked_seats: { type: Number, default: 0 },
   status: {
     type: String,
-    enum: ["scheduled", "active", "completed", "cancelled"],
+    enum: ["scheduled", "active", "in-progress", "in_progress", "completed", "cancelled"],
     default: "scheduled"
   },
   current_location: {

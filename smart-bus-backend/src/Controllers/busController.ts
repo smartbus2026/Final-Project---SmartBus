@@ -3,15 +3,14 @@ import Bus from "../models/Bus";
 
 export const createBus = async (req: Request, res: Response) => {
   try {
-    const { busCode, driver, capacity } = req.body;
+    const { busCode, capacity } = req.body;
 
-    if (!busCode || !driver) {
-      return res.status(400).json({ message: "Bus Code and Driver are required." });
+    if (!busCode) {
+      return res.status(400).json({ message: "Bus Code is required." });
     }
 
     const newBus = await Bus.create({
       busCode,
-      driver,
       capacity: capacity || 45,
       isActive: true,
       currentLocation: { lat: 30.0444, lng: 31.2357 }
@@ -68,7 +67,7 @@ export const getFleetQuota = async (req: Request, res: Response) => {
 
 export const getAllBuses = async (req: Request, res: Response) => {
   try {
-    const buses = await Bus.find({}).populate("driver", "name email");
+    const buses = await Bus.find({});
     res.status(200).json({ results: buses.length, data: buses });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

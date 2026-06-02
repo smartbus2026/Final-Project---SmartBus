@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createNotificationIfNotExists = exports.broadcastNotification = exports.markAsRead = exports.getNotifications = void 0;
+exports.createNotificationIfNotExists = exports.broadcastNotification = exports.markAllAsRead = exports.markAsRead = exports.getNotifications = void 0;
 const notification_1 = __importDefault(require("../models/notification"));
 const User_1 = __importDefault(require("../models/User"));
 const socket_1 = require("../socket");
@@ -38,6 +38,21 @@ const markAsRead = async (req, res) => {
     }
 };
 exports.markAsRead = markAsRead;
+const markAllAsRead = async (req, res) => {
+    try {
+        const user = req.user;
+        const result = await notification_1.default.updateMany({ user: user.id, read: false }, { $set: { read: true } });
+        res.status(200).json({
+            status: "success",
+            message: "All notifications marked as read",
+            updatedCount: result.modifiedCount
+        });
+    }
+    catch (err) {
+        res.status(500).json({ status: "error", error: err.message });
+    }
+};
+exports.markAllAsRead = markAllAsRead;
 const broadcastNotification = async (req, res) => {
     try {
         const { title, message, target } = req.body;

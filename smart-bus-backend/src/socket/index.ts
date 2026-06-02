@@ -94,6 +94,68 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
       // Keep admin_tracking updated (sending tripId so admin knows which bus moved)
       ioInstance?.to("admin_tracking").emit("bus_location_updated", { tripId: trip_id, lat, lng });
     });
+
+    // ── REAL GPS: driver broadcasts live location (bus_location_update) ─────────────────
+    // Payload: { busId: string, driverId: string, routeId: string, lat: number, lng: number, tripId?: string }
+    socket.on("bus_location_update", async (payload: { busId: string; driverId: string; routeId: string; lat: number; lng: number; tripId?: string }) => {
+      const { busId, driverId, routeId, lat, lng, tripId } = payload;
+
+      if (lat === undefined || lng === undefined) return;
+
+      let activeTripId = tripId;
+
+      // 1. Persist to DB so late-joining clients get the latest coords
+      try {
+        let trip = null;
+        if (tripId) {
+          trip = await Trip.findById(tripId);
+        } else {
+          // Fallback query using active trip for driver
+          trip = await Trip.findOne({
+            driver: driverId,
+            status: { $in: ["in-progress", "in_progress", "active"] }
+          });
+        }
+
+        if (trip) {
+          activeTripId = trip._id.toString();
+          await Trip.findByIdAndUpdate(trip._id, {
+            current_location: { lat, lng, last_updated: new Date() }
+          });
+        }
+      } catch (err) {
+        console.error("[socket] Failed to update trip location:", err);
+      }
+
+      console.log(`[GPS bus_location_update] Emitting for trip: ${activeTripId}`);
+
+      // 2. Forward to subscribers
+      if (activeTripId) {
+        // Forward to student trip room
+        ioInstance?.to(`trip:${activeTripId}`).emit("bus_location_updated", { lat, lng });
+
+        // Forward to admin live tracking matching expected schema
+        ioInstance?.to("admin_tracking").emit("bus_location_update", {
+          tripId: activeTripId,
+          busId,
+          driverId,
+          routeId,
+          location: { lat, lng },
+          lat,
+          lng
+        });
+
+        // Broadcast bus_location_update globally so student dashboards can filter by routeId
+        ioInstance?.emit("bus_location_update", {
+          busId,
+          driverId,
+          routeId,
+          lat,
+          lng,
+          tripId: activeTripId
+        });
+      }
+    });
   });
 
   return ioInstance;

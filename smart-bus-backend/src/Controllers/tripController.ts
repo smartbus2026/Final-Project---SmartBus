@@ -5,6 +5,7 @@ import Route from "../models/Route";
 import Notification from "../models/notification";
 import User from "../models/User";
 import Quota from "../models/quotaModel";
+import Bus from "../models/Bus";
 import { getIO } from "../socket";
 import {
   NotificationManager,
@@ -51,6 +52,8 @@ export const createTrip = async (req: Request, res: Response) => {
     const route = await Route.findById(route_id);
     if (!route) return res.status(404).json({ message: "Route not found" });
 
+    const busDoc = await Bus.findOne({ busCode: bus_number });
+
     const tripData: any = {
       route: route_id,
       date: departure_time,
@@ -58,6 +61,10 @@ export const createTrip = async (req: Request, res: Response) => {
       bus_number,
       total_seats,
     };
+
+    if (busDoc) {
+      tripData.bus = busDoc._id;
+    }
 
     if (req.body.driver_id) {
       tripData.driver = req.body.driver_id;
@@ -150,7 +157,8 @@ export const getTrips = async (req: Request, res: Response) => {
 
     const trips = await Trip.find(filter)
       .populate({ path: "route", populate: { path: "stops", model: "Stop" } })
-      .populate("driver", "name email");
+      .populate("driver", "name email")
+      .populate("bus");
 
     res.json({ results: trips.length, data: trips });
   } catch (err: any) {
@@ -168,14 +176,19 @@ export const getDriverTrips = async (req: Request, res: Response) => {
     const driverId = (req as any).user?._id;
     if (!driverId) return res.status(401).json({ message: "Unauthorized" });
 
-    const filter: any = { driver: driverId };
+    // Filter by today and upcoming future dates
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
-    // Default: only active and scheduled trips (omit ?all=1 to get history too)
+    const filter: any = { 
+      driver: driverId,
+      date: { $gte: startOfToday }
+    };
+
+    // Default: only active and scheduled trips
     if (!req.query.all) {
-      filter.status = { $in: ["scheduled", "active"] };
+      filter.status = { $in: ["scheduled", "active", "in-progress", "in_progress"] };
     }
-
-   
 
     // Fetch raw trips with route + stops populated
     let trips = await Trip.find(filter)
@@ -183,6 +196,7 @@ export const getDriverTrips = async (req: Request, res: Response) => {
         path: "route",
         populate: { path: "stops", model: "Stop" },
       })
+      .populate("bus")
       .sort({ date: 1 })
       .lean();   // lean() so we can attach extra properties below
       
@@ -243,7 +257,8 @@ export const getTripById = async (req: Request, res: Response) => {
   try {
     const trip = await Trip.findById(req.params.id)
       .populate({ path: "route", populate: { path: "stops", model: "Stop" } })
-      .populate("driver", "name email");
+      .populate("driver", "name email")
+      .populate("bus");
 
     if (!trip) return res.status(404).json({ message: "Trip not found" });
 
@@ -279,6 +294,13 @@ export const updateTrip = async (req: Request, res: Response) => {
     }
     if (req.body.driver_id) {
       updateData.driver = req.body.driver_id;
+    }
+
+    if (updateData.bus_number) {
+      const busDoc = await Bus.findOne({ busCode: updateData.bus_number });
+      if (busDoc) {
+        updateData.bus = busDoc._id;
+      }
     }
 
     if (req.params.id.includes("-")) {
@@ -454,15 +476,21 @@ export const startTrip = async (req: Request, res: Response) => {
     const trip = await Trip.findById(req.params.id);
     if (!trip) return res.status(404).json({ message: "Trip not found" });
 
-    trip.status = "active";
+    trip.status = "in-progress";
     (trip as any).start_time = new Date();
     await trip.save();
 
     // Notify all clients in the trip room that the trip is now active
     try {
       const io = getIO();
-      io.to(`trip:${trip._id}`).emit("trip_status_update", { tripId: trip._id, status: "active" });
-      io.to("admin_tracking").emit("trip_status_update", { tripId: trip._id, status: "active" });
+      io.to(`trip:${trip._id}`).emit("trip_status_update", { tripId: trip._id, status: "in-progress" });
+      io.to("admin_tracking").emit("trip_status_update", { tripId: trip._id, status: "in-progress" });
+      
+      // CRITICAL: emit a Socket.io event trip_started with the routeId so the students' apps know the bus is moving and tracking has begun
+      const routeId = trip.route.toString();
+      io.emit("trip_started", { routeId });
+      io.to(`route:${routeId}`).emit("trip_started", { routeId });
+      io.to(`trip:${trip._id}`).emit("trip_started", { routeId });
     } catch (_) { /* socket may not be init in tests */ }
 
     res.json({ message: "Trip started", trip });

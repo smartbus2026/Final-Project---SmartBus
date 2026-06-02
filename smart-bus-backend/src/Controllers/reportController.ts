@@ -15,7 +15,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     ] = await Promise.all([
       User.countDocuments({ role: "student" }),
       Trip.countDocuments(),
-      Trip.countDocuments({ status: { $in: ["active", "scheduled"] } }),
+      Trip.countDocuments({ status: { $in: ["active", "in-progress", "in_progress", "scheduled"] } }),
       Booking.countDocuments({ status: { $in: ["active", "pending", "completed"] } }),
       Trip.aggregate([
         {

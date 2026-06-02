@@ -12,6 +12,8 @@ const TIME_SLOT_LABELS: Record<string, string> = {
 const STATUS_STYLE: Record<string, string> = {
   scheduled: 'bg-blue-500/10 text-blue-400 border border-blue-400/30',
   active:    'bg-app-ok/10 text-app-ok border border-app-ok/30',
+  'in-progress': 'bg-app-ok/10 text-app-ok border border-app-ok/30',
+  in_progress: 'bg-app-ok/10 text-app-ok border border-app-ok/30',
   completed: 'bg-app-am/10 text-app-am border border-app-am/30',
   cancelled: 'bg-app-err/10 text-app-err border border-app-err/30',
 };
@@ -60,14 +62,28 @@ export default function DriverTrips() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {trips.map(trip => {
-          const isThisActive    = trip.status === 'active';
+          const isThisActive    = trip.status === 'active' || trip.status === 'in-progress' || trip.status === 'in_progress';
           const isBtnLoading    = actionLoading === trip._id;
           const stops           = trip.route?.stops ?? [];
           const firstStop       = stops[0]?.name ?? 'Origin';
           const lastStop        = stops[stops.length - 1]?.name ?? 'Destination';
           const routeName       = trip.route?.name ?? '—';
 
-          const startDisabled = isBtnLoading || !!activeTrip;
+          const tripStartTime = (() => {
+            const d = new Date(trip.date);
+            let timeStr = "08:30"; // Morning slot default
+            if (trip.time_slot === "return_1530") {
+              timeStr = "15:30";
+            } else if (trip.time_slot === "return_1900") {
+              timeStr = "19:00";
+            }
+            const [hours, minutes] = timeStr.split(":").map(Number);
+            d.setHours(hours, minutes, 0, 0);
+            return d;
+          })();
+
+          const canStart = (tripStartTime.getTime() - Date.now()) <= 60 * 60 * 1000;
+          const startDisabled = isBtnLoading || !!activeTrip || !canStart;
 
           return (
             <div
@@ -186,6 +202,11 @@ export default function DriverTrips() {
                         <><Ic.Target size={14} /> Start Trip</>
                       )}
                     </button>
+                    {!canStart && (
+                      <p className="text-center text-[9px] font-bold text-app-mu uppercase tracking-widest mt-1 animate-pulse">
+                        Button will unlock 1 hour before trip
+                      </p>
+                    )}
                     {!!activeTrip && !isThisActive && (
                       <p className="text-center text-[9px] font-bold text-app-err uppercase tracking-widest">
                         End active trip first
@@ -194,7 +215,7 @@ export default function DriverTrips() {
                   </div>
                 )}
 
-                {trip.status === 'active' && (
+                {(trip.status === 'active' || trip.status === 'in-progress' || trip.status === 'in_progress') && (
                   <button
                     disabled={isBtnLoading}
                     onClick={e => handleEndTrip(e, trip._id)}

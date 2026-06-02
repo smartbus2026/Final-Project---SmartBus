@@ -24,7 +24,7 @@ export interface DriverTrip {
   date: string;
   scheduled_time: string;
   time_slot: 'morning' | 'return_1530' | 'return_1900';
-  status: 'scheduled' | 'active' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'active' | 'in-progress' | 'in_progress' | 'completed' | 'cancelled';
   booked_seats: number;
   total_seats: number;
   usersCount: number;
@@ -36,29 +36,6 @@ export interface GeoState {
   accuracy: number | null;
   error: string | null;
 }
-
-// ─── GPS Permission Helper ────────────────────────────────────────────────────
-const checkGpsPermission = (): Promise<GeolocationPosition> => {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("Geolocation is not supported by your browser."));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => resolve(position),
-      (error) => {
-        if (error.code === 1) {
-          reject(new Error("Location permission denied. Please allow location access to start the trip."));
-        } else {
-          // If it's just a timeout or position unavailable, we can still resolve
-          // because watchPosition might succeed later. The permission is technically granted.
-          reject(new Error("Unable to acquire initial GPS lock. Please check your signal."));
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  });
-};
 
 export interface DriverContextType {
   trips: DriverTrip[];
@@ -83,7 +60,7 @@ export default function DriverLayout() {
   const [toast, setToast]                 = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const socketRef  = useRef<Socket | null>(null);
-  const watchIdRef = useRef<number | null>(null);
+  const trackingIntervalRef = useRef<any>(null);
 
   // ── Toast auto-dismiss ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -92,24 +69,87 @@ export default function DriverLayout() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // ── Start GPS Tracking Interval ─────────────────────────────────────────────
+  const startGpsTrackingInterval = useCallback((tripId: string, busId: string, driverId: string, routeId: string) => {
+    if (trackingIntervalRef.current !== null) {
+      clearInterval(trackingIntervalRef.current);
+      trackingIntervalRef.current = null;
+    }
+
+    const fetchAndEmit = () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          setGeo({ lat: latitude, lng: longitude, accuracy, error: null });
+
+          console.log("GPS Granted. Emitting bus_location_update:", {
+            busId,
+            driverId,
+            routeId,
+            lat: latitude,
+            lng: longitude
+          });
+
+          // Emit the event as requested by the user
+          socketRef.current?.emit('bus_location_update', {
+            busId,
+            driverId,
+            routeId,
+            lat: latitude,
+            lng: longitude,
+            tripId
+          });
+        },
+        (err) => {
+          console.error('[GPS Interval Error]', err);
+          setGeo(g => ({
+            ...g,
+            error: 'Unable to get location update.'
+          }));
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    };
+
+    // Run once immediately
+    fetchAndEmit();
+
+    // Repeat every 30 seconds (30000ms)
+    trackingIntervalRef.current = setInterval(fetchAndEmit, 30000);
+  }, []);
+
+  // ── Stop GPS Tracking Interval ──────────────────────────────────────────────
+  const stopGpsTrackingInterval = useCallback(() => {
+    if (trackingIntervalRef.current !== null) {
+      clearInterval(trackingIntervalRef.current);
+      trackingIntervalRef.current = null;
+    }
+    setGeo({ lat: null, lng: null, accuracy: null, error: null });
+  }, []);
+
   // ── Fetch driver trips ───────────────────────────────────────────────────────
   const fetchTrips = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await Api.get('/trips/driver-trips');
+      const res = await Api.get('/driver/trips');
       const data: DriverTrip[] = res.data?.data ?? res.data ?? [];
       setTrips(data);
 
-      const alreadyActive = data.find(t => t.status === 'active');
+      const alreadyActive = data.find(t => t.status === 'active' || t.status === 'in-progress' || t.status === 'in_progress');
       if (alreadyActive) {
         setActiveTrip(alreadyActive._id);
+        const routeId = alreadyActive.route?._id || '';
+        const driverId = (alreadyActive as any).driver?._id || (alreadyActive as any).driver || '';
+        const busId = (alreadyActive as any).bus?._id || (alreadyActive as any).bus || '';
+        startGpsTrackingInterval(alreadyActive._id, busId, driverId, routeId);
       }
     } catch (err: any) {
       setToast({ msg: 'Could not load your trips. Check your connection.', type: 'error' });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [startGpsTrackingInterval]);
 
   useEffect(() => { fetchTrips(); }, [fetchTrips]);
 
@@ -126,92 +166,58 @@ export default function DriverLayout() {
   // ── GPS cleanup on unmount ──────────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
+      if (trackingIntervalRef.current !== null) {
+        clearInterval(trackingIntervalRef.current);
+        trackingIntervalRef.current = null;
       }
     };
-  }, []);
-
-  // ── Start GPS watch and emit over socket ────────────────────────────────────
-  const startGpsWatch = useCallback((tripId: string) => {
-    if (!navigator.geolocation) {
-      setGeo(g => ({ ...g, error: 'Geolocation is not supported by this browser.' }));
-      return;
-    }
-
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-      ({ coords }) => {
-        const { latitude, longitude, accuracy } = coords;
-        setGeo({ lat: latitude, lng: longitude, accuracy, error: null });
-
-        // VERIFICATION LOG REQUIRED BY USER
-        console.log("GPS Granted. Emitting Location:", latitude, longitude);
-
-        socketRef.current?.emit('driver_location_update', {
-          trip_id: tripId,
-          lat:     latitude,
-          lng:     longitude,
-        });
-      },
-      err => {
-        setGeo(g => ({
-          ...g,
-          error: err.code === 1
-            ? 'Location access denied. Please enable location in browser settings.'
-            : 'Unable to get your location. Retrying…',
-        }));
-      },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10_000 }
-    );
-
-    watchIdRef.current = watchId;
-  }, []);
-
-  // ── Stop GPS watch ──────────────────────────────────────────────────────────
-  const stopGpsWatch = useCallback(() => {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    setGeo({ lat: null, lng: null, accuracy: null, error: null });
   }, []);
 
   // ── Handle START TRIP ───────────────────────────────────────────────────────
   const handleStartTrip = async (e: React.MouseEvent, tripId: string) => {
     e.stopPropagation();
 
-    // STEP 1: Permission Check before doing anything
-    try {
-      await checkGpsPermission();
-    } catch (err: any) {
-      setToast({ msg: err.message || "Failed to access GPS.", type: 'error' });
-      return; // HALT TRIP START
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
     }
 
-    setActionLoading(tripId);
-    try {
-      await Api.patch(`/trips/${tripId}/start`);
+    // Request GPS permission first
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        setActionLoading(tripId);
+        try {
+          await Api.patch(`/trips/${tripId}/start`);
 
-      setTrips(prev =>
-        prev.map(t => t._id === tripId ? { ...t, status: 'active' } : t)
-      );
-      setActiveTrip(tripId);
-      startGpsWatch(tripId);   // ← real GPS begins streaming here
+          setTrips(prev =>
+            prev.map(t => t._id === tripId ? { ...t, status: 'in-progress' } : t)
+          );
+          setActiveTrip(tripId);
 
-      setToast({ msg: '🚌 Trip started — GPS tracking is now live.', type: 'success' });
-    } catch (err: any) {
-      setToast({
-        msg: err.response?.data?.message || 'Failed to start trip.',
-        type: 'error',
-      });
-    } finally {
-      setActionLoading(null);
-    }
+          // Get trip details
+          const targetTrip = trips.find(t => t._id === tripId);
+          const routeId = targetTrip?.route?._id || '';
+          const driverId = (targetTrip as any)?.driver?._id || (targetTrip as any)?.driver || '';
+          const busId = (targetTrip as any)?.bus?._id || (targetTrip as any)?.bus || '';
+
+          startGpsTrackingInterval(tripId, busId, driverId, routeId);
+
+          setToast({ msg: '🚌 Trip started — GPS tracking is now live.', type: 'success' });
+        } catch (err: any) {
+          setToast({
+            msg: err.response?.data?.message || 'Failed to start trip.',
+            type: 'error',
+          });
+        } finally {
+          setActionLoading(null);
+        }
+      },
+      (error) => {
+        console.error("GPS access error:", error);
+        alert("You must enable GPS location to start the trip.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   // ── Handle END TRIP ─────────────────────────────────────────────────────────
@@ -221,7 +227,7 @@ export default function DriverLayout() {
     try {
       await Api.patch(`/trips/${tripId}/end`);
 
-      stopGpsWatch();          // ← GPS watch cleared immediately
+      stopGpsTrackingInterval();
       setActiveTrip(null);
 
       setTrips(prev =>

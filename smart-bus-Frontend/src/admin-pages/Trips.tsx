@@ -273,36 +273,41 @@ const ManageTripsPage: React.FC = () => {
             return (
               <div
                 key={trip.id}
-                className="bg-app-card border border-app-bd rounded-[2.5rem] overflow-hidden hover:border-app-am/30 transition-all shadow-sm hover:shadow-xl flex flex-col"
+                className="bg-white dark:bg-app-card border border-gray-200 dark:border-app-bd rounded-xl shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col gap-4"
               >
-                {/* Card Header */}
-                <div className="p-6 flex flex-col flex-1">
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-app-tx">{trip.routeName}</h3>
-                      <div className="flex items-center gap-2 mt-2 text-app-mu">
-                        <Ic.Calendar size={12} />
-                        <span className="text-[10px] font-bold tracking-widest uppercase">
-                          {new Date(trip.date).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border ${colorClass}`}>
-                        {trip.status}
+                {/* Card Top Title & Status */}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-app-tx">{trip.routeName}</h3>
+                    <div className="flex items-center gap-2 mt-2 text-app-mu">
+                      <Ic.Calendar size={12} />
+                      <span className="text-[10px] font-bold tracking-widest uppercase">
+                        {new Date(trip.date).toLocaleDateString()}
                       </span>
-                      <button onClick={() => handleEditClick(trip)} className="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:bg-blue-500/10 px-2 py-1 rounded-lg transition-colors">
-                        Edit
-                      </button>
-                      <button onClick={() => handleDelete(trip)} className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 px-2 py-1 rounded-lg transition-colors">
-                        Delete
-                      </button>
                     </div>
                   </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest border ${colorClass}`}>
+                      {trip.status}
+                    </span>
+                    <button onClick={() => handleEditClick(trip)} className="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:bg-blue-500/10 px-2 py-1 rounded-lg transition-colors">
+                      Edit
+                    </button>
+                    <button onClick={() => handleDelete(trip)} className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 px-2 py-1 rounded-lg transition-colors">
+                      Delete
+                    </button>
+                  </div>
+                </div>
 
-                  {/* Info Rows */}
-                  <div className="space-y-3 mb-5 flex-1">
-                    <div className="flex justify-between items-center pb-3 border-b border-app-bd/50">
+                {/* Info Rows */}
+                <div className="flex flex-col gap-4 flex-1">
+                  
+                  {/* Time Slot Row */}
+                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shrink-0">
+                      <Ic.Calendar className="w-5 h-5" />
+                    </div>
+                    <div className="flex flex-col">
                       <span className="text-[10px] font-black text-app-mu uppercase tracking-widest">Time Slot</span>
                       <span className="text-xs font-black uppercase text-app-tx">
                         {trip.timeSlot}
@@ -310,40 +315,56 @@ const ManageTripsPage: React.FC = () => {
                           ? ` (${trip.specificReturnTime})` : ''}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center pb-3 border-b border-app-bd/50">
-                      <span className="text-[10px] font-black text-app-mu uppercase tracking-widest">Bus</span>
-                      <div className="flex items-center gap-2 text-app-tx">
-                        <Ic.Bus size={12} className="text-app-am" />
-                        <span className="text-xs font-black uppercase">{trip.busNumber}</span>
-                      </div>
+                  </div>
+
+                  {/* Bus Row */}
+                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shrink-0">
+                      <Ic.Bus className="w-5 h-5" />
                     </div>
-                    <div className="flex justify-between items-center pb-3 border-b border-app-bd/50">
-                      <span className="text-[10px] font-black text-app-mu uppercase tracking-widest">Driver</span>
-                      <span className="text-xs font-bold text-app-tx">{trip.driverName || 'Unassigned'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-app-mu uppercase tracking-widest">Passengers</span>
-                      <div className="flex items-center gap-2">
-                        <Ic.Users size={12} className="text-app-am" />
-                        <span className="text-xs font-black uppercase text-app-tx">{trip.passengerCount}</span>
-                      </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-app-mu uppercase tracking-widest">Bus Number</span>
+                      <span className="text-xs font-black uppercase text-app-tx">{trip.busNumber}</span>
                     </div>
                   </div>
 
-                  {/* Expand Button */}
-                  {trip.students && trip.students.length > 0 && (
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : trip.id)}
-                      className="w-full mt-2 py-2 rounded-xl border border-app-bd text-[10px] font-black uppercase tracking-widest text-app-mu hover:border-app-am hover:text-app-tx transition-all flex items-center justify-center gap-2"
-                    >
-                      {isExpanded ? '▲ Hide Students' : `▼ View ${trip.students.length} Student${trip.students.length !== 1 ? 's' : ''}`}
-                    </button>
-                  )}
+                  {/* Driver Row */}
+                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shrink-0">
+                      <Ic.Users className="w-5 h-5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-app-mu uppercase tracking-widest">Driver</span>
+                      <span className="text-xs font-bold text-app-tx">{trip.driverName || 'Unassigned'}</span>
+                    </div>
+                  </div>
+
+                  {/* Passengers Row */}
+                  <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shrink-0">
+                      <Ic.Users className="w-5 h-5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-app-mu uppercase tracking-widest">Passengers</span>
+                      <span className="text-xs font-black uppercase text-app-tx">{trip.passengerCount} passengers</span>
+                    </div>
+                  </div>
+
                 </div>
+
+                {/* Expand Button */}
+                {trip.students && trip.students.length > 0 && (
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : trip.id)}
+                    className="w-full mt-auto py-2.5 rounded-lg border border-app-bd text-[10px] font-black uppercase tracking-widest text-app-mu hover:border-app-am hover:text-app-tx transition-all flex items-center justify-center gap-2"
+                  >
+                    {isExpanded ? '▲ Hide Students' : `▼ View ${trip.students.length} Student${trip.students.length !== 1 ? 's' : ''}`}
+                  </button>
+                )}
 
                 {/* Expandable Student List */}
                 {isExpanded && trip.students && (
-                  <div className="border-t border-app-bd bg-app-bg/50 px-6 py-4 space-y-2 max-h-56 overflow-y-auto">
+                  <div className="border-t border-app-bd bg-app-bg/50 px-2 py-4 space-y-2 max-h-56 overflow-y-auto rounded-lg">
                     <p className="text-[9px] font-black uppercase tracking-widest text-app-am mb-3">Assigned Students</p>
                     {trip.students.map((s, i) => (
                       <div key={s._id || i} className="flex items-center justify-between py-2 border-b border-app-bd/30 last:border-0">

@@ -75,4 +75,39 @@
     transition: background-color 0.3s, color 0.3s;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Premium Global Dropdowns (Select Elements) */
+  select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(122,106,85,0.7)' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 1rem center !important;
+    background-size: 0.85rem !important;
+    padding: 0.625rem 2.5rem 0.625rem 1rem !important; /* px-4 py-2.5 equivalent */
+    border: 1px solid var(--bd) !important;
+    border-radius: 0.75rem !important; /* rounded-xl */
+    background-color: var(--card) !important;
+    color: var(--tx) !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; /* shadow-sm */
+    outline: none !important;
+    transition: all 0.2s ease-in-out !important;
+    cursor: pointer !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+  }
+
+  select:focus {
+    border-color: #3b82f6 !important; /* focus:border-blue-500 */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important; /* focus:ring-2 focus:ring-blue-500 */
+  }
+
+  select option {
+    background-color: var(--card) !important;
+    color: var(--tx) !important;
+    padding: 0.5rem !important;
+  }
 }

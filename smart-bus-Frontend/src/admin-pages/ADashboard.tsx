@@ -21,13 +21,14 @@ const AdminDashboard: React.FC = () => {
 
   // ── Dispatch State ──
   const [buses, setBuses] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
   const [returnTimes, setReturnTimes] = useState<string[]>([]);
-  const [dispatchForm, setDispatchForm] = useState<{ busId: string; timeSlot: string; specificReturnTime?: string; routeIds: string[] }>({
-    busId: "",
+  const [dispatchForm, setDispatchForm] = useState<{ timeSlot: string; specificReturnTime?: string; routeIds: string[] }>({
     timeSlot: "Morning",
     specificReturnTime: "",
     routeIds: []
   });
+  const [assignments, setAssignments] = useState([{ busId: "", driverId: "" }]);
   const [dispatchLoading, setDispatchLoading] = useState(false);
   const [dispatchMessage, setDispatchMessage] = useState({ type: "", text: "" });
 
@@ -89,7 +90,7 @@ const AdminDashboard: React.FC = () => {
         }
 
         const studentCount = Array.isArray(users) ? users.filter((u: any) => u.role === 'student').length : 0;
-        const activeTripsList = Array.isArray(trips) ? trips.filter((t: any) => t.status === 'active') : [];
+        const activeTripsList = Array.isArray(trips) ? trips.filter((t: any) => t.status === 'active' || t.status === 'in-progress' || t.status === 'in_progress') : [];
 
         const pendingTickets = supportTickets.filter((t: any) => t.status === 'open' || t.status === 'pending');
 
@@ -121,8 +122,18 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const fetchDrivers = async () => {
+    try {
+      const driversRes = await Api.get('/admin/drivers');
+      setDrivers(driversRes.data || []);
+    } catch (err) {
+      console.error("Failed to fetch drivers", err);
+    }
+  };
+
   useEffect(() => {
     fetchBuses();
+    fetchDrivers();
     // Poll every 5 seconds to ensure newly created buses appear instantly
     const interval = setInterval(fetchBuses, 5000);
     return () => clearInterval(interval);
@@ -162,10 +173,14 @@ const AdminDashboard: React.FC = () => {
 
   const handleDispatch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dispatchForm.busId || dispatchForm.routeIds.length === 0) {
-      setDispatchMessage({ type: "error", text: "Please select a bus and at least one route." });
+    
+    // Validate assignments: every row must have both a busId and a driverId
+    const hasInvalidAssignments = assignments.some(a => !a.busId || !a.driverId);
+    if (hasInvalidAssignments || dispatchForm.routeIds.length === 0) {
+      setDispatchMessage({ type: "error", text: "Please assign a bus and a driver for every row, and select at least one route." });
       return;
     }
+
     if (dispatchForm.timeSlot === "Return" && !dispatchForm.specificReturnTime) {
       setDispatchMessage({ type: "error", text: "Please select a specific return time for Return trips." });
       return;
@@ -179,7 +194,7 @@ const AdminDashboard: React.FC = () => {
       if (demandDate === "tomorrow") targetDate.setDate(targetDate.getDate() + 1);
 
       const payload: any = {
-        busId: dispatchForm.busId,
+        assignments: assignments,
         date: targetDate.toISOString().split("T")[0],
         timeSlot: dispatchForm.timeSlot,
         routeIds: dispatchForm.routeIds
@@ -191,8 +206,9 @@ const AdminDashboard: React.FC = () => {
 
       await Api.post('/bookings/admin/dispatch', payload);
 
-      setDispatchMessage({ type: "success", text: "Bus assigned successfully and students notified!" });
-      setDispatchForm(prev => ({ ...prev, routeIds: [], busId: "", specificReturnTime: "" }));
+      setDispatchMessage({ type: "success", text: "Buses assigned successfully and students notified!" });
+      setDispatchForm(prev => ({ ...prev, routeIds: [], specificReturnTime: "" }));
+      setAssignments([{ busId: "", driverId: "" }]);
       
       // Refresh demands and trips instantly
       setDemandDate(prev => prev);
@@ -363,19 +379,66 @@ const AdminDashboard: React.FC = () => {
       <div className="bg-app-card rounded-2xl border border-app-bd shadow-sm overflow-hidden p-6 mt-6">
         <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest mb-4">Assign Bus & Dispatch</h3>
         <form onSubmit={handleDispatch} className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Bus Selection */}
-          <div>
-            <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">Select Bus</label>
-            <select 
-              value={dispatchForm.busId}
-              onChange={(e) => setDispatchForm(prev => ({ ...prev, busId: e.target.value }))}
-              className="w-full bg-app-bg text-app-tx text-sm border border-app-bd rounded-xl p-3 focus:outline-none focus:border-app-am"
+          {/* Dynamic Bus & Driver Assignments */}
+          <div className="lg:col-span-2 space-y-4">
+            <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">Assign Buses & Drivers</label>
+            {assignments.map((assignment, index) => (
+              <div key={index} className="flex flex-col sm:flex-row items-center gap-3 bg-app-bg border border-app-bd rounded-xl p-3 relative">
+                <div className="w-full">
+                  <select 
+                    value={assignment.busId}
+                    onChange={(e) => {
+                      const newAssignments = [...assignments];
+                      newAssignments[index].busId = e.target.value;
+                      setAssignments(newAssignments);
+                    }}
+                    className="w-full bg-app-card text-app-tx text-sm border border-app-bd rounded-lg p-2.5 focus:outline-none focus:border-app-am appearance-none cursor-pointer"
+                  >
+                    <option value="">-- Choose Bus --</option>
+                    {buses.map(b => (
+                      <option key={b._id} value={b._id}>{b.busCode} (Cap: {b.capacity || 45})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="w-full">
+                  <select 
+                    value={assignment.driverId}
+                    onChange={(e) => {
+                      const newAssignments = [...assignments];
+                      newAssignments[index].driverId = e.target.value;
+                      setAssignments(newAssignments);
+                    }}
+                    className="w-full bg-app-card text-app-tx text-sm border border-app-bd rounded-lg p-2.5 focus:outline-none focus:border-app-am appearance-none cursor-pointer"
+                  >
+                    <option value="">-- Choose Driver --</option>
+                    {drivers.map(d => (
+                      <option key={d._id} value={d._id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {index > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newAssignments = assignments.filter((_, i) => i !== index);
+                      setAssignments(newAssignments);
+                    }}
+                    className="p-2 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors absolute -right-2 -top-2 sm:static sm:right-auto sm:top-auto bg-app-card sm:bg-transparent border border-app-bd sm:border-none shadow-sm sm:shadow-none"
+                    title="Remove assignment"
+                  >
+                    <Ic.Trash size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+            
+            <button
+              type="button"
+              onClick={() => setAssignments([...assignments, { busId: "", driverId: "" }])}
+              className="text-[11px] font-bold text-app-am uppercase tracking-wider flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-app-am/10 transition-colors mt-2"
             >
-              <option value="">-- Choose Bus --</option>
-              {buses.map(b => (
-                <option key={b._id} value={b._id}>{b.busCode} (Cap: {b.capacity || 45})</option>
-              ))}
-            </select>
+              <Ic.Plus size={14} /> Add Another Bus
+            </button>
           </div>
 
           {/* TimeSlot Selection */}
@@ -385,7 +448,7 @@ const AdminDashboard: React.FC = () => {
               <select 
                 value={dispatchForm.timeSlot}
                 onChange={(e) => setDispatchForm(prev => ({ ...prev, timeSlot: e.target.value, specificReturnTime: "" }))}
-                className="w-full bg-app-bg text-app-tx text-sm border border-app-bd rounded-xl p-3 focus:outline-none focus:border-app-am"
+                className="w-full bg-app-bg text-app-tx text-sm border border-app-bd rounded-xl p-3 focus:outline-none focus:border-app-am appearance-none cursor-pointer"
               >
                 <option value="Morning">Morning</option>
                 <option value="Return">Return</option>
@@ -401,7 +464,7 @@ const AdminDashboard: React.FC = () => {
                   required
                   value={dispatchForm.specificReturnTime}
                   onChange={(e) => setDispatchForm(prev => ({ ...prev, specificReturnTime: e.target.value }))}
-                  className={`w-full bg-app-bg text-app-tx text-sm border rounded-xl p-3 focus:outline-none focus:border-app-am ${
+                  className={`w-full bg-app-bg text-app-tx text-sm border rounded-xl p-3 focus:outline-none focus:border-app-am appearance-none cursor-pointer ${
                     !dispatchForm.specificReturnTime ? 'border-red-500/40' : 'border-app-bd'
                   }`}
                 >
@@ -417,7 +480,7 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Multi-select Routes */}
-          <div className="lg:col-span-2">
+          <div>
             <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">Select Target Routes</label>
             <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-3 bg-app-bg border border-app-bd rounded-xl">
               {data.routesList.map(r => {
@@ -540,7 +603,7 @@ const AdminDashboard: React.FC = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-app-bd bg-app-bg/50">
-                  {["Route", "Bus", "Time", "Students", "Status"].map(h => (
+                  {["Route", "Bus", "Driver", "Time", "Students", "Status"].map(h => (
                     <th key={h} className="px-6 py-3 text-left text-[10px] font-black text-app-mu uppercase tracking-widest">{h}</th>
                   ))}
                 </tr>
@@ -574,7 +637,8 @@ const AdminDashboard: React.FC = () => {
                           {trip.route?.name || "Unknown Route"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-[12px] font-medium text-app-tx">{trip.bus?.busCode || "Unassigned"}</td>
+                      <td className="px-6 py-4 text-[12px] font-medium text-app-tx">{trip.busNumber || trip.bus?.busCode || "Unassigned"}</td>
+                      <td className="px-6 py-4 text-[12px] font-medium text-app-tx">{trip.driverName || "Unassigned"}</td>
                       <td className="px-6 py-4">
                         <span className="flex items-center gap-1.5 text-[12px] text-app-mu">
                           <Ic.Clock size={12} /> {trip.timeSlot} {trip.specificReturnTime ? `(${trip.specificReturnTime})` : ""}
