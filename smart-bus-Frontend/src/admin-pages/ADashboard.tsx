@@ -43,26 +43,142 @@ const AdminDashboard: React.FC = () => {
     specificReturnTime: ""
   });
 
-  const fetchAssignedTrips = async () => {
-    setTripsLoading(true);
+  // ── AI Proposal State ──
+  const [pendingProposal, setPendingProposal] = useState<any>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
+  const [proposalLoading, setProposalLoading] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editedAssignments, setEditedAssignments] = useState<any[]>([]);
+  const [generatingAI, setGeneratingAI] = useState(false);
+
+  const handleGenerateAI = async () => {
+    setGeneratingAI(true);
     try {
-      const res = await Api.get('/bookings/admin/assigned-trips');
-      let data = res.data?.data?.assignedTrips || res.data?.assignedTrips || res.data?.data || [];
+      // Calculate tomorrow's date
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + 1);
+      const formattedDate = targetDate.toISOString().split("T")[0];
       
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      data = data.filter((t: any) => {
-        const d = new Date(t.date);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime() === today.getTime();
-      });
-      setAssignedTrips(data);
-    } catch (err) {
-      console.error("Failed to fetch assigned trips", err);
+      // Make it Completely Dynamic: Detect if visible cards are primarily 'Return'
+      let tripType = tripFilter.timeSlot;
+      if (!tripType) {
+        const hasMorning = demands.some(d => d.timeSlot === 'Morning');
+        const hasReturn = demands.some(d => d.timeSlot === 'Return');
+        tripType = (hasReturn && !hasMorning) ? 'Return' : 'Morning';
+      }
+
+      await Api.post('/admin/proposals/generate', { date: formattedDate, tripType });
+      // Instantly call fetchPendingProposal syncing the current tab's type
+      fetchPendingProposal(tripType);
+    } catch (err: any) {
+      console.error("Failed to generate AI proposal", err);
+      // Alert the exact backend error message to avoid confusing 404s with route mismatches
+      const errorMsg = err.response?.data?.message || "Failed to generate AI proposal.";
+      alert(`AI Engine Notice:\n${errorMsg}`);
     } finally {
-      setTripsLoading(false);
+      setGeneratingAI(false);
     }
   };
+
+  const fetchPendingProposal = async (overrideType?: string) => {
+    try {
+      const activeType = overrideType || tripFilter.timeSlot || 'Morning';
+      const res = await Api.get(`/admin/proposals/pending?tripType=${activeType}`);
+      console.log("RAW API RESPONSE (fetchPendingProposal):", res.data);
+      const proposals = res.data?.data || [];
+      if (proposals.length > 0) {
+        setPendingProposal(proposals[0]);
+        setEditedAssignments(proposals[0].assignments);
+      } else {
+        setPendingProposal(null);
+      }
+    } catch (err) {
+      console.error("Failed to fetch pending proposals", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingProposal();
+  }, [tripFilter.timeSlot]);
+
+  useEffect(() => {
+    if (!pendingProposal) return;
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const deadline = new Date(pendingProposal.deadline).getTime();
+      const diff = deadline - now;
+      if (diff <= 0) {
+        setTimeRemaining(t("deadline_passed") || "Deadline Passed");
+        clearInterval(interval);
+      } else {
+        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeRemaining(`${h}h ${m}m ${s}s`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [pendingProposal, t]);
+
+  const handleApproveProposal = async () => {
+    setProposalLoading(true);
+    try {
+      await Api.post(`/admin/proposals/${pendingProposal._id}/approve`);
+      setPendingProposal(null);
+      fetchAssignedTrips();
+    } catch (err) {
+      console.error("Failed to approve proposal", err);
+    } finally {
+      setProposalLoading(false);
+    }
+  };
+
+  const handleSaveEdits = async () => {
+    setProposalLoading(true);
+    try {
+      await Api.put(`/admin/proposals/${pendingProposal._id}/edit`, { assignments: editedAssignments });
+      setEditMode(false);
+      fetchPendingProposal();
+    } catch (err) {
+      console.error("Failed to save edits", err);
+    } finally {
+      setProposalLoading(false);
+    }
+  };
+
+ const fetchAssignedTrips = async () => {
+  setTripsLoading(true);
+  try {
+    const res = await Api.get('/bookings/admin/assigned-trips');
+    console.log("RAW API RESPONSE (fetchAssignedTrips):", res.data);
+    
+    let rawData = res.data?.data?.assignedTrips || 
+                  res.data?.assignedTrips || 
+                  res.data?.trips ||             // <-- ضيفي ده هنا
+                  res.data?.data?.trips ||        // <-- وضيفي ده للأمان
+                  res.data?.data;    
+    if (!Array.isArray(rawData)) {
+        console.warn("API Warning: Expected an array but got:", typeof rawData, rawData);
+        rawData = []; 
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // 3. الفلتر دلوقتي آمن 100%
+    const filteredData = rawData.filter((t: any) => {
+      const d = new Date(t.date);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() === today.getTime();
+    });
+    
+    setAssignedTrips(filteredData);
+  } catch (err) {
+    console.error("Failed to fetch assigned trips", err);
+  } finally {
+    setTripsLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchAssignedTrips();
@@ -265,6 +381,117 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6 bg-app-bg text-app-tx min-h-screen">
+      {/* ── AI Proposal Alert & Preview ── */}
+      {pendingProposal && (
+        <div className="bg-amber-500/10 border-2 border-amber-500/50 rounded-2xl p-6 shadow-sm mb-6 flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <div>
+              <h2 className="text-xl font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
+                <Ic.Info /> AI Bus Assignment Proposal
+              </h2>
+              <p className="text-sm font-bold text-app-tx mt-1">
+                For {pendingProposal.tripType} on {new Date(pendingProposal.targetDate).toDateString()}
+              </p>
+            </div>
+            <div className="bg-amber-500/20 px-4 py-2 rounded-lg flex flex-col items-end text-end">
+              <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Auto-Approve Deadline</p>
+              <p className="text-2xl font-black text-app-tx tabular-nums">{timeRemaining}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+            {(editMode ? editedAssignments : pendingProposal.assignments).map((assignment: any, index: number) => (
+              <div key={index} className="bg-app-bg border border-app-bd rounded-xl p-4 shadow-sm">
+                <div className="flex justify-between items-center mb-3 border-b border-app-bd pb-2">
+                  <h4 className="text-sm font-black text-app-tx">Bus {assignment.busNumber}</h4>
+                  <span className="text-[10px] font-bold text-app-mu uppercase tracking-wider">{assignment.studentBookings.length} Students</span>
+                </div>
+                <ul className="space-y-2 max-h-40 overflow-y-auto pe-2">
+                  {assignment.studentBookings.map((booking: any, bIdx: number) => (
+                    <li key={booking._id || bIdx} className="text-[11px] font-medium text-app-tx flex justify-between items-center p-1.5 hover:bg-app-card2 rounded">
+                      <span className="truncate flex-1" title={booking.user?.name}>{booking.user?.name || "Unknown"}</span>
+                      <span className="text-[9px] text-app-am bg-app-am/10 px-1.5 py-0.5 rounded font-bold ms-2 shrink-0">{booking.route?.name || "No Route"}</span>
+                      {editMode && (
+                        <select
+                          className="ms-2 bg-app-bg border border-app-bd text-[9px] rounded p-0.5"
+                          value={assignment.busNumber}
+                          onChange={(e) => {
+                            const newBus = e.target.value;
+                            if (newBus === assignment.busNumber) return;
+                            const newAssignments = [...editedAssignments];
+                            
+                            // Remove from current bus
+                            const currentBusIndex = newAssignments.findIndex(a => a.busNumber === assignment.busNumber);
+                            newAssignments[currentBusIndex] = {
+                              ...newAssignments[currentBusIndex],
+                              studentBookings: newAssignments[currentBusIndex].studentBookings.filter((b: any) => b._id !== booking._id)
+                            };
+                            
+                            // Add to new bus
+                            const targetBusIndex = newAssignments.findIndex(a => a.busNumber === newBus);
+                            if (targetBusIndex !== -1) {
+                              newAssignments[targetBusIndex] = {
+                                ...newAssignments[targetBusIndex],
+                                studentBookings: [...newAssignments[targetBusIndex].studentBookings, booking]
+                              };
+                            }
+                            
+                            setEditedAssignments(newAssignments);
+                          }}
+                        >
+                          {editedAssignments.map((a: any) => (
+                            <option key={a.busNumber} value={a.busNumber}>{a.busNumber}</option>
+                          ))}
+                        </select>
+                      )}
+                    </li>
+                  ))}
+                  {assignment.studentBookings.length === 0 && (
+                    <p className="text-[10px] text-app-mu text-center py-2">No students</p>
+                  )}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3 justify-end mt-2">
+            {editMode ? (
+              <>
+                <button
+                  onClick={() => { setEditMode(false); setEditedAssignments(pendingProposal.assignments); }}
+                  className="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest bg-app-card2 text-app-tx hover:bg-app-bd transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdits}
+                  disabled={proposalLoading}
+                  className="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest bg-app-am text-white hover:bg-app-am/80 transition disabled:opacity-50"
+                >
+                  {proposalLoading ? "Saving..." : "Save Modifications"}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest bg-app-card2 text-app-tx hover:bg-app-bd transition"
+                >
+                  Modify Assignments
+                </button>
+                <button
+                  onClick={handleApproveProposal}
+                  disabled={proposalLoading}
+                  className="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest bg-app-ok text-white hover:bg-app-ok/80 transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  {proposalLoading ? "Approving..." : "Confirm AI Mapping"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Stats ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, i) => (
@@ -300,6 +527,26 @@ const AdminDashboard: React.FC = () => {
                 {d === "today" ? t("today") : t("tomorrow")}
               </button>
             ))}
+            
+            {demandDate === "tomorrow" && (
+              <button 
+                onClick={handleGenerateAI}
+                disabled={generatingAI}
+                className="ms-4 bg-amber-600 hover:bg-amber-500 disabled:bg-amber-800 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg transition-all shadow-md text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+              >
+                {generatingAI ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    AI is configuring bus capacity...
+                  </span>
+                ) : (
+                  <>
+                    <Ic.Grid size={14} className="text-amber-200" />
+                    توليد التوزيع الذكي لباصات الغد / Generate Smart Auto-Assign
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -542,19 +789,19 @@ const AdminDashboard: React.FC = () => {
             ) : data.tickets.length === 0 ? (
               <div className="p-6 text-center text-xs text-app-mu">{t("no_pending_tickets")}</div>
             ) : (
-              data.tickets.map((t: any, i) => (
-                <div key={t._id || i} className="px-6 py-4 hover:bg-app-card2/50 transition-colors">
+              data.tickets.map((ticket: any, i) => (
+                <div key={ticket._id || i} className="px-6 py-4 hover:bg-app-card2/50 transition-colors">
                   <div className="flex justify-between items-start mb-2">
-                    <p className="text-[12px] font-bold text-app-tx">{t.subject}</p>
+                    <p className="text-[12px] font-bold text-app-tx">{ticket.subject}</p>
                     <button
-                      onClick={() => handleResolveTicket(t._id)}
+                      onClick={() => handleResolveTicket(ticket._id)}
                       className="px-2 py-1 bg-app-ok/10 text-app-ok text-[9px] font-black uppercase tracking-widest rounded hover:bg-app-ok hover:text-white transition-colors cursor-pointer"
                     >
                       {t("resolve")}
                     </button>
                   </div>
-                  <p className="text-[10px] text-app-mu mb-2 line-clamp-2">{t.description}</p>
-                  <p className="text-[9px] font-bold text-app-mu2 uppercase">{new Date(t.createdAt).toLocaleString()}</p>
+                  <p className="text-[10px] text-app-mu mb-2 line-clamp-2">{ticket.description}</p>
+                  <p className="text-[9px] font-bold text-app-mu2 uppercase">{new Date(ticket.createdAt).toLocaleString()}</p>
                 </div>
               ))
             )}

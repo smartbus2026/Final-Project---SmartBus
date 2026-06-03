@@ -31,8 +31,10 @@ connectDB();
 // Start cron jobs after DB connection
 import { startTripReminderJob } from "./jobs/tripReminder";
 import { startNotificationJobs } from "./jobs/notificationJob";
+import { initCronJobs } from "./jobs/cronJobs";
 startTripReminderJob();
 startNotificationJobs();
+initCronJobs();
 
 const app = express();
 const PORT = process.env.PORT || 5001;

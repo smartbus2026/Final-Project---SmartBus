@@ -20,4 +20,10 @@ router.get("/drivers", protect, allowRoles("admin"), async (req, res) => {
 router.get("/settings", protect, allowRoles("admin"), getSystemSettings);
 router.put("/settings", protect, allowRoles("admin"), updateSystemSettings);
 
+import { generateProposal, getPendingProposals, approveProposal, editProposal } from "../Controllers/proposalController";
+router.post("/proposals/generate", protect, allowRoles("admin"), generateProposal);
+router.get("/proposals/pending", protect, allowRoles("admin"), getPendingProposals);
+router.post("/proposals/:id/approve", protect, allowRoles("admin"), approveProposal);
+router.put("/proposals/:id/edit", protect, allowRoles("admin"), editProposal);
+
 export default router;
