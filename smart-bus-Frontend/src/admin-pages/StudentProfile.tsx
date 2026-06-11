@@ -94,7 +94,7 @@ const StudentProfile: React.FC = () => {
   const tableHeaders = [t('date'), t('route'), t('time_slot'), t('status')];
 
   return (
-    <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen">
+    <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen no-scrollbar">
 
       <button
         onClick={() => navigate(-1)}
@@ -158,7 +158,7 @@ const StudentProfile: React.FC = () => {
       <div className="bg-app-card border border-app-bd rounded-2xl overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-app-bd gap-3">
           <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest">{t('attendance_history')}</h3>
-          <select
+          <select className="custom-select"
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
             className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-xl px-3 py-2 focus:outline-none focus:border-app-am transition-colors"
@@ -169,7 +169,7 @@ const StudentProfile: React.FC = () => {
           </select>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto no-scrollbar">
           <table className="w-full">
             <thead>
               <tr className="border-b border-app-bd bg-app-bg/50">

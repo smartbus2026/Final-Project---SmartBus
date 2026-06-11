@@ -279,7 +279,7 @@ export default function BookTripPage() {
             <div className="flex items-center gap-2 text-app-am text-[11px] font-black uppercase tracking-widest mb-4">
               <Ic.Route /> {t("select_route")}
             </div>
-            <select
+            <select className="custom-select"
               value={selectedRouteId}
               onChange={(e) => setSelectedRouteId(e.target.value)}
               className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer"
@@ -324,7 +324,7 @@ export default function BookTripPage() {
                 <div className="flex items-center gap-2 text-app-tx text-[11px] font-black uppercase tracking-widest mb-4">
                   <Ic.Calendar /> {t("select_return_time")}
                 </div>
-                <select
+                <select className="custom-select"
                   value={selectedSpecificReturn}
                   onChange={(e) => setSelectedSpecificReturn(e.target.value)}
                   className="w-full bg-app-card2 border border-app-bd rounded-xl px-5 py-4 text-app-tx font-bold text-sm outline-none focus:border-app-am appearance-none cursor-pointer"

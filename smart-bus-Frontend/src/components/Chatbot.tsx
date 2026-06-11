@@ -104,7 +104,7 @@ const Chatbot = () => {
                     </div>
 
                     {/* Chat Area */}
-                    <div className="flex-1 p-4 overflow-y-auto bg-gradient-to-b from-transparent to-black/20 custom-scrollbar space-y-4">
+                    <div className="flex-1 p-4 overflow-y-auto bg-gradient-to-b from-transparent to-black/20 custom-scrollbar space-y-4 no-scrollbar">
                         {chatHistory.length === 0 && (
                             <div className="h-full flex flex-col items-center justify-center opacity-40 grayscale-[0.5]">
                                 <div className="w-20 h-20 bg-app-am/10 rounded-full flex items-center justify-center mb-4">

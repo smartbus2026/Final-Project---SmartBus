@@ -228,7 +228,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
             {/* Search Dropdown */}
             {searchQuery.length >= 2 && (
               <div className="absolute top-full mt-2 left-0 w-full rounded-2xl border border-app-bd/50 bg-app-card shadow-2xl z-50 overflow-hidden">
-                <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                <div className="max-h-64 overflow-y-auto custom-scrollbar no-scrollbar">
                   {isSearching ? (
                     <div className="p-4 text-center text-[10px] font-bold text-app-mu uppercase tracking-widest">{t("topbar_searching")}</div>
                   ) : searchResults.length === 0 ? (
@@ -292,7 +292,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
                   </span>
                 )}
               </div>
-              <div className="max-h-80 overflow-y-auto custom-scrollbar">
+              <div className="max-h-80 overflow-y-auto custom-scrollbar no-scrollbar">
                 {notifs.length === 0 ? (
                   <p className="p-6 text-center text-[11px] text-app-mu font-bold opacity-50">
                     {t("topbar_noNotifications")}

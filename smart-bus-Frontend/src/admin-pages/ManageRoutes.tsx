@@ -208,7 +208,7 @@ const ManageRoutesPage: React.FC = () => {
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 backdrop-blur-2xl transition-all">
           <div className="absolute inset-0 bg-black/20 dark:bg-black/60" onClick={() => setIsModalOpen(false)} />
           <div className="bg-app-card border border-app-bd w-full max-w-5xl rounded-[3.5rem] relative z-10 grid grid-cols-1 lg:grid-cols-2 overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-500">
-            <div className="p-12 space-y-8 overflow-y-auto max-h-[85vh] custom-scrollbar">
+            <div className="p-12 space-y-8 overflow-y-auto max-h-[85vh] custom-scrollbar no-scrollbar">
               <h2 className="text-3xl font-black uppercase tracking-tighter text-app-tx">New <span className="text-app-am">Sector</span></h2>
               <div className="space-y-4">
                 <div className="space-y-1">

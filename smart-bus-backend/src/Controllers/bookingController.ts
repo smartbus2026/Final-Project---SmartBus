@@ -224,6 +224,10 @@ export const cancelBooking = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Booking is already cancelled" });
     }
 
+    if (booking.status === "assigned" || booking.busId) {
+      return res.status(400).json({ message: "Cannot cancel a booking that has already been assigned to a bus." });
+    }
+
     if (new Date(booking.date) < new Date()) {
       return res.status(400).json({ message: "Cannot cancel a booking for a date that has already passed" });
     }
@@ -258,6 +262,7 @@ export const updateBooking = async (req: Request, res: Response) => {
     if (!booking) return res.status(404).json({ message: "Booking not found" });
     if (booking.user.toString() !== user.id) return res.status(403).json({ message: "Not authorized to edit this booking" });
     if (booking.status === "cancelled") return res.status(400).json({ message: "Cannot edit a cancelled booking" });
+    if (booking.status === "assigned" || booking.busId) return res.status(400).json({ message: "Cannot edit a booking that has already been assigned to a bus." });
 
     const settings = await Settings.findOne();
     if (settings && !isWindowOpen(settings)) {

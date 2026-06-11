@@ -17,9 +17,15 @@ const AdminDashboard: React.FC = () => {
   });
 
   // ── Demand aggregation state ──
-  const [demandDate, setDemandDate] = useState<"today" | "tomorrow">("tomorrow");
+  const demandDate = "tomorrow";
   const [demands, setDemands] = useState<any[]>([]);
   const [demandLoading, setDemandLoading] = useState(true);
+  const [selectedShift, setSelectedShift] = useState<"Morning" | "Return">("Morning");
+  const [selectedTime, setSelectedTime] = useState<string>("");
+
+  // ── Tomorrow's Bookings (Demands) filter state ──
+  const [filterShift, setFilterShift] = useState<"morning" | "return">("morning");
+  const [filterTime, setFilterTime] = useState<string>("3:30");
 
   // ── Dispatch State ──
   const [buses, setBuses] = useState<any[]>([]);
@@ -52,28 +58,30 @@ const AdminDashboard: React.FC = () => {
   const [generatingAI, setGeneratingAI] = useState(false);
 
   const handleGenerateAI = async () => {
+    // Validate: return shift requires a time
+    if (filterShift === "return" && !filterTime) {
+      alert("Please select a return time before generating a dispatch plan.");
+      return;
+    }
     setGeneratingAI(true);
     try {
-      // Calculate tomorrow's date
+      // Always target tomorrow
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() + 1);
       const formattedDate = targetDate.toISOString().split("T")[0];
-      
-      // Make it Completely Dynamic: Detect if visible cards are primarily 'Return'
-      let tripType = tripFilter.timeSlot;
-      if (!tripType) {
-        const hasMorning = demands.some(d => d.timeSlot === 'Morning');
-        const hasReturn = demands.some(d => d.timeSlot === 'Return');
-        tripType = (hasReturn && !hasMorning) ? 'Return' : 'Morning';
-      }
 
-      await Api.post('/admin/proposals/generate', { date: formattedDate, tripType });
-      // Instantly call fetchPendingProposal syncing the current tab's type
-      fetchPendingProposal(tripType);
+      await Api.post('/admin/dispatch/generate', {
+        targetDate: formattedDate,
+        shift: filterShift,                                   // 'morning' | 'return'
+        time: filterShift === 'return' ? filterTime : null   // e.g. '3:30' | null
+      });
+
+      // Refresh proposal panel using the same shift
+      const capitalizedShift = filterShift.charAt(0).toUpperCase() + filterShift.slice(1);
+      fetchPendingProposal(capitalizedShift);
     } catch (err: any) {
       console.error("Failed to generate AI proposal", err);
-      // Alert the exact backend error message to avoid confusing 404s with route mismatches
-      const errorMsg = err.response?.data?.message || "Failed to generate AI proposal.";
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || "Failed to generate AI proposal.";
       alert(`AI Engine Notice:\n${errorMsg}`);
     } finally {
       setGeneratingAI(false);
@@ -121,13 +129,26 @@ const AdminDashboard: React.FC = () => {
   }, [pendingProposal, t]);
 
   const handleApproveProposal = async () => {
+    const finalAssignments = editMode ? editedAssignments : pendingProposal.assignments;
+    const invalid = finalAssignments.some((a: any) => !a.busId || !a.driverId);
+    
+    if (invalid) {
+      alert("Validation Error: You MUST assign a physical Bus and Driver to each group before confirming the AI plan.");
+      if (!editMode) setEditMode(true);
+      return;
+    }
+
     setProposalLoading(true);
     try {
-      await Api.post(`/admin/proposals/${pendingProposal._id}/approve`);
+      await Api.post(`/admin/proposals/${pendingProposal._id}/approve`, {
+        assignments: finalAssignments
+      });
       setPendingProposal(null);
+      setEditMode(false);
       fetchAssignedTrips();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to approve proposal", err);
+      alert(err.response?.data?.message || "Failed to confirm assignments.");
     } finally {
       setProposalLoading(false);
     }
@@ -402,48 +423,43 @@ const AdminDashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
             {(editMode ? editedAssignments : pendingProposal.assignments).map((assignment: any, index: number) => (
               <div key={index} className="bg-app-bg border border-app-bd rounded-xl p-4 shadow-sm">
-                <div className="flex justify-between items-center mb-3 border-b border-app-bd pb-2">
-                  <h4 className="text-sm font-black text-app-tx">Bus {assignment.busNumber}</h4>
-                  <span className="text-[10px] font-bold text-app-mu uppercase tracking-wider">{assignment.studentBookings.length} Students</span>
+                <div className="flex flex-col gap-2 mb-3 border-b border-app-bd pb-2">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-black text-app-tx">Bus {assignment.busNumber}</h4>
+                    <span className="text-[10px] font-bold text-app-mu uppercase tracking-wider">{assignment.studentBookings.length} Students</span>
+                  </div>
+                  {editMode && (
+                    <div className="flex gap-2">
+                      <select className="flex-1 bg-app-bg border border-app-bd text-[10px] p-1 rounded custom-select"
+                        value={assignment.busId || ""}
+                        onChange={(e) => {
+                          const newAssignments = [...editedAssignments];
+                          newAssignments[index].busId = e.target.value;
+                          setEditedAssignments(newAssignments);
+                        }}
+                      >
+                        <option value="">Select Bus</option>
+                        {buses.map(b => <option key={b._id} value={b._id}>{b.busCode}</option>)}
+                      </select>
+                      <select className="flex-1 bg-app-bg border border-app-bd text-[10px] p-1 rounded custom-select"
+                        value={assignment.driverId || ""}
+                        onChange={(e) => {
+                          const newAssignments = [...editedAssignments];
+                          newAssignments[index].driverId = e.target.value;
+                          setEditedAssignments(newAssignments);
+                        }}
+                      >
+                        <option value="">Select Driver</option>
+                        {drivers.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+                      </select>
+                    </div>
+                  )}
                 </div>
-                <ul className="space-y-2 max-h-40 overflow-y-auto pe-2">
+                <ul className="space-y-2 max-h-40 overflow-y-auto pe-2 no-scrollbar">
                   {assignment.studentBookings.map((booking: any, bIdx: number) => (
                     <li key={booking._id || bIdx} className="text-[11px] font-medium text-app-tx flex justify-between items-center p-1.5 hover:bg-app-card2 rounded">
                       <span className="truncate flex-1" title={booking.user?.name}>{booking.user?.name || "Unknown"}</span>
                       <span className="text-[9px] text-app-am bg-app-am/10 px-1.5 py-0.5 rounded font-bold ms-2 shrink-0">{booking.route?.name || "No Route"}</span>
-                      {editMode && (
-                        <select
-                          className="ms-2 bg-app-bg border border-app-bd text-[9px] rounded p-0.5"
-                          value={assignment.busNumber}
-                          onChange={(e) => {
-                            const newBus = e.target.value;
-                            if (newBus === assignment.busNumber) return;
-                            const newAssignments = [...editedAssignments];
-                            
-                            // Remove from current bus
-                            const currentBusIndex = newAssignments.findIndex(a => a.busNumber === assignment.busNumber);
-                            newAssignments[currentBusIndex] = {
-                              ...newAssignments[currentBusIndex],
-                              studentBookings: newAssignments[currentBusIndex].studentBookings.filter((b: any) => b._id !== booking._id)
-                            };
-                            
-                            // Add to new bus
-                            const targetBusIndex = newAssignments.findIndex(a => a.busNumber === newBus);
-                            if (targetBusIndex !== -1) {
-                              newAssignments[targetBusIndex] = {
-                                ...newAssignments[targetBusIndex],
-                                studentBookings: [...newAssignments[targetBusIndex].studentBookings, booking]
-                              };
-                            }
-                            
-                            setEditedAssignments(newAssignments);
-                          }}
-                        >
-                          {editedAssignments.map((a: any) => (
-                            <option key={a.busNumber} value={a.busNumber}>{a.busNumber}</option>
-                          ))}
-                        </select>
-                      )}
                     </li>
                   ))}
                   {assignment.studentBookings.length === 0 && (
@@ -518,35 +534,26 @@ const AdminDashboard: React.FC = () => {
             </h3>
             <p className="text-[10px] text-app-mu mt-0.5">{t("admin_demands_subtitle")}</p>
           </div>
-          {/* Date tabs */}
-          <div className="flex gap-1 bg-app-card2 border border-app-bd rounded-xl p-1">
-            {(["today", "tomorrow"] as const).map(d => (
-              <button key={d} onClick={() => setDemandDate(d)}
-                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                  ${demandDate === d ? "bg-app-am text-black shadow-sm" : "text-app-mu hover:text-app-tx"}`}>
-                {d === "today" ? t("today") : t("tomorrow")}
-              </button>
-            ))}
-            
-            {demandDate === "tomorrow" && (
-              <button 
+          <div className="flex gap-1">
+            <div className="flex items-center gap-2">
+              <button
                 onClick={handleGenerateAI}
                 disabled={generatingAI}
-                className="ms-4 bg-amber-600 hover:bg-amber-500 disabled:bg-amber-800 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg transition-all shadow-md text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+                className="bg-amber-600 hover:bg-amber-500 disabled:bg-amber-800 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg transition-all shadow-md text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
               >
                 {generatingAI ? (
                   <span className="flex items-center gap-2">
                     <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    AI is configuring bus capacity...
+                    Configuring...
                   </span>
                 ) : (
                   <>
                     <Ic.Grid size={14} className="text-amber-200" />
-                    توليد التوزيع الذكي لباصات الغد / Generate Smart Auto-Assign
+                    Generate Auto-Assign
                   </>
                 )}
               </button>
-            )}
+            </div>
           </div>
         </div>
 
@@ -562,8 +569,75 @@ const AdminDashboard: React.FC = () => {
             <p className="text-[10px]">{t("no_demands_hint")}</p>
           </div>
         ) : (
-          <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {demands.map((d: any, i: number) => {
+          <>
+            {/* ── Shift / Time Filter Bar (above demand cards) ── */}
+            <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-app-bd bg-app-bg/40">
+              <span className="text-[10px] font-black text-app-mu uppercase tracking-widest shrink-0">Filter:</span>
+
+              {/* Shift toggle */}
+              <div className="flex bg-app-card2 border border-app-bd rounded-lg overflow-hidden h-[32px]">
+                <button
+                  onClick={() => setFilterShift("morning")}
+                  className={`px-4 py-1 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                    filterShift === "morning"
+                      ? "bg-app-am text-white"
+                      : "text-app-mu hover:bg-app-card hover:text-app-tx"
+                  }`}
+                >
+                  Morning
+                </button>
+                <button
+                  onClick={() => { setFilterShift("return"); setFilterTime("3:30"); }}
+                  className={`px-4 py-1 text-[10px] font-black uppercase tracking-widest border-l border-app-bd transition-colors ${
+                    filterShift === "return"
+                      ? "bg-app-am text-white"
+                      : "text-app-mu hover:bg-app-card hover:text-app-tx"
+                  }`}
+                >
+                  Return
+                </button>
+              </div>
+
+              {/* Time dropdown — only if Return is selected */}
+              {filterShift === "return" && (
+                <select
+                  value={filterTime}
+                  onChange={e => setFilterTime(e.target.value)}
+                  className="custom-select bg-app-card text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 h-[32px] focus:outline-none focus:border-app-am min-w-[110px]"
+                >
+                  <option value="3:30">3:30 PM</option>
+                  <option value="7:00">7:00 PM</option>
+                </select>
+              )}
+            </div>
+
+            {/* ── Demand Cards Grid ── */}
+            {(() => {
+              const displayedDemands = demands.filter((d: any) => {
+                const shiftMatch = (d.timeSlot || "").toLowerCase() === filterShift;
+                const timeMatch =
+                  filterShift === "morning" ||
+                  (d.specificReturnTime || "").toLowerCase().startsWith(filterTime);
+                return shiftMatch && timeMatch;
+              });
+
+              if (displayedDemands.length === 0) {
+                return (
+                  <div className="p-10 flex flex-col items-center gap-3 text-app-mu opacity-60">
+                    <Ic.Filter size={28} />
+                    <p className="text-[11px] font-black uppercase tracking-widest">
+                      No bookings found for the selected shift/time.
+                    </p>
+                    <p className="text-[10px] text-app-mu2">
+                      Try switching to a different shift or time slot.
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {displayedDemands.map((d: any, i: number) => {
               const isHigh   = d.totalStudents > 45;
               const isMedium = d.totalStudents > 30 && !isHigh;
               const slotLabel = d.timeSlot === "Return" && d.specificReturnTime
@@ -619,8 +693,11 @@ const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
               );
-            })}
-          </div>
+                  })}
+                </div>
+              );
+            })()}
+          </>
         )}
       </div>
 
@@ -634,7 +711,7 @@ const AdminDashboard: React.FC = () => {
             {assignments.map((assignment, index) => (
               <div key={index} className="flex flex-col sm:flex-row items-center gap-3 bg-app-bg border border-app-bd rounded-xl p-3 relative">
                 <div className="w-full">
-                  <select 
+                  <select className="custom-select" 
                     value={assignment.busId}
                     onChange={(e) => {
                       const newAssignments = [...assignments];
@@ -650,7 +727,7 @@ const AdminDashboard: React.FC = () => {
                   </select>
                 </div>
                 <div className="w-full">
-                  <select 
+                  <select className="custom-select" 
                     value={assignment.driverId}
                     onChange={(e) => {
                       const newAssignments = [...assignments];
@@ -694,7 +771,7 @@ const AdminDashboard: React.FC = () => {
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">{t("time_slot")}</label>
-              <select 
+              <select className="custom-select" 
                 value={dispatchForm.timeSlot}
                 onChange={(e) => setDispatchForm(prev => ({ ...prev, timeSlot: e.target.value, specificReturnTime: "" }))}
                 className="w-full bg-app-bg text-app-tx text-sm border border-app-bd rounded-xl p-3 focus:outline-none focus:border-app-am appearance-none cursor-pointer"
@@ -709,7 +786,7 @@ const AdminDashboard: React.FC = () => {
                 <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">
                   {t("return_time_label")} <span className="text-red-400">*</span>
                 </label>
-                <select 
+                <select className="custom-select" 
                   required
                   value={dispatchForm.specificReturnTime}
                   onChange={(e) => setDispatchForm(prev => ({ ...prev, specificReturnTime: e.target.value }))}
@@ -731,7 +808,7 @@ const AdminDashboard: React.FC = () => {
           {/* Multi-select Routes */}
           <div>
             <label className="block text-[10px] text-app-mu uppercase font-bold mb-2 tracking-widest">{t("select_target_routes")}</label>
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-3 bg-app-bg border border-app-bd rounded-xl">
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-3 bg-app-bg border border-app-bd rounded-xl no-scrollbar">
               {data.routesList.map(r => {
                 const isSelected = dispatchForm.routeIds.includes(r._id);
                 return (
@@ -812,43 +889,34 @@ const AdminDashboard: React.FC = () => {
         <div className="bg-app-card rounded-2xl border border-app-bd shadow-sm overflow-hidden lg:col-span-2 flex flex-col">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center px-6 py-4 border-b border-app-bd gap-4">
             <h3 className="text-[11px] font-black text-app-tx uppercase tracking-widest whitespace-nowrap">{t("todays_trips")}</h3>
-            <div className="flex flex-wrap gap-2">
-              <select
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Shift Toggle Buttons */}
+              <div className="flex bg-app-bg border border-app-bd rounded-lg overflow-hidden h-[34px]">
+                <button onClick={() => { setSelectedShift("Morning"); setSelectedTime(""); }} className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${selectedShift === "Morning" ? "bg-app-am text-white" : "text-app-mu hover:bg-app-card2 hover:text-app-tx"}`}>Morning</button>
+                <button onClick={() => setSelectedShift("Return")} className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors border-l border-app-bd ${selectedShift === "Return" ? "bg-app-am text-white" : "text-app-mu hover:bg-app-card2 hover:text-app-tx"}`}>Return</button>
+              </div>
+
+              {/* Time Dropdown for Return */}
+              {selectedShift === "Return" && (
+                <select value={selectedTime} onChange={e => setSelectedTime(e.target.value)} className="custom-select bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 h-[34px] focus:outline-none focus:border-app-am min-w-[120px]">
+                  <option value="">Any Time</option>
+                  {returnTimes.map(rt => <option key={rt} value={rt}>{rt}</option>)}
+                </select>
+              )}
+
+              <select className="custom-select bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 h-[34px] focus:outline-none focus:border-app-am min-w-[120px]"
                 value={tripFilter.routeId}
                 onChange={(e) => setTripFilter(prev => ({ ...prev, routeId: e.target.value }))}
-                className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 py-1.5 focus:outline-none focus:border-app-am min-w-[120px]"
               >
                 <option value="">{t("all_routes")}</option>
                 {data.routesList.map(r => (
                   <option key={r._id} value={r._id}>{r.name}</option>
                 ))}
               </select>
-
-              <select
-                value={tripFilter.timeSlot}
-                onChange={(e) => setTripFilter(prev => ({ ...prev, timeSlot: e.target.value, specificReturnTime: "" }))}
-                className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 py-1.5 focus:outline-none focus:border-app-am min-w-[120px]"
-              >
-                <option value="">{t("all_times")}</option>
-                <option value="Morning">{t("morning")}</option>
-                <option value="Return">{t("return")}</option>
-              </select>
-
-              {tripFilter.timeSlot === "Return" && (
-                <select
-                  value={tripFilter.specificReturnTime}
-                  onChange={(e) => setTripFilter(prev => ({ ...prev, specificReturnTime: e.target.value }))}
-                  className="bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-lg px-3 py-1.5 focus:outline-none focus:border-app-am min-w-[120px]"
-                >
-                  <option value="">{t("any_return")}</option>
-                  <option value="3:30 PM">3:30 PM</option>
-                  <option value="7:00 PM">7:00 PM</option>
-                </select>
-              )}
             </div>
           </div>
 
-          <div className="overflow-x-auto flex-1">
+          <div className="overflow-x-auto flex-1 no-scrollbar">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-app-bd bg-app-bg/50">
@@ -864,16 +932,21 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 ) : (() => {
                   const filteredTrips = assignedTrips.filter(t => {
-                    if (tripFilter.routeId && t.route?._id !== tripFilter.routeId) return false;
-                    if (tripFilter.timeSlot && t.timeSlot !== tripFilter.timeSlot) return false;
-                    if (tripFilter.timeSlot === "Return" && tripFilter.specificReturnTime && t.specificReturnTime !== tripFilter.specificReturnTime) return false;
-                    return true;
+                    const shiftMatch = t.timeSlot === selectedShift;
+                    const timeMatch = !selectedTime || t.specificReturnTime === selectedTime;
+                    const routeMatch = !tripFilter.routeId || t.route?._id === tripFilter.routeId;
+                    return shiftMatch && timeMatch && routeMatch;
                   });
 
                   if (filteredTrips.length === 0) {
                     return (
                       <tr>
-                        <td colSpan={5} className="px-6 py-8 text-center text-xs text-app-mu">{t("no_trips_match_filters")}</td>
+                        <td colSpan={6} className="px-6 py-12 text-center text-app-mu">
+                          <div className="flex flex-col items-center gap-3 opacity-60">
+                            <Ic.Calendar size={32} />
+                            <p className="text-[11px] font-black uppercase tracking-widest">{t("no_trips_match_filters")}</p>
+                          </div>
+                        </td>
                       </tr>
                     );
                   }

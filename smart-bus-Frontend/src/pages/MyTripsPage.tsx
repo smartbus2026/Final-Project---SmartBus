@@ -278,17 +278,23 @@ export default function MyTripsPage() {
                     </div>
                   )}
 
-                  <div className="flex gap-2">
-                    <button onClick={() => windowOpen && openEdit(trip.raw)} disabled={!windowOpen}
-                      title={!windowOpen ? t("only_during_window") : t("edit_booking_title")}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-app-am/20 bg-app-am/10 py-2.5 text-[10px] font-black text-app-am transition-all hover:bg-app-am hover:text-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">
-                      ✎ {t("edit")}
-                    </button>
-                    <button onClick={() => handleCancel(trip.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/5 py-2.5 text-[10px] font-black text-app-err transition-all hover:bg-red-500 hover:text-white uppercase tracking-widest">
-                      <Ic.X size={12} /> {t("cancel")}
-                    </button>
-                  </div>
+                  {trip.bookingStatus === "pending" ? (
+                    <div className="flex gap-2">
+                      <button onClick={() => windowOpen && openEdit(trip.raw)} disabled={!windowOpen}
+                        title={!windowOpen ? t("only_during_window") : t("edit_booking_title")}
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-app-am/20 bg-app-am/10 py-2.5 text-[10px] font-black text-app-am transition-all hover:bg-app-am hover:text-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">
+                        ✎ {t("edit")}
+                      </button>
+                      <button onClick={() => handleCancel(trip.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/5 py-2.5 text-[10px] font-black text-app-err transition-all hover:bg-red-500 hover:text-white uppercase tracking-widest">
+                        <Ic.X size={12} /> {t("cancel")}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest border border-app-bd/50 bg-app-card2/30 text-app-mu">
+                      <Ic.Info size={12} /> Edit disabled (Bus Assigned)
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -326,7 +332,7 @@ export default function MyTripsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold uppercase text-app-mu mb-2">{t("route")}</label>
-                <select value={editRouteId} onChange={e => setEditRouteId(e.target.value)}
+                <select className="custom-select" value={editRouteId} onChange={e => setEditRouteId(e.target.value)}
                   className="w-full bg-app-card2 border border-app-bd rounded-xl px-4 py-3 text-sm text-app-tx outline-none focus:border-app-am appearance-none cursor-pointer">
                   <option value="">{t("select_route_placeholder")}</option>
                   {routes.map((r: any) => <option key={r._id} value={r._id} className="bg-app-card">{r.name}</option>)}
@@ -349,7 +355,7 @@ export default function MyTripsPage() {
               {editTimeSlot === "Return" && (
                 <div className="animate-in slide-in-from-top-2 duration-200">
                   <label className="block text-[10px] font-bold uppercase text-app-mu mb-2">{t("return_time")}</label>
-                  <select value={editReturnTime} onChange={e => setEditReturnTime(e.target.value)}
+                  <select className="custom-select" value={editReturnTime} onChange={e => setEditReturnTime(e.target.value)}
                     className="w-full bg-app-card2 border border-app-bd rounded-xl px-4 py-3 text-sm text-app-tx outline-none focus:border-app-am appearance-none cursor-pointer">
                     <option value="">{t("choose_time_placeholder")}</option>
                     {(settings?.returnTimeOptions || []).map((rt: string) => (

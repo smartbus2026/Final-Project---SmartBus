@@ -126,7 +126,7 @@ export default function GroupChat() {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar no-scrollbar">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full opacity-40 text-center">
             <div className="w-16 h-16 bg-app-card2 rounded-full flex items-center justify-center text-app-mu mb-4 shadow-inner">

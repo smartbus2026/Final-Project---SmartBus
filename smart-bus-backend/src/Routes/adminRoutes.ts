@@ -21,7 +21,9 @@ router.get("/settings", protect, allowRoles("admin"), getSystemSettings);
 router.put("/settings", protect, allowRoles("admin"), updateSystemSettings);
 
 import { generateProposal, getPendingProposals, approveProposal, editProposal } from "../Controllers/proposalController";
+import { generateDispatchController } from "../Controllers/dispatchController";
 router.post("/proposals/generate", protect, allowRoles("admin"), generateProposal);
+router.post("/dispatch/generate", protect, allowRoles("admin"), generateDispatchController);
 router.get("/proposals/pending", protect, allowRoles("admin"), getPendingProposals);
 router.post("/proposals/:id/approve", protect, allowRoles("admin"), approveProposal);
 router.put("/proposals/:id/edit", protect, allowRoles("admin"), editProposal);

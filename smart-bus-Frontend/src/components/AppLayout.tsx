@@ -46,7 +46,7 @@ export default function AppLayout({ theme, setTheme, role, onLogout }: Props) {
             onMenu={() => setSbOpen(true)}
             role={effectiveRole}
           />          
-          <main className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-app-bd scrollbar-track-transparent">
+          <main className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-app-bd scrollbar-track-transparent no-scrollbar">
             <Outlet />
           </main>
         </div>

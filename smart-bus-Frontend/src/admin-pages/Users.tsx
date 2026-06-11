@@ -136,7 +136,7 @@ const AddUserModal: React.FC<{
         </div>
 
         {/* Body — scrollable */}
-        <div className="overflow-y-auto flex-1 px-8 py-6">
+        <div className="overflow-y-auto flex-1 px-8 py-6 no-scrollbar">
           <form id="add-user-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
 
             {serverError && (
@@ -394,7 +394,7 @@ const UsersPage: React.FC = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-app-mu uppercase ml-1">System Role</label>
-                  <select className="w-full bg-app-bg border border-app-bd p-4 rounded-xl text-xs font-bold outline-none focus:border-app-am text-app-tx appearance-none" value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as any})}>
+                  <select className="w-full bg-app-bg border border-app-bd p-4 rounded-xl text-xs font-bold outline-none focus:border-app-am text-app-tx appearance-none custom-select" value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as any})}>
                     <option value="student">STUDENT</option>
                     <option value="admin">ADMIN</option>
                     <option value="driver">DRIVER</option>
@@ -438,7 +438,7 @@ const UsersPage: React.FC = () => {
           </div>
 
           <div className="bg-app-card border border-app-bd px-6 py-4 rounded-2xl flex items-center gap-4 shadow-sm min-w-[160px]">
-            <select
+            <select className="custom-select"
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
               className="bg-transparent border-none outline-none text-[10px] font-black w-full uppercase tracking-widest text-app-tx cursor-pointer appearance-none pr-6"
@@ -463,7 +463,7 @@ const UsersPage: React.FC = () => {
 
       {/* Table */}
       <div className="bg-app-card border border-app-bd rounded-[3rem] overflow-hidden shadow-xl dark:shadow-2xl transition-all">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto no-scrollbar">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-app-bg2 text-app-mu text-[9px] font-black uppercase tracking-[0.2em]">

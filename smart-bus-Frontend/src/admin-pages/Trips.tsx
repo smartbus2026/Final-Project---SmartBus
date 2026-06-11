@@ -163,7 +163,7 @@ const ManageTripsPage: React.FC = () => {
     "bg-app-bg text-app-tx text-[10px] font-bold uppercase tracking-widest border border-app-bd rounded-xl px-3 py-2 focus:outline-none focus:border-app-am transition-colors";
 
   return (
-    <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen">
+    <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen no-scrollbar">
 
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
@@ -191,7 +191,7 @@ const ManageTripsPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 p-4 bg-app-card border border-app-bd rounded-2xl">
         <div className="flex flex-col gap-1">
           <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t("route")}</label>
-          <select
+          <select className="custom-select"
             value={filterRoute}
             onChange={e => setFilterRoute(e.target.value)}
             className={selectClass}
@@ -205,7 +205,7 @@ const ManageTripsPage: React.FC = () => {
 
         <div className="flex flex-col gap-1">
           <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t("bus_number")}</label>
-          <select
+          <select className="custom-select"
             value={filterBus}
             onChange={e => setFilterBus(e.target.value)}
             className={selectClass}
@@ -219,7 +219,7 @@ const ManageTripsPage: React.FC = () => {
 
         <div className="flex flex-col gap-1">
           <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t("time_slot")}</label>
-          <select
+          <select className="custom-select"
             value={filterTimeSlot}
             onChange={e => setFilterTimeSlot(e.target.value)}
             className={selectClass}
@@ -368,7 +368,7 @@ const ManageTripsPage: React.FC = () => {
 
                 {/* Expandable Student List */}
                 {isExpanded && trip.students && (
-                  <div className="border-t border-app-bd bg-app-bg/50 px-2 py-4 space-y-2 max-h-56 overflow-y-auto rounded-lg">
+                  <div className="border-t border-app-bd bg-app-bg/50 px-2 py-4 space-y-2 max-h-56 overflow-y-auto rounded-lg no-scrollbar">
                     <p className="text-[9px] font-black uppercase tracking-widest text-app-am mb-3">Assigned Students</p>
                     {trip.students.map((s, i) => (
                       <div key={s._id || i} className="flex items-center justify-between py-2 border-b border-app-bd/30 last:border-0">
@@ -412,7 +412,7 @@ const ManageTripsPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-app-mu mb-2">Time Slot</label>
-                <select
+                <select className="custom-select"
                   value={editForm.time_slot}
                   onChange={e => setEditForm({ ...editForm, time_slot: e.target.value })}
                   className="w-full bg-app-bg text-app-tx border border-app-bd rounded-xl px-4 py-3 focus:outline-none focus:border-app-am transition-colors"

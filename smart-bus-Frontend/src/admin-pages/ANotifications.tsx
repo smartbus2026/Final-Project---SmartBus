@@ -241,7 +241,7 @@ const AdminNotifications: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-app-mu mb-2">{t('recipient_group')}</label>
-                  <select
+                  <select className="custom-select"
                     value={target}
                     onChange={e => setTarget(e.target.value)}
                     className="w-full bg-app-card2 border border-app-bd rounded-xl px-4 py-3 text-xs font-bold text-app-tx outline-none cursor-pointer focus:border-app-am/50 transition-all appearance-none"

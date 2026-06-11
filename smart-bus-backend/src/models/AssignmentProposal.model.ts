@@ -5,6 +5,8 @@ export interface IAssignmentProposal extends Document {
   tripType: string;
   assignments: {
     busNumber: string;
+    busId: mongoose.Types.ObjectId | null;
+    driverId: mongoose.Types.ObjectId | null;
     studentBookings: mongoose.Types.ObjectId[];
   }[];
   status: "pending" | "approved_by_admin" | "auto_approved";
@@ -18,6 +20,8 @@ const assignmentProposalSchema = new Schema<IAssignmentProposal>({
   tripType: { type: String, enum: ["Morning", "Return"], required: true },
   assignments: [{
     busNumber: { type: String, required: true },
+    busId: { type: Schema.Types.ObjectId, ref: "Bus", default: null },
+    driverId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     studentBookings: [{ type: Schema.Types.ObjectId, ref: "Booking" }]
   }],
   status: { type: String, enum: ["pending", "approved_by_admin", "auto_approved"], default: "pending" },

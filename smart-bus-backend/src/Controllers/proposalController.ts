@@ -57,10 +57,16 @@ export const getPendingProposals = async (req: Request, res: Response): Promise<
     }
 };
 
+import Trip from "../models/Trip";
+import Booking from "../models/Booking.model";
+import Bus from "../models/Bus";
+import Notification from "../models/notification";
+import { getIO } from "../socket";
+
 export const approveProposal = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
-        const adminId = (req as any).user.id; // From protect middleware
+        const { assignments } = req.body;
         
         const proposal = await AssignmentProposal.findById(id);
         if (!proposal) {
@@ -72,23 +78,111 @@ export const approveProposal = async (req: Request, res: Response): Promise<void
             return;
         }
 
-        // Loop and assign
+        const activeAssignments = assignments || proposal.assignments;
         let assignedCount = 0;
-        for (const assignment of proposal.assignments) {
-            for (const bookingId of assignment.studentBookings) {
-                try {
-                    await assignBusToBooking(bookingId.toString(), assignment.busNumber, adminId);
-                    assignedCount++;
-                } catch (err: any) {
-                    console.error(`Failed to assign booking ${bookingId}:`, err.message);
-                }
+
+        for (const assignment of activeAssignments) {
+            if (!assignment.busId || !assignment.driverId) {
+                res.status(400).json({ status: "error", message: "All routes must have a Bus and Driver selected." });
+                return;
+            }
+
+            const bus = await Bus.findById(assignment.busId);
+            if (!bus) continue;
+
+            const bookingIds = assignment.studentBookings.map((b: any) => b._id || b);
+            
+            await Booking.updateMany(
+                { _id: { $in: bookingIds } },
+                { $set: { status: "assigned", busId: assignment.busId } }
+            );
+
+            assignedCount += bookingIds.length;
+
+            const routeIds = new Set<string>();
+            const userIds = new Set<string>();
+            for (const b of assignment.studentBookings) {
+                routeIds.add(b.route?._id?.toString() || b.route?.toString() || "");
+                userIds.add(b.user?._id?.toString() || b.user?.toString() || "");
+            }
+            routeIds.delete("");
+
+            // The proposal might have a time like "Return 3:30 PM", we extract specificReturnTime if present
+            const slotMap: Record<string, any> = { Morning: "morning", Return: "return_1530" };
+            let tripTimeSlot = slotMap[proposal.tripType] || "morning";
+            // Check if specificReturnTime is present in any booking
+            if (proposal.tripType === "Return" && assignment.studentBookings.length > 0) {
+                const specTime = assignment.studentBookings[0].specificReturnTime;
+                if (specTime === "7:00 PM") tripTimeSlot = "return_1900";
+            }
+
+            for (const routeId of Array.from(routeIds)) {
+                const passengerCount = assignment.studentBookings.filter(
+                    (b: any) => (b.route?._id?.toString() || b.route?.toString()) === routeId
+                ).length;
+
+                await Trip.findOneAndUpdate(
+                    {
+                        route: routeId,
+                        driver: assignment.driverId,
+                        date: proposal.targetDate,
+                        time_slot: tripTimeSlot
+                    },
+                    {
+                        $set: {
+                            bus: assignment.busId,
+                            bus_number: bus.busCode,
+                            total_seats: bus.capacity || 45,
+                            booked_seats: passengerCount,
+                            status: "scheduled",
+                        },
+                        $setOnInsert: {
+                            route: routeId,
+                            driver: assignment.driverId,
+                            date: proposal.targetDate,
+                            time_slot: tripTimeSlot,
+                        }
+                    },
+                    { upsert: true, new: true }
+                );
+            }
+
+            const notifMessage = `Your bus has been assigned! Bus No: ${bus.busCode} is now covering your route.`;
+            const userArray = Array.from(userIds);
+            if (userArray.length > 0) {
+                 await Promise.all(userArray.map(uId => 
+                    Notification.create({
+                        user: uId,
+                        title: "Bus Assigned",
+                        message: notifMessage,
+                        type: "trip",
+                        read: false
+                    })
+                 ));
+
+                 try {
+                     const io = getIO();
+                     for (const uId of userArray) {
+                         io.to(`user:${uId}`).emit("newNotification", {
+                             title: "Bus Assigned",
+                             message: notifMessage,
+                             type: "trip",
+                             createdAt: new Date()
+                         });
+                         io.to(`user:${uId}`).emit("bookingAssigned", {
+                             busDetails: { _id: assignment.busId, busCode: bus.busCode },
+                             bookingIds: bookingIds
+                         });
+                     }
+                 } catch (e) {}
             }
         }
 
         proposal.status = "approved_by_admin";
+        proposal.assignments = activeAssignments;
         await proposal.save();
 
-        res.status(200).json({ status: "ok", message: `Successfully assigned ${assignedCount} bookings.` });
+        res.status(200).json({ status: "ok", message: `Successfully assigned ${assignedCount} bookings and dispatched buses.` });
     } catch (error: any) {
         console.error("[Approve Proposal Error]", error);
         res.status(500).json({ status: "error", message: error.message || "Failed to approve proposal." });

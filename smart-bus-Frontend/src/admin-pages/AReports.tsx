@@ -93,7 +93,7 @@ const AttendanceReportPanel: React.FC = () => {
         {/* Route */}
         <div className="flex flex-col gap-1">
           <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t('route')}</label>
-          <select
+          <select className="custom-select"
             value={filters.routeId}
             onChange={e => setFilters(f => ({ ...f, routeId: e.target.value }))}
             className={selectClass}
@@ -106,7 +106,7 @@ const AttendanceReportPanel: React.FC = () => {
         {/* Bus */}
         <div className="flex flex-col gap-1">
           <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t('bus')}</label>
-          <select
+          <select className="custom-select"
             value={filters.busId}
             onChange={e => setFilters(f => ({ ...f, busId: e.target.value }))}
             className={selectClass}
@@ -119,7 +119,7 @@ const AttendanceReportPanel: React.FC = () => {
         {/* TimeSlot */}
         <div className="flex flex-col gap-1">
           <label className="text-[9px] font-black uppercase tracking-widest text-app-mu">{t('time_slot')}</label>
-          <select
+          <select className="custom-select"
             value={filters.timeSlot}
             onChange={e => setFilters(f => ({ ...f, timeSlot: e.target.value, specificReturnTime: '' }))}
             className={selectClass}
@@ -180,7 +180,7 @@ const AttendanceReportPanel: React.FC = () => {
           <p className="text-[11px] font-bold uppercase tracking-widest text-app-mu">{t('no_records_match')}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto no-scrollbar">
           <table className="w-full">
             <thead>
               <tr className="border-b border-app-bd bg-app-bg/50">

@@ -32,9 +32,11 @@ connectDB();
 import { startTripReminderJob } from "./jobs/tripReminder";
 import { startNotificationJobs } from "./jobs/notificationJob";
 import { initCronJobs } from "./jobs/cronJobs";
+import { initAutoConfirmDispatcher } from "./jobs/autoConfirmDispatcher";
 startTripReminderJob();
 startNotificationJobs();
 initCronJobs();
+initAutoConfirmDispatcher();
 
 const app = express();
 const PORT = process.env.PORT || 5001;

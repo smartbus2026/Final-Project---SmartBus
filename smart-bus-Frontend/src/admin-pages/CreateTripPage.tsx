@@ -100,7 +100,7 @@ const CreateBusPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen space-y-8">
+    <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen space-y-8 no-scrollbar">
       
       {/* ── Header ── */}
       <div className="flex items-center gap-4">
@@ -195,7 +195,7 @@ const CreateBusPage: React.FC = () => {
     <div className="space-y-3">
       <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">{t('booking_opens_at')}</label>
       <div className="flex gap-2">
-        <select
+        <select className="custom-select"
           value={settings.booking_open_hour > 12 ? settings.booking_open_hour - 12 : settings.booking_open_hour === 0 ? 12 : settings.booking_open_hour}
           onChange={e => {
             const h = parseInt(e.target.value);
@@ -209,7 +209,7 @@ const CreateBusPage: React.FC = () => {
           ))}
         </select>
 
-        <select
+        <select className="custom-select"
           value={settings.booking_open_minute}
           onChange={e => setSettings({ ...settings, booking_open_minute: parseInt(e.target.value) })}
           className="flex-1 bg-app-card2 border border-app-bd rounded-xl px-3 py-3 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors text-center appearance-none cursor-pointer"
@@ -219,7 +219,7 @@ const CreateBusPage: React.FC = () => {
           ))}
         </select>
 
-        <select
+        <select className="custom-select"
           value={settings.booking_open_hour >= 12 ? "PM" : "AM"}
           onChange={e => {
             const isPM = e.target.value === "PM";
@@ -241,7 +241,7 @@ const CreateBusPage: React.FC = () => {
     <div className="space-y-3">
       <label className="text-[10px] font-black uppercase tracking-widest text-app-mu">{t('booking_closes_at')}</label>
       <div className="flex gap-2">
-        <select
+        <select className="custom-select"
           value={settings.booking_close_hour > 12 ? settings.booking_close_hour - 12 : settings.booking_close_hour === 0 ? 12 : settings.booking_close_hour}
           onChange={e => {
             const h = parseInt(e.target.value);
@@ -255,7 +255,7 @@ const CreateBusPage: React.FC = () => {
           ))}
         </select>
 
-        <select
+        <select className="custom-select"
           value={settings.booking_close_minute}
           onChange={e => setSettings({ ...settings, booking_close_minute: parseInt(e.target.value) })}
           className="flex-1 bg-app-card2 border border-app-bd rounded-xl px-3 py-3 text-[13px] text-app-tx font-bold outline-none focus:border-app-am transition-colors text-center appearance-none cursor-pointer"
@@ -265,7 +265,7 @@ const CreateBusPage: React.FC = () => {
           ))}
         </select>
 
-        <select
+        <select className="custom-select"
           value={settings.booking_close_hour >= 12 ? "PM" : "AM"}
           onChange={e => {
             const isPM = e.target.value === "PM";

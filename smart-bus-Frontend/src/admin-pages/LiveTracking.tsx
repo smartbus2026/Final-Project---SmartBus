@@ -153,7 +153,7 @@ const LiveTracking: React.FC = () => {
   const hasEmittingBuses = tripsWithLocations.length > 0;
 
   return (
-    <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen">
+    <div className="flex-1 bg-app-bg text-app-tx p-8 overflow-y-auto custom-scrollbar min-h-screen no-scrollbar">
       <div className="mb-8">
         <h1 className="text-2xl font-black uppercase tracking-widest text-app-tx">{t('live_tracking')}</h1>
         <p className="text-[10px] font-black text-app-mu uppercase tracking-[0.2em] mt-1">{t('real_time_fleet_monitoring')}</p>
