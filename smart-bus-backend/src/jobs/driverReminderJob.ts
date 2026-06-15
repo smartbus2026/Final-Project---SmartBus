@@ -52,7 +52,7 @@ export const startDriverReminderJob = () => {
       const now = new Date();
 
       // Load system settings (morning start time, return options, etc.)
-      const settings = await Settings.findOne();
+      const settings = await Settings.findOne() || { morningStartTime: '07:30 AM', defaultReturnTime: '15:30' };
 
       // Determine today (date part only)
       const startOfDay = new Date(now);

@@ -61,7 +61,12 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
     });
 
     socket.on("join-admins", () => {
+      socket.join("admin_alerts");
       socket.join("admins");
+    });
+
+    socket.on("join-driver-room", (driverId: string) => {
+      if (driverId) socket.join(`driver_${driverId}`);
     });
 
     socket.on("leave-admin-tracking", () => {
