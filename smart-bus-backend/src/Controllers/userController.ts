@@ -5,7 +5,7 @@ import Booking from "../models/Booking.model";
 // Get all users (admin)
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const users = await User.find().select("-password");
+    const users = await User.find({ isArchived: { $ne: true } }).select("-password");
     res.json(users);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -29,7 +29,7 @@ export const getProfile = async (req: Request, res: Response) => {
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
-    await User.findByIdAndDelete(req.params.id);
+    await User.findByIdAndUpdate(req.params.id, { isArchived: true });
     res.json({ message: "User deleted successfully" });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -57,7 +57,8 @@ export const getStudentAttendanceHistory = async (req: Request, res: Response) =
 
     const bookings = await Booking.find({
       user: studentId,
-      attendanceStatus: { $in: ["completed", "missed"] }
+      attendanceStatus: { $in: ["completed", "missed"] },
+      isArchived: { $ne: true }
     })
       .populate("route", "name")
       .sort({ date: -1 });

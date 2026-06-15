@@ -6,6 +6,7 @@ export interface ITrip extends Document {
   bus?: mongoose.Types.ObjectId;
   date: Date;
   time_slot: "morning" | "return_1530" | "return_1900";
+  specificReturnTime?: string; // optional exact return time e.g., "3:30 PM"
   bus_number: string;
   total_seats: number;
   booked_seats: number;
@@ -15,6 +16,9 @@ export interface ITrip extends Document {
     lng: number;
     last_updated: Date;
   };
+  isArchived: boolean;
+  driverReminderSent: boolean; // flag to avoid duplicate 1‑hour reminders
+  lateAlertSent: boolean; // flag to avoid duplicate late alerts
 }
 
 const tripSchema = new Schema<ITrip>({
@@ -28,6 +32,7 @@ const tripSchema = new Schema<ITrip>({
     enum: ["morning", "return_1530", "return_1900"],
     required: true
   },
+  specificReturnTime: { type: String }, // optional exact return time string like "3:30 PM"
 
   bus_number: { type: String, required: true },
   total_seats: { type: Number, required: true },
@@ -41,7 +46,10 @@ const tripSchema = new Schema<ITrip>({
     lat: Number,
     lng: Number,
     last_updated: Date
-  }
+  },
+  isArchived: { type: Boolean, default: false },
+  driverReminderSent: { type: Boolean, default: false }, // 1‑hour reminder flag
+  lateAlertSent: { type: Boolean, default: false } // late‑start alert flag
 }, { timestamps: true });
 
 // NOTE: Unique index removed — dispatch can create one Trip per bus+route+slot.

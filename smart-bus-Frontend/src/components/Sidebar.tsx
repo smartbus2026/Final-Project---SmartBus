@@ -39,6 +39,7 @@ const ADMIN_BOTTOM = [
 const DRIVER_NAV = [
   { id: "driverDashboard", path: "/driver/dashboard", labelKey: "nav_myTrips", icon: <Ic.Bus /> },
   { id: "liveTracking", path: "/driver/live-tracking", labelKey: "nav_liveTracking", icon: <Ic.Target /> },
+  { id: "tripHistory", path: "/driver/history", labelKey: "trip_history", icon: <Ic.Clock /> },
 ];
 
 const DRIVER_BOTTOM = [

@@ -17,7 +17,7 @@ const AdminDashboard: React.FC = () => {
   });
 
   // ── Demand aggregation state ──
-  const demandDate = "tomorrow";
+  const [demandDate, setDemandDate] = useState<string>("tomorrow");
   const [demands, setDemands] = useState<any[]>([]);
   const [demandLoading, setDemandLoading] = useState(true);
   const [selectedShift, setSelectedShift] = useState<"Morning" | "Return">("Morning");
@@ -279,8 +279,7 @@ const AdminDashboard: React.FC = () => {
   }, []);
 
   // ── Fetch demands whenever tab changes ──
-  useEffect(() => {
-    const fetchDemands = async () => {
+  const fetchDemands = async () => {
       setDemandLoading(true);
       try {
         const target = new Date();
@@ -295,6 +294,8 @@ const AdminDashboard: React.FC = () => {
         setDemandLoading(false);
       }
     };
+
+  useEffect(() => {
     fetchDemands();
   }, [demandDate]);
 
@@ -350,7 +351,7 @@ const AdminDashboard: React.FC = () => {
       setAssignments([{ busId: "", driverId: "" }]);
       
       // Refresh demands and trips instantly
-      setDemandDate(prev => prev);
+      fetchDemands();
       fetchAssignedTrips();
     } catch (err: any) {
       setDispatchMessage({ type: "error", text: err.response?.data?.message || t("dispatch_failed") });

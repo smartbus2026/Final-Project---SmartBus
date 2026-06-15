@@ -15,6 +15,7 @@ const TAB_KEYS: Record<TripStatus, string> = {
 export default function MyTripsPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<TripStatus>("upcoming");
+  const [filterDate, setFilterDate] = useState<string>("");
   const [bookings, setBookings] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
@@ -38,10 +39,26 @@ export default function MyTripsPage() {
         Api.get("/routes"),
         Api.get("/settings"),
       ]);
-      setBookings(bRes.data?.data?.bookings || []);
+
+      console.log("🔥 RAW BOOKINGS RESPONSE:", bRes.data);
+
+      // هنا إحنا بنصطاد الداتا من أي مكان الباك إند بيبعتها فيه
+      let fetchedBookings = bRes.data?.data?.bookings || 
+                            bRes.data?.bookings || 
+                            bRes.data?.data || 
+                            bRes.data || [];
+                            
+      // تأكيد إنها Array عشان الكود ميضربش
+      if (!Array.isArray(fetchedBookings)) {
+        fetchedBookings = [];
+      }
+
+      setBookings(fetchedBookings);
       setRoutes(rRes.data?.data || []);
-      const s = sRes.data?.data?.settings;
+      
+      const s = sRes.data?.data?.settings || sRes.data?.settings;
       if (s) setSettings(s);
+      
     } catch (err) {
       console.error("Failed to fetch", err);
     } finally {
@@ -156,33 +173,56 @@ export default function MyTripsPage() {
 
   const mappedTrips = bookings.map((b) => {
     const bd = b.date ? new Date(b.date) : null;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const isPast = bd ? bd < today : false;
+    
+    // Default to upcoming
     let currentStatus: TripStatus = "upcoming";
-    if (b.status === "cancelled") currentStatus = "cancelled";
-    else if (b.attendanceStatus === "completed") currentStatus = "completed";
-    else if (b.attendanceStatus === "missed") currentStatus = "missed";
-    return { raw: b, id: b._id, status: currentStatus, date: bd ? bd.toDateString() : t("tba"),
-      from: b.route?.name || t("route"), timeSlot: b.timeSlot, returnTime: b.timeSlot === "Return" ? (b.specificReturnTime || t("tba")) : "N/A",
-      bookingStatus: b.status, attendanceStatus: b.attendanceStatus };
+    
+    // Explicit overrides based strictly on backend status
+    if (b.status === "completed" || b.attendanceStatus === "completed") {
+      currentStatus = "completed";
+    } else if (b.status === "missed" || b.attendanceStatus === "missed") {
+      currentStatus = "missed";
+    } else if (b.status === "cancelled" || b.status === "cancelled_by_admin") {
+      currentStatus = "cancelled";
+    } else if (["pending", "booked", "assigned", "active", "in-progress"].includes(b.status)) {
+      currentStatus = "upcoming";
+    }
+
+    return { 
+      raw: b, 
+      id: b._id, 
+      status: currentStatus, 
+      date: bd ? bd.toDateString() : t("tba"),
+      from: b.route?.name || t("route"), 
+      timeSlot: b.timeSlot, 
+      returnTime: b.timeSlot === "Return" ? (b.specificReturnTime || t("tba")) : "N/A",
+      bookingStatus: b.status, 
+      attendanceStatus: b.attendanceStatus 
+    };
+  });
+
+  const dateFilteredTrips = mappedTrips.filter(t => {
+    if (!filterDate) return true;
+    return t.raw.date && new Date(t.raw.date).toISOString().split('T')[0] === filterDate;
   });
 
   const counts = {
-    upcoming:  mappedTrips.filter(t => t.status === "upcoming").length,
-    completed: mappedTrips.filter(t => t.status === "completed").length,
-    missed:    mappedTrips.filter(t => t.status === "missed").length,
-    cancelled: mappedTrips.filter(t => t.status === "cancelled").length,
+    upcoming:  dateFilteredTrips.filter(t => t.status === "upcoming").length,
+    completed: dateFilteredTrips.filter(t => t.status === "completed").length,
+    missed:    dateFilteredTrips.filter(t => t.status === "missed").length,
+    cancelled: dateFilteredTrips.filter(t => t.status === "cancelled").length,
   };
-  const list = mappedTrips.filter(t => t.status === tab);
+
+  const list = dateFilteredTrips.filter(t => t.status === tab);
 
   const renderBadge = (s: string) => {
     const base = "inline-flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-full border uppercase tracking-wider";
-    if (s === "pending")   return <span className={`${base} bg-blue-500/10 text-blue-400 border-blue-500/20`}>⏳ {t("pending")}</span>;
+    if (s === "pending" || s === "booked") return <span className={`${base} bg-blue-500/10 text-blue-400 border-blue-500/20`}>⏳ {t(s === "booked" ? "booked" : "pending")}</span>;
     if (s === "assigned")  return <span className={`${base} bg-app-am/10 text-app-am border-app-am/20`}>🚌 {t("bus_assigned")}</span>;
     if (s === "active")    return <span className={`${base} bg-app-ok/10 text-app-ok border-app-ok/20`}>✓ {t("badge_active")}</span>;
-    if (s === "completed") return <span className={`${base} bg-blue-500/10 text-blue-400 border-blue-500/20`}>✓ {t("badge_done")}</span>;
+    if (s === "completed") return <span className={`${base} bg-app-ok/10 text-app-ok border-app-ok/20`}>✓ {t("badge_done")}</span>;
     if (s === "missed")    return <span className={`${base} bg-red-500/10 text-red-400 border-red-500/20`}>✗ {t("missed")}</span>;
-    return <span className={`${base} bg-red-500/10 text-red-400 border-red-500/20`}>{t("cancelled")}</span>;
+    return <span className={`${base} bg-neutral-500/10 text-neutral-400 border-neutral-500/20`}>{t("cancelled")}</span>;
   };
 
   if (isLoading) return (
@@ -204,16 +244,38 @@ export default function MyTripsPage() {
         </div>
       )}
 
-      {/* Tab Bar */}
-      <div className="flex w-fit gap-0.5 rounded-xl border border-app-bd bg-app-card2 p-0.5 mb-8 shadow-inner">
-        {(["upcoming", "completed", "missed", "cancelled"] as TripStatus[]).map((tabKey) => (
-          <button key={tabKey} onClick={() => setTab(tabKey)}
-            className={`cursor-pointer rounded-lg px-5 py-2 text-xs font-bold transition-all
-              ${tab === tabKey ? "bg-app-card text-app-am border border-app-bd shadow-sm" : "text-app-mu hover:text-app-tx"}`}>
-            {t(TAB_KEYS[tabKey])}
-            <span className="ml-1.5 opacity-40 text-[10px]">({counts[tabKey]})</span>
-          </button>
-        ))}
+      {/* Filters & Tab Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        {/* Tab Bar */}
+        <div className="flex w-fit gap-0.5 rounded-xl border border-app-bd bg-app-card2 p-0.5 shadow-inner">
+          {(["upcoming", "completed", "missed", "cancelled"] as TripStatus[]).map((tabKey) => (
+            <button key={tabKey} onClick={() => setTab(tabKey)}
+              className={`cursor-pointer rounded-lg px-5 py-2 text-xs font-bold transition-all
+                ${tab === tabKey ? "bg-app-card text-app-am border border-app-bd shadow-sm" : "text-app-mu hover:text-app-tx"}`}>
+              {t(TAB_KEYS[tabKey])}
+              <span className="ml-1.5 opacity-40 text-[10px]">({counts[tabKey]})</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Date Filter */}
+        <div className="flex items-center gap-2">
+          <input 
+            type="date" 
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="bg-app-card2 border border-app-bd rounded-xl px-4 py-2 text-xs text-app-tx outline-none focus:border-app-am transition-all cursor-pointer"
+          />
+          {filterDate && (
+            <button 
+              onClick={() => setFilterDate("")}
+              className="p-2 flex items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all"
+              title={t("clear_filter", "Clear")}
+            >
+              <Ic.X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Cards */}
@@ -278,7 +340,7 @@ export default function MyTripsPage() {
                     </div>
                   )}
 
-                  {trip.bookingStatus === "pending" ? (
+                  {["pending", "booked"].includes(trip.bookingStatus) ? (
                     <div className="flex gap-2">
                       <button onClick={() => windowOpen && openEdit(trip.raw)} disabled={!windowOpen}
                         title={!windowOpen ? t("only_during_window") : t("edit_booking_title")}

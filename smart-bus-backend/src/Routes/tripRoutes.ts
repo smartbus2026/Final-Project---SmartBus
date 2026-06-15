@@ -13,7 +13,8 @@ import {
   updateLocation,
   endTrip,
   getMonthlyQuota,
-  bulkDeleteTrips
+  bulkDeleteTrips,
+  getDriverHistory
 } from "../Controllers/tripController";
 
 const router = express.Router();
@@ -21,9 +22,11 @@ const router = express.Router();
 // All authenticated users
 router.get("/", protect, getTrips);
 router.get("/driver-trips", protect, allowRoles("driver"), getDriverTrips);
+router.get("/my-history", protect, allowRoles("driver"), getDriverHistory);
 
 // Admin only
 router.get("/quota", protect, allowRoles("admin"), getMonthlyQuota);
+router.get("/driver/:driverId/history", protect, allowRoles("admin"), getDriverHistory);
 
 router.get("/:id", protect, getTripById);
 router.post("/", protect, allowRoles("admin"), createTrip);

@@ -10,6 +10,7 @@ export interface IBooking extends Document {
   busId?: mongoose.Types.ObjectId;
   attendanceStatus: "pending" | "completed" | "missed";
   attended: boolean;
+  isArchived: boolean;
 }
 
 const bookingSchema = new Schema<IBooking>({
@@ -29,7 +30,8 @@ const bookingSchema = new Schema<IBooking>({
     enum: ["pending", "completed", "missed"],
     default: "pending"
   },
-  attended: { type: Boolean, default: false }
+  attended: { type: Boolean, default: false },
+  isArchived: { type: Boolean, default: false }
 }, { timestamps: true });
 
 bookingSchema.index({ user: 1, route: 1, date: 1, timeSlot: 1 }, { unique: true });

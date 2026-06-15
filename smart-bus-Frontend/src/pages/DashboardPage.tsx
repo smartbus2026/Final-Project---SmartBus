@@ -168,69 +168,7 @@ export default function DashboardPage({ go }: { go?: (p: Page) => void }) {
             </div>
           )}
 
-          <div className="bg-app-card border border-app-bd rounded-2xl overflow-hidden shadow-sm">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-app-bd">
-              <h3 className="text-[11px] font-black uppercase tracking-widest text-app-tx flex items-center gap-2">
-                <span className="text-app-am"><Ic.Calendar size={14} /></span> {t("recent_bookings")}
-              </h3>
-              <button
-                onClick={() => navigate("/my-trips")}
-                className="text-[10px] text-app-am font-black uppercase tracking-widest hover:underline"
-              >
-                {t("dashboard_view_all")}
-              </button>
-            </div>
-
-            <div className="overflow-x-auto no-scrollbar">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-app-bd bg-app-bg/50">
-                    {[t("route"), t("dashboard_table_time_date"), t("dashboard_table_seat"), t("status")].map(h => (
-                      <th key={h} className="px-6 py-3 text-left text-[10px] font-black text-app-mu uppercase tracking-widest">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-app-bd">
-                  {bookings.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-8 text-center text-[10px] font-black text-app-mu uppercase tracking-widest">
-                        {t("no_bookings_yet")}
-                      </td>
-                    </tr>
-                  ) : (
-                    bookings.slice(0, 4).map((b) => (
-                      <tr key={b._id} className="hover:bg-app-card2/40 transition-colors group">
-                        <td className="px-6 py-4">
-                          <span className="flex items-center gap-2 text-[12px] font-bold text-app-tx">
-                            <span className="text-app-am"><Ic.Route size={14} /></span>
-                            {b.route?.name || t("unknown_route")}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-[11px] text-app-mu font-medium uppercase">
-                          {formatTimeSlot(b)}
-                          {b.date ? ` • ${new Date(b.date).toLocaleDateString("en-GB")}` : ""}
-                        </td>
-                        <td className="px-6 py-4 text-[12px] font-black text-app-tx">
-                          —
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                            b.status === "active" || b.status === "in-progress" || b.status === "in_progress" ? "bg-app-ok/10 text-app-ok border-app-ok/20" :
-                            b.status === "assigned"   ? "bg-app-am/10 text-app-am border-app-am/20" :
-                            b.status === "pending"    ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                            b.status === "cancelled"  ? "bg-red-500/10 text-red-400 border-red-500/20" :
-                                                        "bg-app-bd text-app-mu border-app-bd"
-                          }`}>
-                            {t(statusKey(b.status))}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          {/* Recent bookings table removed for simplicity */}
         </div>
 
         <div className="space-y-6">

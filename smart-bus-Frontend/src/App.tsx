@@ -19,6 +19,7 @@ import TrackBusPage from "./pages/TrackBusPage";
 import BookTripPage from "./pages/BookTripPage";
 import DriverLayout from "./pages/DriverLayout";
 import DriverTrips from "./pages/DriverTrips";
+import DriverHistory from "./pages/DriverHistory";
 import DriverLiveTracking from "./pages/DriverLiveTracking";
 
 // --- Admin Pages ---
@@ -35,8 +36,10 @@ import SettingsPage from "./admin-pages/SettingsPage";
 import StudentSettingsPage from "./pages/SettingsPage";
 import AdminProfilePage from "./admin-pages/AdminProfilePage";
 import StudentProfile from "./admin-pages/StudentProfile";
+import DriverProfile from "./admin-pages/DriverProfile";
 
 import Chatbot from "./components/Chatbot";
+import NotificationToast from "./components/NotificationToast";
 
 // --- Types ---
 type Role = "student" | "admin" | "driver" | null;
@@ -101,14 +104,9 @@ export default function App() {
         <Route path="/welcome" element={<WelcomePage theme={theme} toggleTheme={toggleTheme} />} />
         <Route path="/login" element={<Login onSuccess={(detectedRole: Role) => handleSetRole(detectedRole)} />} />
         <Route
-          path="/"
-          element={
-            role === "admin" ? <Navigate to="/admin/dashboard" replace /> :
-              role === "student" ? <Navigate to="/dashboard" replace /> :
-                role === "driver" ? <Navigate to="/driver/dashboard" replace /> :
-                  <Navigate to="/signup" replace />
-          }
-        />
+  path="/"
+  element={role === "admin" ? <Navigate to="/admin/dashboard" replace /> : role === "student" ? <Navigate to="/dashboard" replace /> : role === "driver" ? <Navigate to="/driver/dashboard" replace /> : <Navigate to="/signup" replace />}
+/>
 
         {/* --- Shared Layout --- */}
         <Route element={<AppLayout theme={theme} setTheme={toggleTheme} role={role} onLogout={() => handleSetRole(null)} />}>
@@ -140,11 +138,17 @@ export default function App() {
           <Route path="/admin/settings"      element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><SettingsPage /></Guard>} />
           <Route path="/admin/profile"       element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><AdminProfilePage /></Guard>} />
           <Route path="/admin/students/:studentId" element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><StudentProfile /></Guard>} />
+          <Route path="/admin/drivers/:driverId" element={<Guard role={role} allowed={["admin"]} redirectTo="/login"><DriverProfile /></Guard>} />
 
           {/* Driver Routes */}
           <Route element={<Guard role={role} allowed={["driver"]} redirectTo="/login"><DriverLayout /></Guard>}>
             <Route path="/driver/dashboard" element={<DriverTrips />} />
             <Route path="/driver/live-tracking" element={<DriverLiveTracking />} />
+            <Route path="/driver/notifications" element={<NotificationsPage />} />
+            <Route path="/driver/history" element={<DriverHistory />} />
+            <Route path="/driver/profile" element={<ProfilePage />} />
+            <Route path="/driver/settings" element={<StudentSettingsPage />} />
+            <Route path="/driver/support" element={<SupportPage />} />
           </Route>
 
         </Route>
@@ -153,6 +157,7 @@ export default function App() {
 
       </Routes>
       {role === "student" && <Chatbot />}
+      {role === "student" && <NotificationToast />}
     </BrowserRouter>
   );
 }

@@ -140,13 +140,6 @@ export default function DriverTrips() {
                     })}
                   />
                   <InfoRow
-                    icon={<Ic.Time size={13} />}
-                    label={t('departure')}
-                    value={new Date(trip.scheduled_time ?? trip.date).toLocaleTimeString(dateLocale, {
-                      hour: '2-digit', minute: '2-digit'
-                    })}
-                  />
-                  <InfoRow
                     icon={<Ic.Users size={13} />}
                     label={t('booked_students')}
                     value={t('passengers_count', { count: passengerCount })}

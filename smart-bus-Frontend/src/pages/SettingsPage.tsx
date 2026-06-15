@@ -12,7 +12,6 @@ interface PasswordForm {
 
 interface NotificationPrefs {
   bookingAlerts: boolean;
-  busArrival: boolean;
 }
 
 const inputClass = "w-full rounded-xl border border-app-bd bg-app-card2 px-4 py-3 text-[13px] text-app-tx outline-none transition-all focus:border-app-am focus:ring-1 focus:ring-app-am/20 placeholder:text-app-mu disabled:opacity-50 disabled:cursor-not-allowed";
@@ -33,7 +32,7 @@ export default function SettingsPage() {
   });
 
   const [passForm, setPassForm] = useState<PasswordForm>({ current: "", newPass: "", confirm: "" });
-  const [prefs, setPrefs] = useState<NotificationPrefs>({ bookingAlerts: true, busArrival: true });
+  const [prefs, setPrefs] = useState<NotificationPrefs>({ bookingAlerts: true });
 
   useEffect(() => {
     const currentRole = localStorage.getItem("role");
@@ -130,7 +129,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className={labelClass}>{t("student_id")}</label>
+              <label className={labelClass}>{role === "driver" ? t("driver_id", "Driver ID") : t("student_id")}</label>
               <input
                 type="text"
                 className={inputClass}
@@ -209,7 +208,6 @@ export default function SettingsPage() {
           <div className="space-y-4">
             {[
               { id: "bookingAlerts", title: t("booking_alerts"), desc: t("booking_alerts_desc_window") },
-              { id: "busArrival", title: t("bus_arrival"), desc: t("bus_arrival_desc") },
             ].map(item => (
               <div key={item.id} className="flex items-center justify-between">
                 <div>

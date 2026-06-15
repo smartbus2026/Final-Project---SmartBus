@@ -510,6 +510,15 @@ const UsersPage: React.FC = () => {
                           <Ic.Users size={20} />
                         </button>
                       )}
+                      {user.role === 'driver' && (
+                        <button
+                          onClick={() => navigate(`/admin/drivers/${user._id}`)}
+                          className="p-2 rounded-lg text-app-mu hover:text-blue-500 hover:bg-blue-500/10 transition-all duration-200"
+                          title="View Driver Profile"
+                        >
+                          <Ic.Users size={20} />
+                        </button>
+                      )}
                       <button
                         onClick={() => setEditingUser(user)}
                         className="p-2 rounded-lg text-app-mu hover:text-emerald-500 hover:bg-emerald-500/10 transition-all duration-200"

@@ -153,7 +153,7 @@ export const createTrip = async (req: Request, res: Response) => {
 // Get All Trips — supports optional ?date=tomorrow&?status=scheduled
 export const getTrips = async (req: Request, res: Response) => {
   try {
-    const filter: any = {};
+    const filter: any = { isArchived: { $ne: true } };
 
     if (req.query.status) {
       filter.status = req.query.status;
@@ -192,7 +192,8 @@ export const getDriverTrips = async (req: Request, res: Response) => {
 
     const filter: any = { 
       driver: driverId,
-      date: { $gte: startOfToday }
+      date: { $gte: startOfToday },
+      isArchived: { $ne: true }
     };
 
     // Default: only active and scheduled trips
@@ -252,6 +253,81 @@ export const getDriverTrips = async (req: Request, res: Response) => {
           scheduled_time: trip.date instanceof Date
             ? trip.date.toISOString()
             : trip.date,
+        };
+      })
+    );
+
+    res.json({ results: enrichedTrips.length, data: enrichedTrips });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get driver trip history with filters
+export const getDriverHistory = async (req: Request, res: Response) => {
+  try {
+    const driverId = req.params.driverId || (req as any).user?._id;
+    if (!driverId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { date, timeSlot, specificReturnTime } = req.query;
+
+    const filter: any = { 
+      driver: driverId,
+      isArchived: { $ne: true }
+    };
+
+    if (date) {
+      const startOfDay = new Date(date as string);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date as string);
+      endOfDay.setHours(23, 59, 59, 999);
+      filter.date = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    if (timeSlot && timeSlot !== 'All' && timeSlot !== '') {
+      if (timeSlot === 'Morning') {
+        filter.time_slot = 'morning';
+      } else if (timeSlot === 'Return') {
+        if (specificReturnTime && specificReturnTime !== 'All' && specificReturnTime !== '') {
+          filter.time_slot = (specificReturnTime === '19:00' || specificReturnTime === '7:00 PM') ? 'return_1900' : 'return_1530';
+        } else {
+          filter.time_slot = { $in: ['return_1530', 'return_1900'] };
+        }
+      }
+    }
+
+    let trips = await Trip.find(filter)
+      .populate("route")
+      .populate("bus")
+      .sort({ date: -1 })
+      .lean();
+
+    const Booking = (await import("../models/Booking.model")).default;
+    const slotMap: Record<string, string[]> = {
+      morning:      ["Morning"],
+      return_1530:  ["Return"],
+      return_1900:  ["Return"],
+    };
+
+    const enrichedTrips = await Promise.all(
+      trips.map(async (trip: any) => {
+        const dayStart = new Date(trip.date);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(trip.date);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        const matchingSlots = slotMap[trip.time_slot] ?? [];
+
+        const usersCount = await Booking.countDocuments({
+          route:    trip.route?._id ?? trip.route,
+          date:     { $gte: dayStart, $lte: dayEnd },
+          timeSlot: { $in: matchingSlots },
+          status:   { $in: ["pending", "assigned", "active", "completed"] },
+        });
+
+        return {
+          ...trip,
+          usersCount,
         };
       })
     );
@@ -423,7 +499,7 @@ export const bulkDeleteTrips = async (req: Request, res: Response) => {
           if (trip.time_slot === "return_1530") query.specificReturnTime = { $in: ["15:30", "3:30 PM", "15:00", "3:00 PM"] };
           
           await Booking.updateMany(query, { $set: { status: "pending" }, $unset: { busId: "" } });
-          await Trip.findByIdAndDelete(id);
+          await Trip.findByIdAndUpdate(id, { isArchived: true });
         }
       } else if (typeof id === "string" && id.includes("-")) {
         // Fallback: Trip document doesn't exist, revert Bookings using the composite string
@@ -462,14 +538,14 @@ export const deleteTrip = async (req: Request, res: Response) => {
         .map((id: string) => new mongoose.Types.ObjectId(id.trim()));
 
       if (idArray.length > 0) {
-        await Trip.deleteMany({ _id: { $in: idArray } });
+        await Trip.updateMany({ _id: { $in: idArray } }, { isArchived: true });
         return res.json({ message: "Grouped trips deleted successfully" });
       }
     }
 
     // Fallback for single standard ID deletion
     if (mongoose.Types.ObjectId.isValid(req.params.id as string)) {
-      const trip = await Trip.findByIdAndDelete(req.params.id);
+      const trip = await Trip.findByIdAndUpdate(req.params.id, { isArchived: true });
       if (!trip) return res.status(404).json({ message: "Trip not found" });
       return res.json({ message: "Trip deleted successfully" });
     }
@@ -565,7 +641,8 @@ export const getMonthlyQuota = async (req: Request, res: Response) => {
     const queryFilter = {
       departure_time: { $gte: startDate, $lte: endDate },
       bus_number: { $exists: true, $nin: [null, ""] },
-      status: { $ne: 'cancelled' }
+      status: { $ne: 'cancelled' },
+      isArchived: { $ne: true }
     };
 
     // 2. Dynamic Count: Count trips that have actively consumed a bus

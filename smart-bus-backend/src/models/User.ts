@@ -8,6 +8,7 @@ export interface IUser extends Document {
   student_id?: string; 
   profile_pic?: string;
   phone_number?: string;
+  isArchived: boolean;
 }
 
 const userSchema = new Schema<IUser>({
@@ -17,7 +18,8 @@ const userSchema = new Schema<IUser>({
   role: { type: String, enum: ["student", "admin", "driver"], default: "student" },
   student_id: { type: String, unique: true, sparse: true },
   profile_pic: { type: String, default: "default-avatar.png" },
-  phone_number: { type: String }
+  phone_number: { type: String },
+  isArchived: { type: Boolean, default: false }
 }, { timestamps: true });
 
 export default mongoose.model<IUser>("User", userSchema);

@@ -143,11 +143,9 @@ export const createBooking = async (req: Request, res: Response) => {
 export const getMyBookings = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
+    const userId = user._id || user.id;
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const rawBookings = await Booking.find({ user: user.id, date: { $gte: todayStart } })
+    const rawBookings = await Booking.find({ user: userId, isArchived: { $ne: true } })
       .populate("route")
       .lean()
       .sort("-createdAt");
@@ -159,23 +157,24 @@ export const getMyBookings = async (req: Request, res: Response) => {
         time_slot = b.specificReturnTime === "19:00" ? "return_1900" : "return_1530";
       }
 
-      // Match the Trip based on route, date, and timeslot.
-      // CRITICAL FIX: Ensure we include 'active' and 'in_progress' so the trip doesn't vanish when started!
-      const trip = await Trip.findOne({
-        route: b.route._id,
-        date: {
-          $gte: new Date(new Date(b.date).setHours(0, 0, 0, 0)),
-          $lt: new Date(new Date(b.date).setHours(23, 59, 59, 999))
-        },
-        time_slot: time_slot,
-        status: { $in: ['scheduled', 'active', 'in-progress', 'in_progress'] }
-      }).populate({ path: "route", populate: { path: "stops", model: "Stop" } }).lean();
+      let trip = null;
+      // Null-check b.route and b.date to prevent crashes on corrupted/deleted references
+      if (b.route && b.date) {
+        const routeId = b.route._id ? b.route._id : b.route;
+        
+        trip = await Trip.findOne({
+          route: routeId,
+          date: {
+            $gte: new Date(new Date(b.date).setHours(0, 0, 0, 0)),
+            $lt: new Date(new Date(b.date).setHours(23, 59, 59, 999))
+          },
+          time_slot: time_slot,
+          isArchived: { $ne: true }
+        }).populate({ path: "route", populate: { path: "stops", model: "Stop" } }).lean();
+      }
 
       return { ...b, trip: trip || null };
     }));
-
-    // VERIFICATION LOG REQUIRED BY USER
-    console.log("VERIFY: Fetched Bookings Data (with attached Trips):", bookings);
 
     res.status(200).json({
       status: "success",
@@ -184,13 +183,14 @@ export const getMyBookings = async (req: Request, res: Response) => {
     });
 
   } catch (err: any) {
+    console.error("Error in getMyBookings:", err);
     res.status(500).json({ status: "error", error: err.message });
   }
 };
 
 export const getAllBookings = async (req: Request, res: Response) => {
   try {
-    const bookings = await Booking.find()
+    const bookings = await Booking.find({ isArchived: { $ne: true } })
       .populate("user", "name email")
       .populate("route", "name");
 
@@ -233,6 +233,7 @@ export const cancelBooking = async (req: Request, res: Response) => {
     }
 
     booking.status = "cancelled";
+    booking.isArchived = true;
     await booking.save();
 
     await Notification.create({
@@ -420,7 +421,7 @@ export const getTodayBookings = async (req: Request, res: Response) => {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
 
-    const bookings = await Booking.find({ date: { $gte: todayStart, $lte: todayEnd } })
+    const bookings = await Booking.find({ date: { $gte: todayStart, $lte: todayEnd }, isArchived: { $ne: true } })
       .populate("user", "name email")
       .populate("route", "name")
       .sort("createdAt");
@@ -661,46 +662,54 @@ export const dispatchBus = async (req: Request, res: Response) => {
                 b => b.route?.toString() === routeId
               ).length;
 
+              // Filter ONLY on the unique compound index fields (route + date + time_slot).
+              // DO NOT add driver, isArchived, or status here — those are not part of the
+              // unique index and would cause the filter to miss existing archived trips,
+              // triggering an upsert that collides with the index (E11000).
               return await Trip.findOneAndUpdate(
                 {
                   route:     routeId,
-                  driver:    driverId,
                   date:      targetDate,
                   time_slot: tripTimeSlot,
                 },
                 {
                   $set: {
+                    driver:       driverId,   // update driver in case it changed
                     bus:          busId,
                     bus_number:   busCode,
                     total_seats:  capacity,
                     booked_seats: passengerCount,
                     status:       "scheduled",
+                    isArchived:   false,       // revive soft-deleted trip instead of duplicating
                   },
                   $setOnInsert: {
                     route:     routeId,
-                    driver:    driverId,
                     date:      targetDate,
                     time_slot: tripTimeSlot,
                   },
                 },
-                { upsert: true, new: true }
+                { upsert: true, returnDocument: "after" } // returnDocument replaces deprecated `new: true`
               );
             })
           );
 
           // 3. Create Notifications
           const notifMessage = `Your bus has been assigned! Bus No: ${busCode} is now covering your route.`;
-          await Promise.all(
-            userIds.map(userId =>
-              Notification.create({
-                user: userId,
-                title: "Bus Assigned",
-                message: notifMessage,
-                type: "trip",
-                read: false
-              })
-            )
-          );
+          try {
+            await Promise.all(
+              userIds.map(userId =>
+                Notification.create({
+                  user: userId,
+                  title: "Bus Assigned",
+                  message: notifMessage,
+                  type: "trip",
+                  read: false
+                })
+              )
+            );
+          } catch (notifErr) {
+            console.error("Failed to create database notifications for bus assignment:", notifErr);
+          }
 
           const socketEmissionsList = userIds.map(userId => ({
             userId,

@@ -798,6 +798,21 @@ const en = {
   loading_trips_page: "Loading Trips...",
 
   // Language switcher
+  driver_portal: "Driver Portal",
+  trip_history: "Trip History",
+  all: "All",
+  time_1530: "3:30 PM",
+  time_1900: "7:00 PM",
+  morning_shift: "Morning (7:30 AM)",
+  return_1530_shift: "Return (3:30 PM)",
+  return_1900_shift: "Return (7:00 PM)",
+  driver_not_found: "Driver not found",
+  failed_load_driver: "Failed to load driver profile",
+  loading_driver: "Loading driver...",
+  back_to_users: "Back to Users",
+  view_driver_past_trips: "View assigned and completed trips for this driver",
+  view_past_trips: "View your past and completed trips",
+
   text_direction_rtl: "RTL",
   text_direction_ltr: "LTR",
 };

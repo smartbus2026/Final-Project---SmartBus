@@ -75,12 +75,20 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
   }, [searchQuery, isAdmin]);
 
   const routeMeta = META_KEYS[location.pathname];
+  let defaultSub = t("student");
+  
+  if (role === "admin") {
+    defaultSub = t("admin");
+  } else if (role === "driver") {
+    defaultSub = t("driver_portal", "Driver Portal");
+  }
+
   const { title, sub } = routeMeta
     ? { title: t(routeMeta.title), sub: t(routeMeta.sub) }
     : {
-    title: t("dashboard"),
-    sub: isAdmin ? t("topbar_adminPanel") : t("topbar_studentPortal"),
-  };
+        title: t("dashboard"),
+        sub: defaultSub,
+      };
 
   // ── Live user profile ──────────────────────────────────────────────────────
   const [user, setUser] = useState({
@@ -120,7 +128,8 @@ export default function Topbar({ theme, setTheme, onMenu, role }: Props) {
     if (!token) return;
     try {
       const res = await Api.get("/notifications");
-setNotifs(res.data?.data?.notifications || []);    } catch {}
+      setNotifs(res.data?.data?.notifications || []);
+    } catch {}
   }, []);
 
   // Fetch on mount and every 60 seconds
@@ -132,31 +141,48 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
 
   useEffect(() => {
     // Re-join the correct room whenever user._id or role is resolved
-    if (isAdmin) {
+    if (role === "admin") {
       socket.emit("join-admins");
+    } else if (role === "driver" && user._id) {
+      socket.emit("join-driver-room", user._id);
     } else if (user._id) {
       socket.emit("join-user-room", user._id);
     }
 
     const handleNewNotif = (notif: any) => {
-      setNotifs(prev => [{
-        _id: notif._id || Date.now().toString(),
-        title: notif.title || t("topbar_newAlert"),
-        message: notif.message || "",
-        read: false,
-        createdAt: notif.createdAt || new Date().toISOString(),
-      }, ...prev]);
+      setNotifs((prev) => [
+        {
+          _id: notif._id || Date.now().toString(),
+          title: notif.title || t("topbar_newAlert"),
+          message: notif.message || "",
+          read: false,
+          createdAt: notif.createdAt || new Date().toISOString(),
+        },
+        ...prev,
+      ]);
     };
 
-    // Listen to both naming conventions for safety
-    socket.on("newNotification", handleNewNotif);
-    socket.on("new_notification", handleNewNotif);
+    // Role‑based socket listeners
+    if (role === "driver") {
+      socket.on("driver_reminder", handleNewNotif);
+      socket.on("driver_late_alert", handleNewNotif);
+    } else if (role === "admin") {
+      socket.on("driver_late_alert_admin", handleNewNotif);
+      // Add other admin events here if needed
+    } else if (role === "student") {
+      socket.on("newNotification", handleNewNotif);
+      socket.on("new_notification", handleNewNotif);
+    }
 
     return () => {
+      // Clean up all possible listeners
+      socket.off("driver_reminder", handleNewNotif);
+      socket.off("driver_late_alert", handleNewNotif);
+      socket.off("driver_late_alert_admin", handleNewNotif);
       socket.off("newNotification", handleNewNotif);
       socket.off("new_notification", handleNewNotif);
     };
-  }, [user._id, isAdmin, t]);
+  }, [user._id, isAdmin, role, t]);
 
   const unreadCount = notifs.filter((n) => !n.read).length;
 
@@ -178,7 +204,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
   };
 
   const closeDrops = () => { setNd(false); setUd(false); };
-  const dropClass = "absolute right-0 mt-3 overflow-hidden rounded-2xl border border-app-bd/50 bg-app-card shadow-2xl animate-in fade-in zoom-in duration-200";
+  const dropClass = "absolute ltr:right-0 rtl:left-0 ltr:origin-top-right rtl:origin-top-left mt-3 overflow-hidden rounded-2xl border border-app-bd/50 bg-app-card shadow-2xl animate-in fade-in zoom-in duration-200";
 
   return (
     <header
@@ -227,7 +253,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
             
             {/* Search Dropdown */}
             {searchQuery.length >= 2 && (
-              <div className="absolute top-full mt-2 left-0 w-full rounded-2xl border border-app-bd/50 bg-app-card shadow-2xl z-50 overflow-hidden">
+              <div className="absolute top-full mt-2 ltr:left-0 rtl:right-0 w-full rounded-2xl border border-app-bd/50 bg-app-card shadow-2xl z-50 overflow-hidden ltr:origin-top-left rtl:origin-top-right animate-in fade-in zoom-in duration-200">
                 <div className="max-h-64 overflow-y-auto custom-scrollbar no-scrollbar">
                   {isSearching ? (
                     <div className="p-4 text-center text-[10px] font-bold text-app-mu uppercase tracking-widest">{t("topbar_searching")}</div>
@@ -325,7 +351,7 @@ setNotifs(res.data?.data?.notifications || []);    } catch {}
                 )}
               </div>
               <button
-                onClick={() => { navigate(isAdmin ? "/admin/notifications" : "/notifications"); setNd(false); }}
+                onClick={() => { navigate(isAdmin ? "/admin/notifications" : role === "driver" ? "/driver/notifications" : "/notifications"); setNd(false); }}
                 className="w-full border-t border-app-bd/30 py-3 text-center text-[11px] font-black uppercase tracking-widest text-app-am hover:bg-app-am hover:text-white transition-all"
               >
                 {t("topbar_seeAllNotifications")}

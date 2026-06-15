@@ -764,6 +764,21 @@ const ar = {
   showing_trips_for: "عرض {{count}} رحلة لـ {{date}}",
   loading_trips_page: "جاري تحميل الرحلات...",
 
+  driver_portal: "بوابة السائق",
+  trip_history: "سجل الرحلات",
+  all: "الكل",
+  time_1530: "3:30 م",
+  time_1900: "7:00 م",
+  morning_shift: "صباحي (7:30 ص)",
+  return_1530_shift: "عودة (3:30 م)",
+  return_1900_shift: "عودة (7:00 م)",
+  driver_not_found: "السائق غير موجود",
+  failed_load_driver: "فشل تحميل ملف السائق",
+  loading_driver: "جاري تحميل السائق...",
+  back_to_users: "الرجوع إلى المستخدمين",
+  view_driver_past_trips: "عرض الرحلات المعينة والمكتملة لهذا السائق",
+  view_past_trips: "عرض رحلاتك السابقة والمكتملة",
+
   text_direction_rtl: "RTL",
   text_direction_ltr: "LTR",
 };

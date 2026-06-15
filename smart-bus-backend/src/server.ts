@@ -30,13 +30,20 @@ connectDB();
 
 // Start cron jobs after DB connection
 import { startTripReminderJob } from "./jobs/tripReminder";
+import { startDriverReminderJob } from "./jobs/driverReminderJob";
 import { startNotificationJobs } from "./jobs/notificationJob";
 import { initCronJobs } from "./jobs/cronJobs";
 import { initAutoConfirmDispatcher } from "./jobs/autoConfirmDispatcher";
+import { startAutoCancelJob, runCleanupNow } from "./jobs/autoCancelJob";
+import { startStudentTripReminderJob } from "./jobs/tripReminderJob";
 startTripReminderJob();
+startDriverReminderJob();
 startNotificationJobs();
 initCronJobs();
 initAutoConfirmDispatcher();
+startAutoCancelJob();
+startStudentTripReminderJob();
+runCleanupNow();
 
 const app = express();
 const PORT = process.env.PORT || 5001;

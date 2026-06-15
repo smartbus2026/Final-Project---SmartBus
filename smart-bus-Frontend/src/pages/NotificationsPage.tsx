@@ -13,7 +13,7 @@ interface Notification {
   createdAt: string;
 }
 
-export default function NotificationsPage() {
+export default function NotificationsPage({ role }: { role?: string }) {
   const { t } = useTranslation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -98,7 +98,7 @@ export default function NotificationsPage() {
 
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-syne text-[15px] font-black uppercase tracking-wider text-app-tx">
-            {t("your_notifications")}
+            {role === "driver" ? t("driver_notifications") : t("your_notifications")}
           </h2>
           {notifications.some(n => !n.read) && (
             <button
