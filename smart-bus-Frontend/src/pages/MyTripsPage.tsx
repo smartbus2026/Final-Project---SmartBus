@@ -42,13 +42,11 @@ export default function MyTripsPage() {
 
       console.log("🔥 RAW BOOKINGS RESPONSE:", bRes.data);
 
-      // هنا إحنا بنصطاد الداتا من أي مكان الباك إند بيبعتها فيه
       let fetchedBookings = bRes.data?.data?.bookings || 
                             bRes.data?.bookings || 
                             bRes.data?.data || 
                             bRes.data || [];
                             
-      // تأكيد إنها Array عشان الكود ميضربش
       if (!Array.isArray(fetchedBookings)) {
         fetchedBookings = [];
       }

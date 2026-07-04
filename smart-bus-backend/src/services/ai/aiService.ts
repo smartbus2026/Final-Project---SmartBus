@@ -1,12 +1,14 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatOllama } from "@langchain/ollama";
+import { ChatGroq } from "@langchain/groq";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, AIMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import { studentTools, adminTools } from "../aiTools";
 import AiChatHistory from "../../models/AiChatHistory.model";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type LLMProvider = ChatOpenAI | ChatOllama;
+type LLMProvider = ChatOpenAI | ChatOllama | ChatGroq | ChatGoogleGenerativeAI;
 
 // ─── Provider Factory ──────────────────────────────────────────────────────────
 
@@ -17,8 +19,44 @@ function buildLLM(): LLMProvider {
     return new ChatOllama({ model: "llama3.1", temperature: 0 });
   }
 
+  if (provider === "groq") {
+    return new ChatGroq({
+      apiKey: process.env.GROQ_API_KEY,
+      model: "llama-3.1-8b-instant",
+      temperature: 0,
+      maxTokens: 1024,
+    });
+  }
+
+  if (provider === "gemini") {
+    return new ChatGoogleGenerativeAI({
+      model: "gemini-2.5-flash",
+      temperature: 0,
+      maxRetries: 2,
+    });
+  }
+
   return new ChatOpenAI({ modelName: "gpt-4o-mini", temperature: 0 });
 }
+
+// ─── Named Exports (import whichever provider you need directly) ───────────────
+
+export const openAiLlm = new ChatOpenAI({ modelName: "gpt-4o-mini", temperature: 0 });
+
+export const ollamaLlm = new ChatOllama({ model: "llama3.1", temperature: 0 });
+
+export const groqLlm = new ChatGroq({
+  apiKey: process.env.GROQ_API_KEY,
+  model: "llama3-70b-8192",
+  temperature: 0.7,
+  maxTokens: 1024,
+});
+
+export const geminiLlm = new ChatGoogleGenerativeAI({
+  model: "gemini-pro",
+  temperature: 0, // Strict for tool calling
+  maxRetries: 2,
+});
 
 // ─── Cairo Date Helpers ────────────────────────────────────────────────────────
 
@@ -285,10 +323,10 @@ export async function handleAiChat(
   // 3. Bind tools to the LLM
   const llmWithTools = llm.bindTools(tools);
 
-  // 4. Load last 15 messages from MongoDB (persistent memory)
+  // 4. Load last 2 messages from MongoDB (1 Human + 1 AI = 1 full interaction pairs)
   const dbHistory = await AiChatHistory.find({ user: userId })
     .sort({ createdAt: -1 })
-    .limit(5)
+    .limit(2)
     .lean();
 
   // Re-order chronologically (we fetched newest-first to limit correctly)

@@ -160,8 +160,20 @@ const cancelTripTool = tool(
 const getUserBookingsTool = tool(
   async ({ userId }) => {
     try {
-      const bookings = await Booking.find({ user: userId, status: { $ne: "cancelled" } })
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+
+      const endOfTomorrow = new Date(tomorrow);
+      endOfTomorrow.setHours(23, 59, 59, 999);
+
+      const bookings = await Booking.find({
+        user: userId,
+        status: { $ne: "cancelled" },
+        date: { $gte: tomorrow, $lte: endOfTomorrow }
+      })
         .populate("route", "name")
+        .select("date status timeSlot specificReturnTime trip route -_id")
         .lean();
         
       if (!bookings || !Array.isArray(bookings) || bookings.length === 0) {
@@ -196,7 +208,7 @@ const getUserBookingsTool = tool(
   },
   {
     name: "getUserBookingsTool",
-    description: "Fetches the active and upcoming bookings for a specific user.",
+    description: "Fetches the user's active bookings for tomorrow (pickup and dropoff).",
     schema: z.object({
       userId: z.string().describe("The ID of the user whose bookings to fetch")
     })
