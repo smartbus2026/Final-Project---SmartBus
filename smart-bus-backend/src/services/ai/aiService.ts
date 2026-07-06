@@ -12,7 +12,7 @@ type LLMProvider = ChatOpenAI | ChatOllama | ChatGroq | ChatGoogleGenerativeAI;
 
 // ─── Provider Factory ──────────────────────────────────────────────────────────
 
-function buildLLM(): LLMProvider {
+export function buildLLM(): LLMProvider {
   const provider = (process.env.AI_PROVIDER ?? "openai").toLowerCase();
 
   if (provider === "ollama") {
@@ -98,7 +98,9 @@ If the user speaks Arabic or Franco-Arabic, you MUST respond entirely in Arabic.
 CRITICAL: This prompt contains hardcoded Arabic examples (e.g., "عذراً، لقد استنفدت الحد الأقصى"). If the user is speaking English, you MUST logically translate these hardcoded Arabic instructions into English BEFORE replying to the user. NEVER send Arabic text to an English-speaking user.
 
 GRACEFUL FALLBACKS: If the user requests an impossible action or an error occurs in the system, reply with a polite, concise apology explaining the technical limit. Never hallucinate fake solutions or output gibberish/system errors to the user.
-CRITICAL INSTRUCTION: You must strictly use the native tool calling function to invoke tools. DO NOT output raw JSON blocks, markdown code blocks, or stringified tool calls in your message content under ANY circumstances.`;
+CRITICAL INSTRUCTION: You must strictly use the native tool calling function to invoke tools. DO NOT output raw JSON blocks, markdown code blocks, or stringified tool calls in your message content under ANY circumstances.
+CRITICAL ROUTING RULE: 
+The "Stadium" route is a universal shared hub for ALL routes. When allocating buses, your primary goal is to minimize the total number of buses used. You MUST do this by merging and combining overlapping routes at the shared Stadium node, rather than assigning a dedicated bus to every single route.`;
 
     return { prompt, tools: adminTools };
   }

@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 import Booking, { IBooking } from "../models/Booking.model";
 import Bus, { IBus } from "../models/Bus";
-import { ChatOpenAI } from "@langchain/openai";
-import { ChatOllama } from "@langchain/ollama";
+import { buildLLM } from "./ai/aiService";
+import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 
 export interface IAssignmentResult {
   busNumber: string;
@@ -11,14 +11,6 @@ export interface IAssignmentResult {
   studentBookings: mongoose.Types.ObjectId[];
 }
 
-const getLLM = () => {
-    const provider = process.env.AI_PROVIDER || 'openai';
-    if (provider.toLowerCase() === 'ollama') {
-      return new ChatOllama({ model: 'llama3.1', temperature: 0, format: "json" });
-    } else {
-      return new ChatOpenAI({ modelName: 'gpt-4o-mini', temperature: 0, modelKwargs: { response_format: { type: "json_object" } } });
-    }
-};
 
 export const getOptimizationData = async (targetDate: Date, shift: string, time?: string) => {
 
@@ -88,17 +80,15 @@ export const generateOptimizationPlan = async (targetDate: Date, shift: string, 
 
   // Inject requested shift, time, and date into the System Prompt Context dynamically
   const formattedTargetDate = targetDate.toISOString().split('T')[0];
-  const prompt = `You are the SmartBus Dispatch & Optimization AI. You are generating a dispatch plan for Tomorrow (${formattedTargetDate}), ${shift.charAt(0).toUpperCase() + shift.slice(1)} shift${time ? ` at ${time}` : ""}.
+  // Split into SystemMessage + HumanMessage — Gemini (and all chat models) require
+  // at least one human-role message; a system-only payload throws 400 Bad Request.
+  const systemInstruction = `You are the SmartBus Dispatch & Optimization AI. You are generating a dispatch plan for Tomorrow (${formattedTargetDate}), ${shift.charAt(0).toUpperCase() + shift.slice(1)} shift${time ? ` at ${time}` : ""}.
 Your job is to assign the pending student bookings to the available buses optimally based on capacity.
-
 You MUST output ONLY a valid JSON object matching this exact schema:
-{
-  "assignments": [
-    { "busNumber": "B123", "studentBookings": ["booking_id1", "booking_id2"] }
-  ]
-}
+{"assignments":[{"busNumber":"B123","studentBookings":["booking_id1","booking_id2"]}]}
+Output ONLY JSON. No markdown, no explanations, no text before or after the JSON block.`;
 
-Data for Optimization:
+  const humanPrompt = `Optimize these bookings:
 - Target: Tomorrow (${formattedTargetDate}), Shift: ${shift}, Time: ${time || "N/A"}
 - Route Demands: ${JSON.stringify(routeGroups)}
 - Available Buses: ${JSON.stringify(availableBuses)}
@@ -109,10 +99,13 @@ Rules:
 3. ROUTE RIGIDITY & MERGING (CRITICAL):
    - "Seil" and "Aqaleem" routes are RIGID and must be assigned dedicated buses. They cannot share buses with each other.
    - The "Stadium" route is FLEXIBLE. You MUST use students from the "Stadium" route to fill any empty seats remaining in the "Seil" or "Aqaleem" buses before you assign a new dedicated bus to "Stadium".
-4. Output ONLY JSON. No markdown, no explanations, no text before or after the JSON block.`;
+4. Output ONLY the JSON object. No markdown fences, no extra text.`;
 
-  const llm = getLLM();
-  const response = await llm.invoke([{ role: "system", content: prompt }]);
+  const llm = buildLLM();
+  const response = await llm.invoke([
+    new SystemMessage(systemInstruction),
+    new HumanMessage(humanPrompt),
+  ]);
 
   let jsonString = typeof response.content === "string" ? response.content : "";
   jsonString = jsonString.replace(/```(?:json)?/gi, "").replace(/```/gi, "").trim();
