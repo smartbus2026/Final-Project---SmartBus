@@ -210,6 +210,16 @@ export default function DriverLayout() {
           // This unlocks the chat and activates the live map on student apps
           socketRef.current?.emit('tripStarted', { tripId, routeId });
 
+          // Emit the initially obtained location instantly to eliminate any latency
+          socketRef.current?.emit('bus_location_update', {
+            busId,
+            driverId,
+            routeId,
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            tripId
+          });
+
           // Begin emitting location updates every 30 s
           startGpsTrackingInterval(tripId, busId, driverId, routeId);
 

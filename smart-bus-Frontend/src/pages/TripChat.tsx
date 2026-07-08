@@ -28,9 +28,8 @@ export default function GroupChat() {
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // tripActive: true once the driver starts the trip.
-  // Controls whether the chat input is unlocked.
-  const [tripActive, setTripActive] = useState(false);
+  // tripStatus: the real-time status of the trip.
+  const [tripStatus, setTripStatus] = useState("scheduled");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const currentUserId = localStorage.getItem("userId");
@@ -41,21 +40,15 @@ export default function GroupChat() {
       try {
         const res = await Api.get("/chat/active-group");
         const data = res.data;
+        console.log("Trip Data received in Student Chat API fetch:", data);
+
         if (data.isOpen) {
           setIsOpen(true);
           setRoomId(data.roomId);
           setRouteName(data.routeName);
           setTimeSlot(data.timeSlot);
           setMessages(data.messages || []);
-
-          // If the API already says the trip is in_progress, unlock immediately
-          if (
-            data.tripStatus === "in_progress" ||
-            data.tripStatus === "in-progress" ||
-            data.tripStatus === "active"
-          ) {
-            setTripActive(true);
-          }
+          setTripStatus(data.tripStatus || "scheduled");
 
           // Store tripId for the socket room subscription
           if (data.tripId) {
@@ -82,19 +75,16 @@ export default function GroupChat() {
     };
   }, [t]);
 
-  // ── tripStarted — unlock the chat input when driver starts the trip ──────────
-  // Listens globally: if the tripId matches ours, setTripActive(true).
-  // If tripId info is unavailable yet, unlock on any tripStarted event
-  // (the chat is already gated behind isOpen which requires a valid booking).
+  // ── tripStarted — unlock the chat UI when driver starts the trip ──────────
+  // Listens globally: if the tripId matches ours, update tripStatus.
   useEffect(() => {
     const handleTripStarted = (payload: { tripId?: string; routeId?: string }) => {
       console.log("[TripChat] tripStarted received:", payload);
-      // If we know our tripId, only unlock for the matching trip
       if (tripId && payload.tripId && String(payload.tripId) !== String(tripId)) return;
-      setTripActive(true);
+      setTripStatus("in_progress");
     };
 
-    const handleTripStartedLegacy = () => setTripActive(true);
+    const handleTripStartedLegacy = () => setTripStatus("in_progress");
 
     socket.on("tripStarted", handleTripStarted);
     socket.on("trip_started", handleTripStartedLegacy);
@@ -141,17 +131,23 @@ export default function GroupChat() {
     );
   }
 
-  if (!isOpen) {
+  // Add Debugger/Log
+  console.log("Trip Data received in Student Chat:", tripStatus);
+
+  // Strict status-based logic: Chat is inaccessible unless trip is active
+  const isChatOpen = tripStatus === "in_progress";
+
+  if (!isChatOpen) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] p-6 text-center animate-in fade-in duration-500">
         <div className="w-24 h-24 bg-app-card border border-app-bd rounded-full flex items-center justify-center text-app-mu mb-6 shadow-inner">
           <Ic.Clock size={40} />
         </div>
         <h2 className="font-syne text-2xl font-black text-app-tx tracking-tight mb-2 uppercase">
-          {t("chat_window_closed")}
+          {t("chat_window_closed") || "Chat Window Closed"}
         </h2>
         <p className="text-sm font-bold text-app-mu uppercase tracking-widest max-w-sm leading-relaxed">
-          {messageLabel || t("chat_is_closed")}
+          {t("chat_unlocks_on_trip_start") || "Chat will unlock when the driver starts the trip."}
         </p>
       </div>
     );
@@ -170,18 +166,11 @@ export default function GroupChat() {
           </div>
         </div>
 
-        {/* Live / Awaiting badge — driven by tripActive state */}
-        {tripActive ? (
-          <div className="flex items-center gap-2 bg-app-ok/10 border border-app-ok/20 text-app-ok px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
-            <div className="w-1.5 h-1.5 rounded-full bg-app-ok animate-pulse" />
-            {t("live")}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 bg-app-am/10 border border-app-am/20 text-app-am px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
-            <Ic.Clock size={10} />
-            {t("awaiting_trip_start") || "Awaiting Start"}
-          </div>
-        )}
+        {/* Live badge */}
+        <div className="flex items-center gap-2 bg-app-ok/10 border border-app-ok/20 text-app-ok px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+          <div className="w-1.5 h-1.5 rounded-full bg-app-ok animate-pulse" />
+          {t("live")}
+        </div>
       </div>
 
       {/* Messages Area */}
@@ -219,37 +208,19 @@ export default function GroupChat() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area — locked until trip is active */}
+      {/* Input Area */}
       <div className="bg-app-card border-t border-app-bd p-4 shrink-0">
-        {/* Lock notice: shown until driver taps Start Trip */}
-        {!tripActive && (
-          <div className="max-w-4xl mx-auto mb-3 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-app-am/5 border border-app-am/20">
-            <Ic.Clock size={13} className="text-app-am shrink-0" />
-            <p className="text-[10px] font-bold text-app-am uppercase tracking-widest">
-              {t("chat_unlocks_on_trip_start") || "Chat unlocks when the driver starts the trip"}
-            </p>
-          </div>
-        )}
         <form onSubmit={handleSend} className="max-w-4xl mx-auto flex gap-3 relative">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            disabled={!tripActive}
-            placeholder={
-              tripActive
-                ? t("type_message_placeholder")
-                : (t("chat_locked_placeholder") || "Waiting for trip to start…")
-            }
-            className={`flex-1 bg-app-card2 border rounded-xl px-5 py-4 text-sm font-medium text-app-tx outline-none transition-all placeholder:opacity-40 ${
-              tripActive
-                ? "border-app-bd focus:border-app-am/50 cursor-text"
-                : "border-app-bd/30 opacity-40 cursor-not-allowed"
-            }`}
+            placeholder={t("type_message_placeholder") || "Type a message..."}
+            className="flex-1 bg-app-card2 border border-app-bd focus:border-app-am/50 rounded-xl px-5 py-4 text-sm font-medium text-app-tx outline-none transition-all placeholder:opacity-40"
           />
           <button
             type="submit"
-            disabled={!newMessage.trim() || !tripActive}
+            disabled={!newMessage.trim()}
             className="bg-app-am hover:brightness-110 text-black px-6 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-app-am/10"
           >
             {t("send")} <Ic.Send size={14} />

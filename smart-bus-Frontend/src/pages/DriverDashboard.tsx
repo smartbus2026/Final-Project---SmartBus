@@ -187,6 +187,21 @@ const DriverDashboard: React.FC = () => {
       navigator.geolocation.clearWatch(watchIdRef.current);
     }
 
+    // Immediately fetch and emit the current location to eliminate initial latency
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const { latitude, longitude, accuracy } = coords;
+        setGeo({ lat: latitude, lng: longitude, accuracy, error: null });
+        socketRef.current?.emit('driver_location_update', {
+          trip_id: tripId,
+          lat:     latitude,
+          lng:     longitude,
+        });
+      },
+      (err) => console.error('[Initial GPS Error]', err),
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+    );
+
     const watchId = navigator.geolocation.watchPosition(
       ({ coords }) => {
         const { latitude, longitude, accuracy } = coords;

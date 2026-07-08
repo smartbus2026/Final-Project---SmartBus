@@ -2,86 +2,49 @@ import { Request, Response } from "express";
 import Message from "../models/chat";
 import Booking from "../models/Booking.model";
 import Settings from "../models/Settings.model";
+import Trip from "../models/Trip";
 import { getIO } from "../socket"; 
 
 export const getActiveGroupChat = async (req: any, res: any) => {
   try {
+    // 1. Find the student's most recent non-cancelled booking on any route
     const booking = await Booking.findOne({
       user: req.user.id,
-      status: { $in: ["pending", "assigned", "active"] }
+      status: { $nin: ["cancelled", "completed", "missed"] }
     }).populate("route", "name").sort({ createdAt: -1 });
 
     if (!booking || !booking.route) {
-      return res.status(200).json({ 
-          isOpen: false, 
-          message: "Route details missing or no active trips found." 
-      });
-    }
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const bookingDate = new Date(booking.date);
-    if (bookingDate < todayStart || bookingDate > todayEnd) {
       return res.status(200).json({
         isOpen: false,
-        message: "Chat is only available on the day of your trip."
+        message: "No active booking found."
       });
     }
 
-    const settings: any = await Settings.findOne();
-    if (!settings) {
-      return res.status(500).json({ error: "System settings not configured." });
-    }
-
-    let tripTimeStr = "";
-    if (booking.timeSlot === "Morning") {
-      tripTimeStr = settings.morningStartTime || "08:30 AM";
-    } else {
-      tripTimeStr = booking.specificReturnTime || "03:30 PM"; 
-    }
-
-    const parseTimeToMinutes = (t: string) => {
-      if (!t) return 0;
-      const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-      if (!m) return 0;
-      let h = parseInt(m[1]);
-      const min = parseInt(m[2]);
-      if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
-      if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
-      return h * 60 + min;
-    };
-
-    const tripStartMin = parseTimeToMinutes(tripTimeStr);
-    
-    // Calculate exact tripStartTime as a JavaScript Date object based on local time
-    const tripStartTime = new Date();
-    tripStartTime.setHours(Math.floor(tripStartMin / 60), tripStartMin % 60, 0, 0);
-
-    // Define the exact boundaries for the chat window
-    const chatOpenTime = new Date(tripStartTime.getTime() - 30 * 60000); // 30 minutes before
-    const chatCloseTime = new Date(tripStartTime.getTime() + 120 * 60000); // 2 hours after
-    const now = new Date();
-
-    if (req.user.role !== "admin") {
-      if (now < chatOpenTime) {
-        return res.json({ isOpen: false, message: "Chat will open 30 minutes before your trip starts." });
-      }
-      if (now > chatCloseTime) {
-        return res.json({ isOpen: false, message: "This chat has been closed as the trip ended." });
-      }
-    }
-
-    // Safely extract _id whether route is populated as an object or just an ObjectId string
+    // Safely extract route _id and name
     const routeObj: any = booking.route;
     const routeId = routeObj._id ? routeObj._id.toString() : routeObj.toString();
     const routeName = routeObj.name || "Unknown Route";
 
-    // Dynamic roomId generation
-    const today = new Date().toISOString().split('T')[0];
-    const roomId = `${routeId}_${today}_${booking.timeSlot}`;
+    // 2. Find the most recently updated trip for this route/timeslot
+    const tripQuery: any = { route: routeId };
+    if (booking.timeSlot === "Morning") {
+      tripQuery.time_slot = "morning";
+    } else {
+      tripQuery.time_slot = { $in: ["return_1530", "return_1900"] };
+    }
+    const trip = await Trip.findOne(tripQuery).sort({ updatedAt: -1 });
+
+    // 3. If the trip is completed or cancelled, close the chat
+    if (trip && (trip.status === "completed" || trip.status === "cancelled")) {
+      return res.status(200).json({
+        isOpen: false,
+        message: "This chat has been closed as the trip ended."
+      });
+    }
+
+    // 4. Build a stable roomId from route + booking date + timeslot
+    const bookingDateStr = new Date(booking.date).toISOString().split("T")[0];
+    const roomId = `${routeId}_${bookingDateStr}_${booking.timeSlot}`;
 
     const messages = await Message.find({ roomId }).sort({ createdAt: 1 }).populate("sender", "name");
 
@@ -90,13 +53,16 @@ export const getActiveGroupChat = async (req: any, res: any) => {
       roomId,
       routeName,
       timeSlot: booking.timeSlot,
-      messages
+      messages,
+      tripStatus: trip?.status || "scheduled",
+      tripId: trip?._id
     });
   } catch (err: any) {
     console.error("[Chat Controller Error]:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
+
 
 export const sendMessage = async (req: any, res: any) => {
   try {

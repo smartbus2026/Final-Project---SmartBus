@@ -560,13 +560,14 @@ export const deleteTrip = async (req: Request, res: Response) => {
 // No time-gate: driver can start at any time.
 export const startTrip = async (req: Request, res: Response) => {
   try {
-    const trip = await Trip.findById(req.params.id);
-    if (!trip) return res.status(404).json({ message: "Trip not found" });
+    const tripId = req.params.id;
+    const trip = await Trip.findByIdAndUpdate(
+      tripId,
+      { status: "in_progress", start_time: new Date() },
+      { new: true }
+    );
 
-    // Normalize to in_progress (underscore) for consistency across the codebase
-    trip.status = "in_progress";
-    (trip as any).start_time = new Date();
-    await trip.save();
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
 
     // Notify all connected clients that the trip is now active
     try {
