@@ -113,6 +113,27 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
       socketRef.current.emit("join-route-room", studentRouteId);
     }
 
+    // ── tripStarted: driver tapped "Start Trip" ────────────────────────────────
+    // Update local trip status to in_progress so the map header and any
+    // conditional UI react immediately (before the first location ping arrives).
+    socketRef.current.on("tripStarted", (data: { tripId?: string; routeId?: string }) => {
+      console.log("[TrackBusPage] tripStarted received:", data);
+      // Only upgrade if the tripId matches (or not specified — global broadcast)
+      if (data.tripId && String(data.tripId) !== String(activeBooking.trip._id)) return;
+      setActiveBooking((prev: any) => {
+        if (!prev) return prev;
+        return { ...prev, trip: { ...prev.trip, status: "in_progress" } };
+      });
+    });
+
+    // Legacy alias
+    socketRef.current.on("trip_started", () => {
+      setActiveBooking((prev: any) => {
+        if (!prev) return prev;
+        return { ...prev, trip: { ...prev.trip, status: "in_progress" } };
+      });
+    });
+
     // Legacy listener (for trip-specific broadcasts)
     socketRef.current.on("bus_location_updated", (data: any) => {
       if (data.lat !== undefined && data.lng !== undefined) {
@@ -127,7 +148,7 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
         
         setActiveBooking((prev: any) => {
           if (prev?.trip?.status === 'scheduled') {
-            return { ...prev, trip: { ...prev.trip, status: 'in-progress' } };
+            return { ...prev, trip: { ...prev.trip, status: 'in_progress' } };
           }
           return prev;
         });
@@ -148,7 +169,7 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
       if (data.tripId && String(data.tripId) === String(activeBooking?.trip?._id)) {
         setActiveBooking((prev: any) => {
           if (prev?.trip?.status === 'scheduled') {
-            return { ...prev, trip: { ...prev.trip, status: 'in-progress' } };
+            return { ...prev, trip: { ...prev.trip, status: 'in_progress' } };
           }
           return prev;
         });
@@ -164,6 +185,7 @@ export default function TrackBusPage({ theme = "dark", go }: { theme?: "dark" | 
       socketRef.current?.disconnect();
     };
   }, [activeBooking]);
+
 
   if (isLoading) {
     return (

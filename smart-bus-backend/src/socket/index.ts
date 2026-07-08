@@ -75,7 +75,8 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
 
     // ── REAL GPS: driver broadcasts live location ────────────────────────────────
     // Payload: { trip_id: string, lat: number, lng: number }
-    socket.on("driver_location_update", async (payload: { trip_id: string; lat: number; lng: number }) => {
+    // Handles both snake_case (driver_location_update) and camelCase (driverLocationUpdate) variants.
+    const handleDriverLocationUpdate = async (payload: { trip_id: string; lat: number; lng: number }) => {
       const { trip_id, lat, lng } = payload;
 
       if (!trip_id || lat === undefined || lng === undefined) return;
@@ -95,10 +96,14 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
       // 2. Forward to all subscribers — admin tracking board + every student
       //    who has joined the trip room (trip:<id>)
       ioInstance?.to(`trip:${trip_id}`).emit("bus_location_updated", { lat, lng });
-      
+
       // Keep admin_tracking updated (sending tripId so admin knows which bus moved)
       ioInstance?.to("admin_tracking").emit("bus_location_updated", { tripId: trip_id, lat, lng });
-    });
+    };
+
+    socket.on("driver_location_update", handleDriverLocationUpdate);
+    // camelCase alias — emitted by the driver frontend after startTrip
+    socket.on("driverLocationUpdate", handleDriverLocationUpdate);
 
     // ── REAL GPS: driver broadcasts live location (bus_location_update) ─────────────────
     // Payload: { busId: string, driverId: string, routeId: string, lat: number, lng: number, tripId?: string }

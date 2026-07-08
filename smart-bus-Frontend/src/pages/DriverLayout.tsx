@@ -189,19 +189,28 @@ export default function DriverLayout() {
       async (position) => {
         setActionLoading(tripId);
         try {
-          await Api.patch(`/trips/${tripId}/start`);
+          const res = await Api.patch(`/trips/${tripId}/start`);
 
           setTrips(prev =>
-            prev.map(t => t._id === tripId ? { ...t, status: 'in-progress' } : t)
+            prev.map(t => t._id === tripId ? { ...t, status: 'in_progress' } : t)
           );
           setActiveTrip(tripId);
 
-          // Get trip details
+          // Get trip details for GPS tracking
           const targetTrip = trips.find(t => t._id === tripId);
           const routeId = targetTrip?.route?._id || '';
           const driverId = (targetTrip as any)?.driver?._id || (targetTrip as any)?.driver || '';
           const busId = (targetTrip as any)?.bus?._id || (targetTrip as any)?.bus || '';
 
+          // Join the trip room so the driver also receives location updates
+          socketRef.current?.emit('join_trip_room', tripId);
+          if (routeId) socketRef.current?.emit('join-route-room', routeId);
+
+          // Notify students and admin that the trip has started
+          // This unlocks the chat and activates the live map on student apps
+          socketRef.current?.emit('tripStarted', { tripId, routeId });
+
+          // Begin emitting location updates every 30 s
           startGpsTrackingInterval(tripId, busId, driverId, routeId);
 
           setToast({ msg: t('trip_started_gps'), type: 'success' });

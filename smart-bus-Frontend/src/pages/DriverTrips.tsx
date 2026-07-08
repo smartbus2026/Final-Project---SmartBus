@@ -77,21 +77,10 @@ export default function DriverTrips() {
           const lastStop        = stops[stops.length - 1]?.name ?? t('stop_destination');
           const routeName       = trip.route?.name ?? '—';
 
-          const tripStartTime = (() => {
-            const d = new Date(trip.date);
-            let timeStr = "08:30";
-            if (trip.time_slot === "return_1530") {
-              timeStr = "15:30";
-            } else if (trip.time_slot === "return_1900") {
-              timeStr = "19:00";
-            }
-            const [hours, minutes] = timeStr.split(":").map(Number);
-            d.setHours(hours, minutes, 0, 0);
-            return d;
-          })();
 
-          const canStart = (tripStartTime.getTime() - Date.now()) <= 60 * 60 * 1000;
-          const startDisabled = isBtnLoading || !!activeTrip || !canStart;
+          // Time-gate removed: driver can start a trip at any time.
+          const canStart = true;
+          const startDisabled = isBtnLoading || !!activeTrip;
           const passengerCount = trip.usersCount ?? trip.booked_seats;
 
           return (
@@ -204,11 +193,6 @@ export default function DriverTrips() {
                         <><Ic.Target size={14} /> {t('start_trip')}</>
                       )}
                     </button>
-                    {!canStart && (
-                      <p className="text-center text-[9px] font-bold text-app-mu uppercase tracking-widest mt-1 animate-pulse">
-                        {t('unlocks_one_hour_before')}
-                      </p>
-                    )}
                     {!!activeTrip && !isThisActive && (
                       <p className="text-center text-[9px] font-bold text-app-err uppercase tracking-widest">
                         {t('end_active_first')}

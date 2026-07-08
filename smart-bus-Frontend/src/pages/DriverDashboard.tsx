@@ -232,9 +232,17 @@ const DriverDashboard: React.FC = () => {
       await Api.patch(`/trips/${tripId}/start`);
 
       setTrips(prev =>
-        prev.map(t => t._id === tripId ? { ...t, status: 'in-progress' } : t)
+        prev.map(t => t._id === tripId ? { ...t, status: 'in_progress' } : t)
       );
       setActiveTrip(tripId);
+
+      // Join the trip room and emit tripStarted so students unlock their chat
+      const targetTrip = trips.find(t => t._id === tripId);
+      const routeId = targetTrip?.route?._id || '';
+      socketRef.current?.emit('join_trip_room', tripId);
+      if (routeId) socketRef.current?.emit('join-route-room', routeId);
+      socketRef.current?.emit('tripStarted', { tripId, routeId });
+
       startGpsWatch(tripId);   // ← real GPS begins streaming here
 
       setToast({ msg: t('trip_started_gps'), type: 'success' });
@@ -417,8 +425,9 @@ const DriverDashboard: React.FC = () => {
                 return d;
               })();
 
-              const canStart = (tripStartTime.getTime() - Date.now()) <= 60 * 60 * 1000;
-              const startDisabled = isBtnLoading || !!activeTrip || !canStart;
+              // Time-gate removed: driver can start a trip at any time.
+              const canStart = true;
+              const startDisabled = isBtnLoading || !!activeTrip;
               const passengerCount = trip.usersCount ?? trip.booked_seats;
 
               return (
@@ -530,7 +539,6 @@ const DriverDashboard: React.FC = () => {
 
                     {/* ── Action Button ── */}
 
-                    {/* SCHEDULED — START (1-hour time-gate enforced) */}
                     {trip.status === 'scheduled' && (
                       <div className="space-y-2">
                         <button
@@ -548,11 +556,6 @@ const DriverDashboard: React.FC = () => {
                             <><Ic.Target size={14} /> {t('start_trip')}</>
                           )}
                         </button>
-                        {!canStart && (
-                          <p className="text-center text-[9px] font-bold text-app-mu uppercase tracking-widest mt-1 animate-pulse">
-                            {t('unlocks_one_hour_before')}
-                          </p>
-                        )}
 
                         {!!activeTrip && !isThisActive && (
                           <p className="text-center text-[9px] font-bold text-app-err uppercase tracking-widest">

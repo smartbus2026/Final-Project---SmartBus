@@ -557,27 +557,40 @@ export const deleteTrip = async (req: Request, res: Response) => {
 };
 
 // Start Trip — called by driver OR admin
+// No time-gate: driver can start at any time.
 export const startTrip = async (req: Request, res: Response) => {
   try {
     const trip = await Trip.findById(req.params.id);
     if (!trip) return res.status(404).json({ message: "Trip not found" });
 
-    trip.status = "in-progress";
+    // Normalize to in_progress (underscore) for consistency across the codebase
+    trip.status = "in_progress";
     (trip as any).start_time = new Date();
     await trip.save();
 
-    // Notify all clients in the trip room that the trip is now active
+    // Notify all connected clients that the trip is now active
     try {
       const io = getIO();
-      io.to(`trip:${trip._id}`).emit("trip_status_update", { tripId: trip._id, status: "in-progress" });
-      io.to("admin_tracking").emit("trip_status_update", { tripId: trip._id, status: "in-progress" });
-      
-      // CRITICAL: emit a Socket.io event trip_started with the routeId so the students' apps know the bus is moving and tracking has begun
+      const tripId = trip._id.toString();
       const routeId = trip.route.toString();
+
+      // Status broadcast — admin tracking board + trip room subscribers
+      io.to(`trip:${tripId}`).emit("trip_status_update", { tripId, status: "in_progress" });
+      io.to("admin_tracking").emit("trip_status_update", { tripId, status: "in_progress" });
+
+      // tripStarted — unlocks student chat & starts map tracking
+      // Emit globally so any connected student receives it,
+      // also targeted to the specific trip room and route room.
+      const tripStartedPayload = { tripId, routeId };
+      io.emit("tripStarted", tripStartedPayload);
+      io.to(`trip:${tripId}`).emit("tripStarted", tripStartedPayload);
+      io.to(`route:${routeId}`).emit("tripStarted", tripStartedPayload);
+
+      // Legacy event kept for backwards compat
       io.emit("trip_started", { routeId });
       io.to(`route:${routeId}`).emit("trip_started", { routeId });
-      io.to(`trip:${trip._id}`).emit("trip_started", { routeId });
-    } catch (_) { /* socket may not be init in tests */ }
+      io.to(`trip:${tripId}`).emit("trip_started", { routeId });
+    } catch (_) { /* socket may not be initialized in tests */ }
 
     res.json({ message: "Trip started", trip });
   } catch (err: any) {
